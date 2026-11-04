@@ -11,9 +11,17 @@
  *     `contextConsumes`; it was computed in graph.js before N-1 and is byte-identical)
  *   reducerContextReads(project, file, modelNode) → Array<{ name, node, file }>
  *     the reads in a model's handlers (4th parameter), sink functions included
- *   staticContextReads(project, file, staticProps) → Array<{ name, node, file }>
- *     PLAN-13 F-1: the reads in the declaration statics' second parameter (the context itself):
- *     `resources` entries, `timers`, `connections`, `head`, `browser`
+ *   staticContextReads(project, file, staticProps) → Array<{ name, node, file, legacy? }>
+ *     PLAN-13 F-1: the reads in the declaration statics' second parameter: `resources` entries,
+ *     `timers`, `connections`, `head`, `browser`, `route`. 7.2: that parameter is the bag (what the
+ *     view gets: `{ ...props, state, context, uid }`), so `(s, { context: { x } })` / `b.context.x`
+ *     read the context; until 8.0 the context's own fields are on the bag too, so a top-level key
+ *     other than state / context / uid (`(s, { x })`, `b.x`) is a `legacy: true` read: a context
+ *     field or a prop, which only the declared context keys tell apart (SYG170, SYG458)
+ *   staticFunctions(project, file, staticProps) → Array<{ name, path, file, node }>
+ *     the declaration statics' functions (the static itself, or each function of an object
+ *     value), `path` 'resources.item' / 'timers'
+ *   BAG_KEYS   the keys of the bag that are never context fields: state, context, uid
  */
 import { walk, unwrap, isFunction, propName, memberName, stringValue } from '../ast.js'
 import { resolveExpr } from './resolve.js'
@@ -32,7 +40,8 @@ export function contextReads(fn, index = 0, direct = false) {
       if (k) out.push({ name: k, node: p.key })
     }
   }
-  // PLAN-13 F-1: a static's second parameter is the context itself
+  // `direct`: the parameter is read as the context itself (PLAN-13 F-1; a declaration static's bag
+  // until 8.0, whose top-level keys may be context fields: staticContextReads)
   if (direct) {
     if (first?.type === 'ObjectPattern') fromPattern(first)
     else if (first?.type === 'Identifier') locals.add(first.name)
@@ -102,19 +111,58 @@ export function reducerContextReads(project, file, modelNode) {
   return out
 }
 
-const STATICS = ['resources', 'timers', 'connections', 'head', 'browser']
-export function staticContextReads(project, file, sp) {
+export const DECLARATION_STATICS = ['resources', 'timers', 'connections', 'head', 'browser', 'route']
+export const BAG_KEYS = new Set(['state', 'context', 'uid'])
+
+export function staticFunctions(project, file, sp) {
   const out = []
-  const fnReads = (f, n) => {
+  const seen = new Set()
+  const fnOf = (name, path, f, n) => {
     const h = isFunction(n) ? { file: f, node: n } : resolveExpr(project, f, n)
-    if (h?.node && isFunction(h.node)) for (const x of contextReads(h.node, 1, true) || []) out.push({ ...x, file: h.file })
+    if (h?.node && isFunction(h.node) && !seen.has(h.node)) {
+      seen.add(h.node)
+      out.push({ name, path, file: h.file, node: h.node })
+    }
     return h
   }
-  for (const k of STATICS) {
+  for (const k of DECLARATION_STATICS) {
     if (!sp[k]) continue
-    const v = fnReads(file, sp[k])
+    const v = fnOf(k, k, file, sp[k])
     // an object of functions (resources, or timers / head as objects)
-    if (v?.node?.type === 'ObjectExpression') for (const q of v.node.properties) if (q.type !== 'SpreadElement') fnReads(v.file, q.type === 'ObjectMethod' ? q : q.value)
+    if (v?.node?.type === 'ObjectExpression') {
+      for (const q of v.node.properties) {
+        if (q.type === 'SpreadElement') continue
+        const key = propName(q)
+        fnOf(k, key ? `${k}.${key}` : k, v.file, q.type === 'ObjectMethod' ? q : q.value)
+      }
+    }
   }
   return out
+}
+
+export function staticContextReads(project, file, sp) {
+  const out = []
+  for (const { file: f, node } of staticFunctions(project, file, sp)) {
+    // 7.2: the bag; `context` on it is the context
+    for (const x of contextReads(node, 1) || []) out.push({ ...x, file: f })
+    // until 8.0: the context's own fields on the bag (or a prop of that name)
+    for (const x of contextReads(node, 1, true) || []) if (!BAG_KEYS.has(x.name)) out.push({ ...x, file: f, legacy: true })
+  }
+  return out
+}
+
+/** Every context key a scanned component's `.context` declares (memoized per build). */
+export function declaredContextKeys(project) {
+  if (project._declaredContextKeys) return project._declaredContextKeys
+  const out = new Set()
+  for (const c of project.components) for (const k of c.contextKeys || []) out.add(k)
+  return (project._declaredContextKeys = out)
+}
+
+/** The model/static reads that are context reads: a legacy bag read only names a declared context key. */
+export function modelContextReads(project, comp) {
+  const reads = comp.contextReadsModel || []
+  if (!reads.some(r => r.legacy)) return reads
+  const keys = declaredContextKeys(project)
+  return reads.filter(r => !r.legacy || keys.has(r.name))
 }

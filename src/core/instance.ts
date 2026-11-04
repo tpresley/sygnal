@@ -249,7 +249,7 @@ export class Inst {
   // flag they were computed from; its reply streams
   st?: Array<[string, string]> | null
   sv?: Record<string, any> | null
-  sS: any; sH: any; sC: any
+  sS: any; sH: any; sC: any; sP: any
   rep?: any[] | null
 
   constructor(
@@ -399,6 +399,8 @@ export class Inst {
     else this.children = children, this.slots = NOSLOTS
   }
   setProps(props: Record<string, any>, children: any[]) {
+    // 7.2: context entries read the props (their bag): new props, every context computed again
+    if (this.def.context && !shallowEq(props, this.props)) this.app.ver++
     this.props = props
     this.setChildren(children)
     this.app.hooks.onPropsChanged?.(viewOf(this), props)
@@ -433,10 +435,11 @@ export class Inst {
     let v = par
     const entries = this.def.context
     if (entries) {
-      const s = this.cell.get()
+      // 7.2: (state, bag), the bag with the parent's context
+      const s = this.cell.get(), b = {...this.props, state: s, context: par, uid: this.uid}
       v = {...par}
       for (const [k, f] of entries) {
-        try { v[k] = f(s) } catch (e) {
+        try { v[k] = f(s, b) } catch (e) {
           logError('SYG404', this, `Context entry '${k}' threw; it keeps its last value`, ERR_FIX, e)
           app.appError(this, e, 'context')
           if (this.cv) v[k] = this.cv[k]

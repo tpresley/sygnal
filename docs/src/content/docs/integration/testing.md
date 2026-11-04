@@ -46,20 +46,13 @@ export default defineConfig({
 
 ```jsx
 // Counter.test.jsx
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { renderComponent } from 'sygnal'
 import Counter from './Counter.jsx'
 
 describe('Counter', () => {
-  let t
-
-  afterEach(() => {
-    t?.dispose()
-    t = null
-  })
-
   it('increments when the button is clicked', async () => {
-    t = renderComponent(Counter, { initialState: { count: 0 } })
+    const t = renderComponent(Counter, { initialState: { count: 0 } })
 
     t.simulateEvent('.inc', 'click')
     const state = await t.next(s => s.count === 1)
@@ -72,6 +65,8 @@ describe('Counter', () => {
 ```
 
 Without the Vite plugin, add `import 'sygnal/diagnostics'` at the top of the test file (or to `test.setupFiles`) to get the dev checks.
+
+Under Vitest the handle is disposed when the test finishes, passed or failed, so the test needs no `afterEach`; see [Cleanup](#cleanup) for other runners.
 
 ## Driving the Component
 
@@ -266,15 +261,11 @@ import { it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderComponent } from 'sygnal'
 import Search from './Search.jsx'
 
-let t
 beforeEach(() => vi.useFakeTimers())
-afterEach(() => {
-  t?.dispose()
-  vi.useRealTimers()
-})
+afterEach(() => vi.useRealTimers())
 
 it('updates the query at once and searches 300 ms after the last keystroke', async () => {
-  t = renderComponent(Search)
+  const t = renderComponent(Search)
   await t.ready()                          // mount first, so the input below is timed from here
   for (const q of ['d', 'du', 'dune']) {
     t.simulateEvent('.q', 'input', { value: q })
@@ -580,6 +571,7 @@ it('opens a task from the list, and goes back', async () => {
 - `t.navigate(url)` navigates as a click on a link with that `href` would. `t.navigate({ to, params, query?, hash?, replace? })` sends that command. Both go through `{ block }` like the real thing. An unknown route name, a missing param or a URL on another origin throws at the call.
 - `t.back()` and `t.forward()` press the browser's buttons: the history moves, and `popstate` fires a task later. A `block` undoes it, as in a browser. They throw when there is no entry to go to.
 - `t.location` is `{ path, search, query, hash, href }` of the in-memory location; `query` is the search parsed as `state.route.query` has it (`{ tab: 'notes' }`).
+- `t.pageLoads` lists the full page loads the app made, as `{ url, replace }` with an absolute `url`: navigations to the router's [`external`](/guide/router/#routes-another-app-owns) URLs, and link clicks the router left to the browser. They are recorded, not made: the location and the page stay as they were.
 - `t.sent('ROUTER')` lists the commands the components sent (`{ to, params }`, `{ back: true }`, `{ block }`). The `route` declarations aren't listed.
 - Links: in the mock DOM, `simulateEvent(selector, 'click')` on an `<a>`, or on an element inside one, also reaches the router's document listener, so the driver decides as it would in a browser. Modified clicks (`{ metaKey: true }`), `target="_blank"`, `download`, `rel="external"`, `data-router-ignore` and other origins are left alone. With `dom: 'real'` the click is a real event that bubbles to the document.
 - Each call returns a promise that resolves once the new route has been reduced and the tree has rendered, as `t.respond` does. Fake timers work: `popstate` and the redirect order run on the test's clock.
@@ -641,7 +633,7 @@ While a component is rendered, diagnostics are collected (`'collect'` mode by de
 - `t.expectNoDiagnostics()` throws, with the formatted messages, if any warning or error was collected. Call it at the end of a test (after `settle()` or `next()`).
 - `t.diagnostics` lists everything collected, info included.
 - `renderComponent(C, { diagnostics: 'error' })` makes every warning throw instead.
-- `renderComponent(C, { strict: true })` turns on the [strict-mode](/guide/strict-mode/) canonical-form checks for this render. At run time that is [SYG508](/reference/errors/#syg508); SYG503, SYG505, SYG507 and SYG509 are checked statically only, by `sygnal-check --strict`. `strict` only turns the checks on: their findings are collected like any other diagnostic, and the test fails on them only with `t.expectNoDiagnostics()` or `diagnostics: 'error'`.
+- `renderComponent(C, { strict: true })` turns on the [strict-mode](/guide/strict-mode/) canonical-form checks for this render. At run time that is [SYG508](/reference/errors/#syg508); SYG503, SYG505, SYG507 and SYG509 are checked statically only, by `sygnal-check --strict`. Under `strict`, the test also has to look at what was collected: `t.dispose()` (or the automatic dispose at the end of a Vitest test) throws, listing them, when warnings or errors were reported that the test never read through `t.expectNoDiagnostics()` or `t.diagnostics`. When the test has already failed, they are printed with `console.warn` instead, so the test's own error stays the one reported.
 - `renderComponent(C, { timingAudit: true })` turns on the 7.0 timing audit for this render: [SYG257](/reference/errors/#syg257) (info) for each output sink that reads a top-level field the same action's STATE changed. Info isn't a failure for `expectNoDiagnostics()`; read the reports from `t.diagnostics` (see [Migrating to 7.0](/guide/migrating-to-7/#step-by-step)).
 
 ```jsx
@@ -683,7 +675,8 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | `context` | `object` | none | The context the component's ancestors would give it, for testing a child alone (see [Context](#context)) |
 | `drivers` | `object` | `{}` | Extra drivers beyond DOM, EVENTS, STATE and LOG |
 | `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
-| `strict` | `boolean` | unchanged | Strict-mode runtime checks (SYG508) while rendered; findings are collected, not thrown |
+| `strict` | `boolean` | unchanged | Strict-mode runtime checks (SYG508) while rendered; `dispose()` throws on warnings and errors the test never read |
+| `autoDispose` | `boolean` | `true` | Under Vitest, dispose the handle when the test that made it finishes; `false` keeps it until `t.dispose()` |
 | `timingAudit` | `boolean` | unchanged | The 7.0 timing audit (SYG257) while rendered, for upgrading 6.x code |
 | `onError` | `(error, info) => void` | none | The [app-level error hook](/advanced/error-boundaries/#tests), as `run()`'s `onError` |
 | `mockConfig` | `object` | `{}` | Extra mock DOM event streams, by selector (see below) |
@@ -737,6 +730,7 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `navigate` | `(url \| { to, params }) => Promise<void>` | Router fake: navigate as a link click or a command (through `block`); throws for an unknown route |
 | `back`, `forward` | `() => Promise<void>` | Router fake: the browser's back and forward buttons |
 | `location` | `{ path, search, hash, href }` | Router fake: the in-memory location |
+| `pageLoads` | `Array<{ url, replace }>` | Router fake: the full page loads (`external` URLs, links left to the browser), recorded, not made |
 | `head` | `() => { title, meta, link }` | HEAD fake: the merged head the components declare |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if any warning or error was collected |
@@ -748,7 +742,8 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `state$`, `dom$` | `Stream` | Live state and VNode streams |
 | `events$` | `EventsSource` | The event bus source (`.select(type)`) |
 | `sinks`, `sources` | `object` | All sink streams and source objects |
-| `dispose` | `() => void` | Tear down the tree (fires `DISPOSE`) and restore the diagnostics settings |
+| `dispose` | `() => void` | Tear down the tree (fires `DISPOSE`) and restore the diagnostics settings; a second call does nothing |
+| `[Symbol.dispose]` / `[Symbol.asyncDispose]` | `() => void` / `() => Promise<void>` | `using t = renderComponent(C)` / `await using`: `dispose()` when the block exits |
 | `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | Elements of the latest render: snapshots on the mock DOM ([Reading Output](#reading-output)), real elements with `dom: 'real'` |
 | `container` | `Element \| null` | `dom: 'real'`: the mount element (`null` with the mock DOM) |
 | `widget` | `(selector \| control) => { props, instance, emit }` | A [widget's](/guide/widgets/#testing) host: the props the view passed it, the instance `mount` returned (`dom: 'real'`), and `emit(name, detail)` |
@@ -872,22 +867,27 @@ This tests `NewTodo` from [Controlled inputs](/guide/inputs/#controlled-inputs).
 
 ## Cleanup
 
-Always call `dispose()` when a test is done, for example in `afterEach`. It disposes the whole tree (children's `DISPOSE` actions run), removes listeners, and restores the diagnostics mode and strict setting. A wait still pending (`ready`, `next`, `waitForState`, `settle`) rejects with "renderComponent was disposed", also under fake timers, so await every wait before disposing.
+`dispose()` disposes the whole tree (children's `DISPOSE` actions run), removes listeners, closes the fake connections, and restores the diagnostics mode and strict setting. A second call does nothing. A wait still pending (`ready`, `next`, `waitForState`, `settle`) rejects with "renderComponent was disposed", also under fake timers, so await every wait before disposing.
 
-Vitest tears its worker down after each file, so a test that throws before its `t.dispose()` still ends. Other runners don't: under `node:test` the tree's timers and router keep the process alive and it never exits. Dispose in a hook that runs when the test fails too:
+A test that throws before its own `t.dispose()` must still dispose, or the tree's timers and router keep running (under `node:test` the process never exits). Sygnal does it for you in three ways:
+
+- **Vitest**: a handle created inside a test (or its `beforeEach`) is disposed when that test finishes, passed or failed, as Testing Library cleans up after each test. Nothing to write. A handle created in `beforeAll` or at the top of a file is shared between tests, so it isn't disposed: dispose it in `afterAll`. `renderComponent(C, { autoDispose: false })` keeps a handle past its test.
+- **`using`**: `using t = renderComponent(C)` (or `await using`) disposes at the end of the block, also when it throws, in any runner (TypeScript 5.2+, Node 18.18+ or a transpiler).
+- **`cleanup()`**: disposes every live handle. Under `node:test`, one line covers the file:
 
 ```jsx
 import { test, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { renderComponent } from 'sygnal'
+import { renderComponent, cleanup } from 'sygnal'
 import Counter from './Counter.jsx'
 
-let t
-afterEach(() => t?.dispose())
+afterEach(cleanup)
 
 test('increments', async () => {
-  t = renderComponent(Counter, { initialState: { count: 0 } })
+  const t = renderComponent(Counter, { initialState: { count: 0 } })
   t.simulateEvent('.inc', 'click')
   assert.equal((await t.next(s => s.count === 1)).count, 1)
 })
 ```
+
+`dispose()` and `cleanup()` throw what the test hasn't seen yet: a failure still pending (an event whose element never rendered) and, under `strict: true`, the diagnostics the test never read ([Diagnostics in Tests](#diagnostics-in-tests)). `cleanup()` disposes every handle first, then throws.

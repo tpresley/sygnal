@@ -278,5 +278,8 @@
   },
   "SYG457": {
     "App.jsx": "import { wizard, Outlet } from 'sygnal'\nfunction A() { return <p /> }\nexport function App() { return <main><Outlet of={{ a: A, c: A }} from=\"wizard\" /></main> }\nApp.uses = { wizard: wizard({ steps: { a: {} } }) }\n"
+  },
+  "SYG458": {
+    "App.jsx": "import { run } from 'sygnal'\nfunction Page() { return <p /> }\nPage.head = (s, { id, route }) => ({ title: route + id })\nfunction App() { return <main><Page /></main> }\nApp.initialState = {}\nApp.context = { route: (s) => s.route }\nrun(App)\n"
   }
 }

@@ -57,9 +57,9 @@ Quote.model = {
 
 - **A refetch of the same request keeps what is shown.** `{ refresh: 'quote' }`, an [invalidation](#invalidation), a [focus or reconnect refetch](#focus-reconnect-and-polling), polling, or the same request declared again after a pause keep `status`, `data` and `error`, and set `refreshing: true` until the reply lands. Show a spinner next to the data, or treat `refreshing` like loading when the old data must not be visible.
 - **A new request clears it.** When the derived request changes (another id), the resource goes to `'loading'` with no data, and the earlier request is aborted: its reply never lands. For pagination, where the previous page should stay visible, set `keepPrevious: true` on the request: the old `data` stays (with `refreshing: true`) until the new page arrives.
-- **Change detection is by value.** A state change that derives an equal request (by JSON) sends nothing. Fields that only change how the request is handled are left out of that comparison: `refetchEvery`, `keepPrevious`, `ok`, `error`, `key`, `category`, `latest`, `timeoutMs`, `retry`, `cache`, `staleTime`, `tags`, `invalidates`, `updates`, `background` and `progress`. Changing one of them takes effect with no fetch and no change to `status` or `data`: `refetchEvery: state.live ? 5000 : undefined` starts and stops [polling](#focus-reconnect-and-polling) while the data stays shown.
-- **An entry gets the context too**: `(state, context)`. A routed page reads `route` from context (`(state, { route }) => `/api/tasks/${route.params.id}``) instead of keeping a copy of it; the entries are computed again when the context changes ([Router](/guide/router/)).
-- **An entry gets no props.** When a child's read depends on something its parent knows (a project id, a filter), give it through the parent's [`.context`](/guide/context/) and read it there, or bind the child with a lens whose `get` adds the parent's field to the child's slice. Copying the prop into the child's state with an action is a second copy that can fall behind.
+- **Change detection is by value.** A state change that derives an equal request (by JSON) sends nothing. Fields that only change how the request is handled are left out of that comparison: `refetchEvery`, `keepPrevious`, `ok`, `error`, `key`, `category`, `latest`, `timeoutMs`, `retry`, `cache`, `staleTime`, `tags`, `invalidates`, `invalidateOn`, `updates`, `background` and `progress`. Changing one of them takes effect with no fetch and no change to `status` or `data`: `refetchEvery: state.live ? 5000 : undefined` starts and stops [polling](#focus-reconnect-and-polling) while the data stays shown.
+- **An entry gets the [bag](/guide/state/#what-every-function-gets)**: `(state, { ...props, state, context, uid })`, what the view gets. A child whose read depends on something its parent knows (a project id, a filter) takes it as a prop: `(state, { projectId }) => `/api/projects/${projectId}/tasks``. A routed page reads `route` from context (`(state, { context: { route } }) => `/api/tasks/${route.params.id}``) instead of keeping a copy of it. The entries are computed again when the state, the context or a prop (compared shallowly) changes ([Router](/guide/router/)). Don't copy a prop into the child's state with an action: that is a second copy that can fall behind.
+- **7.2 compatibility.** Before 7.2 the second argument was the context, so `(state, { route })` read a context field. It still works until 8.0, with a dev warning ([SYG458](/reference/errors/#syg458)); a prop of the same name wins. `sygnal-check --fix` rewrites it to `(state, { context: { route } })`.
 - `ok` / `error` on the request also dispatch those actions after the write, for side work. Not for collecting pages: see [Infinite list](#infinite-list).
 - A Collection item, or any component instance, has its own resources. Removing it aborts them.
 - In a hidden [Switchable](/guide/switchable/#hidden-pages-pause-connections-and-resources) page, resources pause: the request in flight is aborted and the resource keeps its last result (`refreshing` off; `'idle'` if nothing had arrived yet). When the page is shown again, the same request is refetched, keeping data. Mark an entry `background: true` to keep it live while hidden.
@@ -207,13 +207,15 @@ QuoteEditor.model = {
 }
 ```
 
-- `invalidates` on any request runs after a 2xx reply only.
+- `invalidates` on any request runs after a 2xx reply only, unless the request says `invalidateOn: 'settled'` (below).
 - `{ invalidate: value }` on the `HTTP` sink invalidates right away, from any component: `HTTP: () => ({ invalidate: 'quotes' })`.
 - The value is a tag (`'quotes'`), a URL prefix of the request's `url` (a string starting with `/`: `'/api/quotes'`), an array of them, or a predicate `(request) => boolean`. Tags are explicit: nothing is derived from the URL.
 - Matching **mounted** resources refetch, keeping their data (`refreshing: true`); matching cache entries are marked stale, so the next use refetches. Invalidation works with or without the cache.
 - **Invalidation aborts older reads.** A refetch aborts the resource's read already in flight, so a reply sent before the save never lands after it: no request ids or sequence numbers. A shared cache fetch in flight for a matching entry still answers the requests waiting on it, but never writes the cache.
 - **An `ok` action that navigates is fine.** When the `ok` action changes the resource's request (a `ROUTER` move to the next record), the new request is sent and the invalidation never resends the old one after it.
 - An `invalidate` that matches nothing is reported as [SYG632](/reference/errors/#syg632) (info).
+
+**Invalidating after a failure too.** A write that fails can still leave the reads stale, for example after an optimistic update or a save the server applied in part. `invalidateOn: 'settled'` on the request runs its `invalidates` after any final outcome: a 2xx, a non-2xx status, a network error, a timeout or a `validate` failure. This is the equivalent of invalidating in React Query's `onSettled` instead of `onSuccess`. On a failure, the resource's error and the `error` action come first, then the refetch, in the same order as on success. An aborted request (superseded by `latest`, cancelled, or its component disposed) invalidates nothing, and a request with `retry` invalidates once, after its last attempt. To make it the default for every request, use `makeFetchDriver({ invalidateOn: 'settled' })` (in tests: `renderComponent(C, { http: { invalidateOn: 'settled' } })`). A request's own `invalidateOn: 'success'` still wins.
 
 ## Resetting
 
@@ -349,49 +351,45 @@ With a `queryCache()`, going back to a page fetched less than `staleTime` ago sh
 
 ### Infinite list
 
-Give each loaded page its own resource, `page0`, `page1`, …, and derive the list from them. Page `i` starts at the cursor page `i - 1` returned, and "Load more" adds a page:
+A paged resource owns its pages, like TanStack Query's `useInfiniteQuery`. Make the entry's `url` a function of the cursor, and say in `next` how the cursor of the following page is read from the last one:
 
-```jsx
-import { ABORT } from 'sygnal'
-
-const pageName = (i) => `page${i}`
-const pagesOf = (state) => Array.from({ length: state.pages }, (_, i) => state[pageName(i)])
-// the first page has no cursor; a later one waits (undefined) until the page before it arrives
-const cursorFor = (state, i) => (i === 0 ? null : state[pageName(i - 1)]?.data?.nextCursor)
-
+```jsx title="Feed.jsx"
 function Feed({ state }) {
+  const { data, hasMore, loadingMore, status } = state.feed
+  const items = data?.pages.flatMap(page => page.items) ?? []
   return (
     <div>
-      <ul>{state.items.map(item => <li>{item.title}</li>)}</ul>
-      {pagesOf(state).at(-1)?.status === 'loading' && <p className="loading">Loading…</p>}
-      {state.hasMore && <button className="more">Load more</button>}
+      <ul>{items.map(item => <li>{item.title}</li>)}</ul>
+      {(status === 'loading' || loadingMore) && <p className="loading">Loading…</p>}
+      {hasMore && !loadingMore && <button className="more">Load more</button>}
     </div>
   )
 }
-Feed.initialState = { pages: 1 }
-Feed.resources = (state) => Object.fromEntries(
-  Array.from({ length: state.pages }, (_, i) => {
-    const after = cursorFor(state, i)
-    return [pageName(i), after !== undefined && { url: '/api/feed', query: { after }, tags: ['feed'], keepPrevious: true }]
-  })
-)
-Feed.calculated = {
-  // a row that moved to a later page while the pages refetched is shown once
-  items: (state) => {
-    const seen = new Set()
-    return pagesOf(state).flatMap(page => page?.data?.items ?? []).filter(item => !seen.has(item.id) && seen.add(item.id))
-  },
-  hasMore: (state) => pagesOf(state).at(-1)?.data?.nextCursor != null,
+Feed.initialState = { q: '' }
+Feed.resources = {
+  feed: (state) => ({
+    url: (cursor) => ({ url: '/api/feed', query: { after: cursor, q: state.q } }),
+    next: (page) => page.nextCursor,
+    tags: ['feed'],
+  }),
 }
 Feed.intent = ({ DOM }) => ({ MORE: DOM.click('.more') })
 Feed.model = {
-  MORE: (state) => (pagesOf(state).at(-1)?.status !== 'success' || !state.hasMore ? ABORT : { ...state, pages: state.pages + 1 }),
+  MORE: { HTTP: () => ({ more: 'feed' }) },
 }
 ```
 
-A refetch (an invalidation of `'feed'`, a focus refetch, polling) refetches every loaded page, from the first, so new rows appear at the top and each later page gets the cursor of the fresh page before it. Nothing depends on an `ok` action, so a refetch or a cached revisit can't append a page twice or miss one: the list is whatever the pages hold. Rows pushed past the last loaded page by new ones drop off the end until "Load more" fetches them; `hasMore` stays true. For a page-number API, `cursorFor` is `(state, i) => i + 1` and `hasMore` reads the last page's own flag. To start over, set `pages: 1`. A remounted `Feed` starts at one page, shown at once from a `queryCache()` while it refetches.
+- **State.** `state.feed` has the usual `status`, `refreshing` and `error`. Its `data` is `{ pages, cursors }`: each page's body, and the cursor it was fetched with. `hasMore` is true when `next` returns a cursor for the last page; `null` or `undefined` means there are no more pages.
+- **More.** `{ more: 'feed' }` on the `HTTP` sink loads the next page and appends it. `loadingMore` is `'next'` while it loads. The command is ignored while the resource is loading, before its first page, and when there is no next cursor, so a double click loads one page.
+- **The first cursor** is `undefined`, unless you set `initialCursor` (a page-number API: `initialCursor: 1`, `next: (page, pages) => page.hasNext ? pages.length + 1 : undefined`). `next` gets `(page, pages, cursor, cursors)`.
+- **A refetch reloads every loaded page, from the first.** An [invalidation](#invalidation), `{ refresh: 'feed' }`, a focus refetch or polling fetches the first page again, then each later page at the cursor the fresh page before it returns. New rows appear at the top, and the pages are written once, at the end. If a cursor comes back empty, the refetch stops there with fewer pages. Until then the old pages stay shown with `refreshing: true`.
+- **A change of the first page's request starts over.** The resource's identity is its first page's request, `url(initialCursor)`. When it changes (`state.q` above, or a prop), the resource goes back to `'loading'` with one page. `{ reset: 'feed' }` does the same without a change.
+- **Cached.** With a [`queryCache()`](#the-query-cache), the pages are one cache entry. A remounted `Feed` shows the cached pages at once, `'success'` with `refreshing: true`, and refetches them.
+- **Errors keep the pages.** When a page fails, whether it is a "Load more" or a refetch, the resource becomes `'error'` with the pages it showed. `{ more }` tries the failed page again.
+- **`maxPages`** keeps at most that many pages: a "Load more" past it drops the oldest. To load pages before the first one again, add `previous: (page, pages, cursor, cursors) => cursor` and send `{ more: 'feed', previous: true }`. `hasPrevious` and `loadingMore: 'previous'` mirror `hasMore` and `loadingMore: 'next'`.
+- Every other field (`tags`, `staleTime`, `refetchEvery`, `validate`, `retry`, …) applies to each page's request. In tests, `t.respond('HTTP', body, 'feed')` answers the pending page, one page per call.
 
-Don't accumulate pages in an `ok` action (`items: [...state.items, ...body.items]`): a resource refetches its current request, the last page, so its rows repeat, new rows never reach the top, and a reply served from the cache runs no `ok` at all.
+Don't collect pages in an `ok` action (`items: [...state.items, ...body.items]`). A plain resource refetches its current request, which is the last page, so its rows repeat and new rows never reach the top. A reply served from the cache runs no `ok` at all, so a cached revisit comes back empty.
 
 ### List and detail with a save
 

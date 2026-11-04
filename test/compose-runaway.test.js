@@ -153,6 +153,7 @@ describe('a reply in a loop is stopped', () => {
     expect(shape(t.state.page.layout)).toEqual(['tickets', 'weather'])
     expect(t.state.page.decisions.repairs).toContainEqual({ kind: 'stopped', detail: 'operation 2 repeats an earlier one' })
     expect(t.sinkValues('LLM').at(-1)).toEqual(expect.objectContaining({ abort: 'compose' }))
+    expect(t.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.code)).toEqual(['SYG687'])
   })
 })
 
@@ -181,6 +182,7 @@ describe("a runaway stop with busy: 'queue'", () => {
     t.simulateAction('page.COMPOSE', { prompt: 'the weather', fresh: true })
     await t.next((s) => s.page.queued?.prompt === 'the weather')
     expect(t.requests('LLM')).toHaveLength(sent)
+    expect(t.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.code)).toEqual(['SYG687'])
   })
 })
 

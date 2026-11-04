@@ -122,7 +122,7 @@ export default NewProject
 
 **The `wizard` options:**
 - **`steps`:** the steps, in order. Each step can have:
-  - `label`, a string or a function of the step's state and the host's state (`(s, state) => s.bound ? 'Review and save' : 'Review'`);
+  - `label`, a string or a function of the step's state and the bag (`(s, { state }) => s.bound ? 'Review and save' : 'Review'`);
   - `valid`, which gates Next and the steps after it;
   - `when`, which leaves the step out of the flow when false;
   - `visit`, the step's scratch (below);
@@ -165,9 +165,11 @@ What a step's state keeps, and when:
 
 - **`visit`** is a step's scratch: fields that must not survive leaving the step, such as a `creating` flag or an error. `review: { visit: { creating: false, error: null } }` sets them on every entry.
 - **`initialState`:** a step with one also needs `isolatedState = true`, and starts its own slice from it.
-- **Predicates:** `valid`, `when`, `dirty` and a function `label` get `(step, state)`:
+- **Predicates:** `valid`, `when`, a function `label`, `dialog` or `visit`, and a step's `discard` get `(step, bag)`; `dirty` gets `(step, stepName, bag)`:
   - `step` is what the step sees: its `initialState`, its own slice, and the draft;
-  - `state` is the host's state, for what the step doesn't hold (the route, a setting).
+  - `bag` is what the host's view gets ([What every function gets](/guide/state/#what-every-function-gets)): its props, `context`, `uid`, and `state`, the host's state, for what the step doesn't hold (the route, a setting, a record id prop).
+
+  `draft`, `key` and `url.from` get `(state, bag)`, `resetTo` and the wizard-level `discard` `(slice, bag)`. What the wizard watches in its intent (the key, the leave guard, the derived fields) gets the host's props and state, not its context or uid.
 
   A step can therefore be skipped because of an earlier step's answer, as the Seats step is in the recipe. The derived fields (`steps`, `canNext`, …) are updated whenever the slice or the host's state changes.
 - **Types:** `wizard<Draft, State, { review: ReviewState }>` types each step's slice (`state.wizard.local.review`). A step component is a `WizardStepComp`, whose `initialState` is its own fields:
@@ -221,9 +223,9 @@ wizard({
 
 `reset: '.start-over'`, the `wizard.RESET` action, or a step's `{ wizard: 'RESET' }` starts the flow over: the draft, every step's slice, and the first step. When the action's data (the message's `draft`) is a plain object, it is the new draft.
 
-In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state)` on that route, once it has landed, not on the route left. `resetTo` names another place:
+In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state, bag)` on that route, once it has landed, not on the route left. `resetTo` names another place:
 - a router command: `resetTo: { to: 'newFilter' }`;
-- or a function of the slice *being reset* and the host's state, when the flow's data decides where its start over goes: `resetTo: (prev) => ({ to: 'newFilter', query: { filter: prev.draft.bound } })`.
+- or a function of the slice *being reset* and the bag, when the flow's data decides where its start over goes: `resetTo: (prev) => ({ to: 'newFilter', query: { filter: prev.draft.bound } })`.
 
 A Start over *link* inside a step must not navigate as well: the router would push its `href` and then `resetTo`. Keep the `<a href>` (it still works as a link without the app) and prevent its default in the intent:
 
@@ -237,16 +239,16 @@ StartOver.model = { RESTART: { PARENT: () => ({ wizard: 'RESET' }) } }
 ```js
 wizard({
   steps,
-  dirty: (step, state) => step.draft.source != null,
+  dirty: (step, name, bag) => step.draft.source != null,
   confirm: '.leave-dialog', leave: '.discard', stay: '.stay',
 })
 ```
 
-`dirty` gets the current step's state and the host's state, plus the step's name. A step's own `dirty` in `steps` is used instead while it is the current step: `review: { dirty: (s) => s.name !== '' }`.
+`dirty` gets the current step's state, the step's name and the bag. A step's own `dirty` in `steps` is used instead while it is the current step: `review: { dirty: (s) => s.name !== '' }`.
 
-**A step's own `discard`** takes the step's state and returns it, as `dirty` reads it: `review: { discard: (s) => ({ ...s, name: '' }) }`. The draft under its key in the result updates the draft. The wizard-level `discard(wizardSlice, state)` returns the whole slice.
+**A step's own `discard`** takes the step's state and returns it, as `dirty` reads it: `review: { discard: (s) => ({ ...s, name: '' }) }`. The draft under its key in the result updates the draft. The wizard-level `discard(wizardSlice, bag)` returns the whole slice.
 
-**The dialog's copy** can follow the step: `steps.x.dialog` (any value, or a function of the step's state and the host's state), else the wizard's `dialog`, is `state.wizard.dialog`:
+**The dialog's copy** can follow the step: `steps.x.dialog` (any value, or a function of the step's state and the bag), else the wizard's `dialog`, is `state.wizard.dialog`:
 
 ```js
 wizard({ steps: { describe: { dialog: { title: 'Discard your reply?' } }, review: { dialog: { title: 'Discard your edits?' } } } })

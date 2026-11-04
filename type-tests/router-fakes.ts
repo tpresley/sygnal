@@ -11,6 +11,7 @@ t.back()
 t.forward()
 const path: string = t.location.path + t.location.search + t.location.hash + t.location.href
 const tab: string | undefined = t.location.query.tab
+const loads: Array<{ url: string; replace: boolean }> = t.pageLoads
 const commands: any[] = t.sent('ROUTER')
 const title: string | undefined = t.head().title
 const description: string = t.head().meta.description
@@ -21,4 +22,6 @@ renderComponent(App, { router: { home: '/' } })
 t.navigate({ params: { id: 1 } })
 // @ts-expect-error location is read-only
 t.location = { path: '/', search: '', hash: '', href: '' }
+// @ts-expect-error pageLoads is read-only
+t.pageLoads = []
 export { p, path, tab, commands, title, description, links }

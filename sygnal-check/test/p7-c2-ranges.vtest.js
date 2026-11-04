@@ -68,6 +68,7 @@ const RANGES = [
   ['SYG455', 'App.jsx', 3, 'from="wizrd"'],
   ['SYG456', 'App.jsx', 3, 'of={{ a: A }}'],
   ['SYG457', 'App.jsx', 3, 'c'],
+  ['SYG458', 'App.jsx', 3, 'route'],
   ['SYG410', 'App.jsx', 2, 'state=""'],          // the attribute (what --fix removes)
   ['SYG124', 'App.jsx', 7, 'TodoItem'],
   ['SYG125', 'App.jsx', 2, 'Add.model'],

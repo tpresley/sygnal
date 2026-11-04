@@ -2034,6 +2034,16 @@ An `<Outlet of={{ … }} from="wizard">` maps step names to components, and one 
 
 **Fix:** Rename the key to the step it is for (the checker suggests the closest name), or remove the entry.
 
+### SYG458
+
+**Declaration reads a context field off its bag**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+Since Sygnal 7.2 the second argument of the declaration statics `resources`, `timers`, `connections`, `head`, `browser` and `route` is the bag the view gets, `{ ...props, state, context, uid }`, not the context. For compatibility the context's own fields are still readable on the bag until 8.0, so `Page.resources = { item: (state, { route }) => ... }` keeps working, but 8.0 removes them; and when the component also takes a prop of that name the bag's own key wins, so the declaration reads the prop, not the context field. The dev entry reports the read at run time. sygnal-check reports a top-level key of the parameter's object pattern, or a member read off a plain parameter (`(state, bag) => bag.route`), that names a key some scanned component's `.context` declares; `state`, `context` and `uid` are the bag's own, and a key no `.context` declares is taken for a prop.
+
+**Fix:** Read it from the bag's context: `Page.resources = { item: (state, { context: { route } }) => '/api/items/' + route.params.id }` instead of `(state, { route }) => ...`, and `bag.context.route` instead of `bag.route`. `sygnal-check --fix` rewrites the destructuring form, keeping props at the top level: `(state, { id, route })` becomes `(state, { id, context: { route } })`, merged into an existing `context: { ... }` entry.
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501

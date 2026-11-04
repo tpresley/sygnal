@@ -110,7 +110,7 @@ import { resolveExpr, resolveExport } from './resolve.js'
 import { selectorTokens } from '../selectors.js'
 import { renderedUsages } from './usages.js'
 import { openPrefixes } from './behaviors.js'
-import { contextReads } from './context.js'
+import { contextReads, modelContextReads } from './context.js'
 import { resolveControl } from './controls.js'
 import { findInChildren } from '../rules/syg110-selector-in-view.js'
 
@@ -610,7 +610,7 @@ export function buildIndex(project, { exclude } = {}) {
   for (const c of project.components) {
     if (!c.view) continue
     consume(c.view, idOf(c), c.file, c.contextConsumed)
-    consume(c.view, idOf(c), c.file, c.contextReadsModel)
+    consume(c.view, idOf(c), c.file, modelContextReads(project, c))
   }
   for (const [node, ref] of refs) {
     if (project.componentForFunction(node)) continue

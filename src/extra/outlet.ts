@@ -70,7 +70,8 @@ const shallow = (a: any, b: any) => {
 }
 
 // a step's state: its own slice over its component's initialState, plus the flow's draft
-const stepLens = (from: string, name: string, C: any, DK: string, calc: (w: any, h: any) => any) => {
+// (calc(slice, bag): the owner's bag `ob` for a host state, 7.2)
+const stepLens = (from: string, name: string, C: any, DK: string, calc: (w: any, B: any) => any, ob: (s: any) => any) => {
   const init = C?.initialState && typeof C.initialState == 'object' ? C.initialState : {}
   let last: any, lo: any, ld: any
   return {
@@ -88,7 +89,7 @@ const stepLens = (from: string, name: string, C: any, DK: string, calc: (w: any,
       const {[DK]: draft, ...own} = v, same = shallow(own, {...init, ...w.local?.[name]})
       if (same && draft === w.draft) return s
       const n = {...w, draft, local: same ? w.local : {...w.local, [name]: own}}
-      return {...s, [from]: calc(n, {...s, [from]: n})}
+      return {...s, [from]: calc(n, ob({...s, [from]: n}))}
     },
   }
 }
@@ -106,12 +107,13 @@ function rewrite(n: any, owner: any): any {
       for (const name in of) W.step(name, of[name])
       // the state belongs to the flow key the host state names: the same, none (the flow kept), or
       // a key born mid-flow (the slice has none yet: adopted, the flow kept)
-      const k = W.keyOf?.(s)
+      // (7.2: the wizard's functions get the owner's bag, as its view does, without children / slots)
+      const ob = (h: any) => ({...owner.props, state: h, context: owner.context?.(), uid: owner.uid}), k = W.keyOf?.(s, ob(s))
       if (w?.visit && (!W.keyOf || k == null || w.key == null || Object.is(k, w.key))) {
         cur = w.step
         id = `${w.step}:${w.visit}`
         let m = lenses.get(owner)
-        if (!m?.has(id)) lenses.set(owner, m = new Map([[id, stepLens(from, cur, of[cur] || fallback, W.draftKey, W.calc)]]))
+        if (!m?.has(id)) lenses.set(owner, m = new Map([[id, stepLens(from, cur, of[cur] || fallback, W.draftKey, W.calc, ob)]]))
         st = m.get(id)
       }
     }

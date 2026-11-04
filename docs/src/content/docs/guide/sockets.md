@@ -60,7 +60,7 @@ The core sends the result of `connections` to the `WS` sink at startup and whene
 - a change to anything else (action names, `reconnect`) applies without reconnecting;
 - when the instance is removed, its connections close.
 
-`connections` receives the state with its [calculated fields](/guide/calculated-fields/), and the component's context as its second argument: `(state, { route }) => ({ feed: { sse: `/events/${route.params.id}` } })`. It is computed again when either changes.
+`connections` receives the state with its [calculated fields](/guide/calculated-fields/), and the [bag](/guide/state/#what-every-function-gets) (props, context, uid) as its second argument: `(state, { context: { route } }) => ({ feed: { sse: `/events/${route.params.id}` } })`. It is computed again when the state, the context or a prop changes.
 
 ### Spec
 

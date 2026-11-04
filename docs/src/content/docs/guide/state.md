@@ -40,6 +40,48 @@ MyComponent.model = {
 }
 ```
 
+## What every function gets
+
+Every function you write over state takes the same shape: `(subject, …its own arguments, bag)`.
+
+- **The subject** is the state the function is about: the component's state, a behavior's slice, a wizard step's view, or a Collection item.
+- **The bag** always comes last. It is the object the view gets: `{ ...props, state, context, uid }`. `bag.state` is the component's whole state; in a behavior's or a wizard step's function, it is the host's.
+
+```jsx
+TaskList.resources = {
+  tasks: (state, { projectId }) => `/api/projects/${projectId}/tasks?page=${state.page}`,
+}
+TaskList.context = {
+  canEdit: (state, { context }) => context.user.role !== 'viewer',
+}
+TaskList.model = {
+  RENAME: (state, name, next, { previousState, now }) => ({ ...state, name, renamedAt: now() }),
+}
+```
+
+| Function | Gets | Kind |
+|---|---|---|
+| Model handlers (`model`, a behavior's `model`) | `(state, data, next, bag)` | handler |
+| `resources`, `timers`, `connections`, `head`, `browser`, `route` | `(state, bag)` | derivation |
+| `.context` entries | `(state, bag)`, `bag.context` the parent's | derivation |
+| A behavior's `calculated`, `timers` | `(slice, bag)`, `(slice, options, key, bag)` | derivation |
+| `wizard()`: `valid`, `when`, `label`, `dialog`, `visit`, a step's `discard` / `dirty` | `(step, bag)` / `(step, stepName, bag)` | derivation |
+| `wizard()`: `draft`, `key`, `url.from` / `resetTo`, `discard` | `(hostState, bag)` / `(slice, bag)` | derivation |
+| `form()`: the schema function, `values`, `dynamic` / `request` | `(hostState, bag)` / `(data, hostState, bag)` | derivation |
+| `agent`: `read`, `when`, `until` / `queries.run`; `chat({ model })` | `(state, bag)` / `(state, input, bag)` | derivation |
+
+**Handlers** run once per event, so their bag also has `previousState`, `children`, `slots`, `now()` / `random()` / `uuid()` (and `signal` in an EFFECT). **Derivations** are computed again when what they read changes, so they get the bag without those. A declaration static is recomputed when the state, the context or a prop (compared shallowly) changes.
+
+Some functions keep their arguments, on purpose:
+
+- **`calculated` fields, lenses** and a behavior's read-time normalizer belong to the state cell, which instances with different props can share, so they see the state only.
+- **A Collection's `filter` / `sort`, `estimateSize` and a lens prop** are written in the view, so they close over everything it has.
+- **`intent`** works on sources; **`onError`** on the error.
+
+Where a field can't be known yet, the bag has less: a behavior's start slice gets `{ state: undefined }`; what the wizard and the form watch in their intent (the flow key, the leave guard, a form's `dynamic` fields) has the host's props and state, not its context or uid.
+
+Before 7.2 a declaration static's second argument was the context. `(state, { route })` still reads a context field until 8.0, with a dev warning ([SYG458](/reference/errors/#syg458)), and a prop of the same name wins; `sygnal-check --fix` rewrites it to `(state, { context: { route } })`.
+
 ## Passing State to Child Components
 
 ### Property-Based (Simple)

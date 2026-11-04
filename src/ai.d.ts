@@ -1,5 +1,5 @@
 // Types for 'sygnal/ai' (PLAN-6). The implementation lives in src/extra/ai/ (D253).
-import type { FetchRequest, Behavior, BehaviorTarget, FieldErrors, RenderResult, StandardSchemaLike } from 'sygnal'
+import type { FetchRequest, Behavior, BehaviorTarget, FieldErrors, RenderResult, StandardSchemaLike, ReadBag } from 'sygnal'
 import type { Stream } from 'xstream'
 
 /** A part of a chat message (AI SDK UIMessage-shaped, D252) */
@@ -319,8 +319,8 @@ export type AgentAction<STATE, D> = {
   description: string
   /** Ask the user before running it (the chat behavior's `pending`, WebMCP's confirm) */
   consequential?: boolean
-  /** Offered only while this is true (cached by state identity) */
-  when?: (state: STATE) => boolean
+  /** Offered only while this is true (cached by state, props and context identity; 7.2: the instance's view bag last) */
+  when?: (state: STATE, bag: ReadBag<STATE>) => boolean
   /** A call that changes nothing is a success (`{ ok: true, unchanged: true }`), not an error (D256) */
   idempotent?: boolean
   /**
@@ -329,7 +329,7 @@ export type AgentAction<STATE, D> = {
    * function of the state (for a result a reply action writes; the action's own reducer should
    * mark it pending). Checked after the action and after every render that changed something
    */
-  until?: string | ((state: STATE) => boolean)
+  until?: string | ((state: STATE, bag: ReadBag<STATE>) => boolean)
   /** With `until`: answer `{ ok: true, pending: true }` after this many ms (default 10,000) */
   timeout?: number
 } & (AgentNoData<D> extends true ? { input?: never } : AgentIsAny<D> extends true ? { input?: AgentSchema<any> } : { input: AgentSchema<D> })
@@ -338,7 +338,7 @@ export type AgentAction<STATE, D> = {
 export type AgentQueryResult = string | number | boolean | null | undefined | (object & { then?: never })
 
 /**
- * One entry of `agent.queries`: a read-only tool that takes an input. `run(state, input)` is a
+ * One entry of `agent.queries`: a read-only tool that takes an input. `run(state, input, bag)` is a
  * pure, synchronous function of the component's current state and the validated input; the call
  * returns `{ ok: true, result }`, dispatches nothing and changes nothing. Use it for data too large
  * to send in `read` on every request (a filtered list, one record) or an answer computed from the
@@ -347,11 +347,11 @@ export type AgentQueryResult = string | number | boolean | null | undefined | (o
 export type AgentQuery<STATE> = {
   /** What the query returns, for the model */
   description: string
-  /** Offered only while this is true (cached by state identity) */
-  when?: (state: STATE) => boolean
+  /** Offered only while this is true (cached by state, props and context identity; 7.2: the instance's view bag last) */
+  when?: (state: STATE, bag: ReadBag<STATE>) => boolean
 } & (
-  | { input?: undefined; run: (state: STATE) => AgentQueryResult }
-  | { input: AgentSchema<any>; run: (state: STATE, input: any) => AgentQueryResult }
+  | { input?: undefined; run: (state: STATE, input: undefined, bag: ReadBag<STATE>) => AgentQueryResult }
+  | { input: AgentSchema<any>; run: (state: STATE, input: any, bag: ReadBag<STATE>) => AgentQueryResult }
 )
 
 /**
@@ -364,8 +364,8 @@ export type AgentDeclaration<STATE = any, ACTIONS = any> = {
   /** Tool name prefix: `todos` -> todos_add, todos_read (letters, digits, _) */
   name: string
   description?: string
-  /** What the model sees of this component: in its context after every flush, and in call results */
-  read?: (state: STATE) => unknown
+  /** What the model sees of this component: in its context after every flush, and in call results (7.2: the instance's view bag last, `{ ...props, state, context, uid }`) */
+  read?: (state: STATE, bag: ReadBag<STATE>) => unknown
   /**
    * A Collection item's label for the model (D258). User text unless `untrusted: false` (G-644):
    * then the key parameter lists ids only and the labels go with the data (the chat behavior's
@@ -810,7 +810,7 @@ export interface ChatOptions {
    * picker switch models with one chat behavior. The default card backend (`ask` without
    * `backend`) uses it too
    */
-  model?: string | ((state: any) => string | undefined)
+  model?: string | ((state: any, bag: ReadBag) => string | undefined)
   /**
    * Whose `agent` declarations become tools: by default the host's and its shown descendants'
    * (D249); `false`: none; `[Comp, …]`: only these components' (in the host's subtree)

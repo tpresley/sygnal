@@ -193,8 +193,8 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 
 | Option | |
 |---|---|
-| `values` | The start values (or a function of the host's state). Field names are paths in it: `email`, `address.city`, and `addresses.7.city` for the row with `id` 7 |
-| `request` | What a valid submit sends: `{ url, … }`, or `(data, state) => request` (an id from state) |
+| `values` | The start values (or `(state, bag) => values`). Field names are paths in it: `email`, `address.city`, and `addresses.7.city` for the row with `id` 7 |
+| `request` | What a valid submit sends: `{ url, … }`, or `(data, state, bag) => request` (an id from state) |
 | `submit` | Instead of `request`: the host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry; [submit without a request](#submit-without-a-request)) |
 | `show` | `'blur'` (default), `'input'` or `'submit'`: when a schema error shows |
 | `form` | The form's selector, default `'form'`. One per form when there are two: `form: '.login'`, `form: '.news'` ([two forms](/guide/forms-reference/#two-forms-in-one-component), [SYG237](/reference/errors/#syg237)) |

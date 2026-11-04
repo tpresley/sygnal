@@ -279,12 +279,19 @@ export interface RenderOptions {
   /**
    * Strict mode (canonical-form checks; at run time SYG508, the others are
    * sygnal-check --strict only) while the component is rendered; restored on
-   * dispose(). It only turns the checks on: findings are collected, and a test
-   * fails on them only with t.expectNoDiagnostics() or diagnostics: 'error'.
+   * dispose(). Findings are collected, and dispose() throws (the test fails) when warn/error
+   * diagnostics were reported that the test never read (t.expectNoDiagnostics() or
+   * t.diagnostics); after a test that already failed they are printed instead.
    * Requires `import 'sygnal/diagnostics'`.
    * Default: unchanged (off unless configureStrict(true) was called).
    */
   strict?: boolean;
+  /**
+   * Under Vitest, a handle created inside a test (or its beforeEach) is disposed when that test
+   * finishes, passed or failed (onTestFinished, as Testing Library's auto-cleanup). false keeps
+   * it alive until t.dispose(). Default true; elsewhere (node:test) see cleanup().
+   */
+  autoDispose?: boolean;
   /**
    * 7.0 timing audit (SYG257, info) while the component is rendered; restored on dispose():
    * each output sink that reads a top-level state field its action's STATE changed is reported
@@ -487,7 +494,7 @@ export interface RenderResult {
   /**
    * E2: the requests sent to a sink (live), as objects (G-171: a string is `{ url }`, a resource
    * fetch `{ url, ...request, resource: name }`); never `{ abort }` commands (G-141), `{ resources }`
-   * declarations or `{ refresh }` commands. Answer the pending ones of a driverless sink with
+   * declarations or `{ refresh }` / `{ more }` commands. Answer the pending ones of a driverless sink with
    * respond() / fail().
    */
   requests: (sinkName: string) => any[];
@@ -578,6 +585,8 @@ export interface RenderResult {
   forward: () => Promise<void>;
   /** PLAN-3 5-4c: the in-memory location */
   readonly location: {path: string; search: string; query: Record<string, string>; hash: string; href: string};
+  /** the full page loads the app made (the router's `external`, a link it left to the browser): recorded, not made */
+  readonly pageLoads: Array<{url: string; replace: boolean}>;
   /** PLAN-3 5-4c: the HEAD fake's merged head (titleTemplate applied) */
   head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};
   /** PLAN-4 GS-7: the timer fake's active timers, in start order: `{ name, every | after | frame, action, background?, component }` */
@@ -588,7 +597,7 @@ export interface RenderResult {
   storage: (key: string) => any;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
-  /** Live array of diagnostics reported while rendered */
+  /** Live array of diagnostics reported while rendered (reading it counts as checking them for strict) */
   diagnostics: Diagnostic[];
   /**
    * PLAN-4 GS-2: the element commands (`ELEMENT`) the tree's instances sent, one entry per
@@ -604,8 +613,16 @@ export interface RenderResult {
    * t.ready() first); '' for a component that renders nothing.
    */
   html: () => string;
-  /** Tear down the component, clean up listeners and restore the diagnostics mode */
+  /**
+   * Tear down the component, clean up listeners and restore the diagnostics mode. A second call
+   * does nothing. Throws a failure the test hasn't seen yet, and under `strict: true` the
+   * warn/error diagnostics the test never read.
+   */
   dispose: () => void;
+  /** `using t = renderComponent(...)`: dispose() at the end of the block */
+  [Symbol.dispose]: () => void;
+  /** `await using t = renderComponent(...)` */
+  [Symbol.asyncDispose]: () => Promise<void>;
   /**
    * The app graph (2B) of the rendered tree: components, actions, selectors (with the mock DOM's
    * match / isolation results), EVENTS and diagnostics. Requires `import 'sygnal/diagnostics'`.
@@ -1169,6 +1186,29 @@ export const _testingStats = {walks: 0};
 // 1H-5: live renderComponent instances; the explicit diagnostics config and the strict flag
 // (R4) from before the outermost one are restored when the last one is disposed
 let active = 0;
+// Sift: the live handles' dispose, for cleanup(); Symbol.dispose where the runtime has it (Node
+// 18.18+), else the key older Node's own disposables use
+const liveHandles = new Set<() => void>();
+const DISPOSE: typeof Symbol.dispose = (Symbol as any).dispose || Symbol.for('nodejs.dispose');
+const ASYNC_DISPOSE: typeof Symbol.asyncDispose = (Symbol as any).asyncDispose || Symbol.for('nodejs.asyncDispose');
+// the Vitest test running now (its worker state, so apps never import vitest); undefined in a
+// beforeAll, at a file's top level and outside Vitest
+const vitestTest = () => {
+  const c = (globalThis as any).__vitest_worker__?.current;
+  return c && c.type == 'test' && typeof c.context?.onTestFinished == 'function' ? c : undefined;
+};
+
+/**
+ * Dispose every live renderComponent handle (Testing Library's cleanup()). Vitest does this per
+ * test by itself (autoDispose); for node:test: `afterEach(cleanup)`. Throws what the disposals
+ * threw (strict findings, pending failures) after disposing all of them.
+ */
+export function cleanup(): void {
+  const errors: unknown[] = [];
+  for (const f of [...liveHandles]) try { f(); } catch (e) { errors.push(e); }
+  if (errors.length > 1) throw new AggregateError(errors, `[Sygnal] cleanup(): ${errors.length} renderComponent handles failed to dispose:\n` + errors.map(e => (e as any)?.message ?? String(e)).join('\n'));
+  if (errors.length) throw errors[0];
+}
 /** quiet window after which the whole tree counts as rendered (G-047) */
 const QUIET_MS = 10;
 // G-053: defaults of the timing options (eventWaitMs: how long an event waits for its element /
@@ -1485,10 +1525,24 @@ const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
  * kept in memory, and a document whose listeners are recorded in `docLs` (the mock DOM's link
  * clicks call them) and, with `real` (dom: 'real'), also added to the real document, so real
  * clicks bubble into the driver's link interception. `baseURI` is the in-memory URL, so relative
- * links resolve against it.
+ * links resolve against it. A full page load (location.assign / replace, the router's `external`,
+ * or a link click nothing prevented) is recorded in `loads`, not made: the page stays.
  */
 function memoryWindow(start: string, real: boolean, query: (s: string) => any, observe: boolean) {
   const entries = [{url: start, state: null as any}];
+  const loads: Array<{url: string; replace: boolean}> = [];
+  const load = (url: string, replace: boolean) => { loads.push({url: new URL(url, entries[i].url).href, replace}); };
+  // a link the browser follows (a left click nothing prevented): a page load, unless it only
+  // moves to a fragment of this page
+  const follow = (e: any, a: any) => {
+    const raw = a?.getAttribute('href');
+    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || raw == null ||
+        (a.getAttribute('target') || '_self') != '_self' || a.hasAttribute('download')) return;
+    const u = new URL(raw, entries[i].url), here = at();
+    if (!(u.hash && u.origin == here.origin && u.pathname == here.pathname && u.search == here.search)) load(u.href, false);
+  };
+  // dom: 'real': on the window, so it runs after the document's listeners (the router's)
+  const onReal = (e: any) => follow(e, (e.composedPath?.() || []).find((x: any) => x.localName == 'a'));
   const on: Record<string, any[]> = {}, docLs: Record<string, any[]> = {};
   let i = 0, moving = 0;
   const at = () => new URL(entries[i].url);
@@ -1498,6 +1552,7 @@ function memoryWindow(start: string, real: boolean, query: (s: string) => any, o
     location: {
       get href() { return entries[i].url; }, get pathname() { return at().pathname; }, get search() { return at().search; },
       get hash() { return at().hash; }, get origin() { return at().origin; },
+      assign: (url: string) => load(url, false), replace: (url: string) => load(url, true),
     },
     history: {
       get state() { return entries[i].state; }, get length() { return entries.length; },
@@ -1515,8 +1570,16 @@ function memoryWindow(start: string, real: boolean, query: (s: string) => any, o
     addEventListener(t: string, f: any) { (on[t] = on[t] || []).push(f); },
     removeEventListener(t: string, f: any) { on[t] = (on[t] || []).filter(x => x !== f); },
     document: {
-      addEventListener(t: string, f: any) { (docLs[t] = docLs[t] || []).push(f); D?.addEventListener(t, f); },
-      removeEventListener(t: string, f: any) { docLs[t] = (docLs[t] || []).filter(x => x !== f); D?.removeEventListener(t, f); },
+      addEventListener(t: string, f: any) {
+        (docLs[t] = docLs[t] || []).push(f);
+        D?.addEventListener(t, f);
+        if (D && t == 'click') D.defaultView?.addEventListener('click', onReal);
+      },
+      removeEventListener(t: string, f: any) {
+        docLs[t] = (docLs[t] || []).filter(x => x !== f);
+        D?.removeEventListener(t, f);
+        if (D && t == 'click' && !docLs[t].length) D.defaultView?.removeEventListener('click', onReal);
+      },
       querySelector: (s: string) => (D ? query(s) : null),
       getElementById: (id: string) => (D ? D.getElementById(id) : null),
       get body() { return D?.body; },
@@ -1526,7 +1589,7 @@ function memoryWindow(start: string, real: boolean, query: (s: string) => any, o
     scrollTo(x: any, y?: any) { if (typeof x == 'object') ({left: x = w.scrollX, top: y = w.scrollY} = x); w.scrollX = x; w.scrollY = y; },
     MutationObserver: real && observe ? (globalThis as any).MutationObserver : undefined,
   };
-  return {w, docLs, index: () => i, size: () => entries.length};
+  return {w, docLs, loads, follow, index: () => i, size: () => entries.length};
 }
 /**
  * PLAN-3 5-4c: an element-like `<a>` for the router's click handler (mock DOM), from the vnode:
@@ -1686,7 +1749,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, timingAudit, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, timingAudit, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors, autoDispose = true} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -2123,7 +2186,7 @@ export function renderComponent(
   const reqValues: Record<string, any[]> = {};
   // a sink value: recorded (t.sinkValues: everything) and, on a fake source, sent to its driver.
   // G-141 / G-171(1): t.requests lists the requests, normalised (a string is { url }); never the
-  // { abort } commands, { resources } declarations or { refresh } commands. A resource's fetches
+  // { abort } commands, { resources } declarations or { refresh } / { more } commands. A resource's fetches
   // are listed by the fake's fetch, with `resource: name`.
   // 5-7: resource names declared on each sink, so t.respond(name, …, 'quote') right after the
   // state change that (re)fetches 'quote' waits for that fetch instead of throwing
@@ -2142,7 +2205,7 @@ export function renderComponent(
     }
     sinkValues(name).push(shown);
     const obj = !!v && typeof v == 'object';
-    const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v || 'reset' in v || 'prefetch' in v));
+    const listed = !(obj && (v.abort || v.resources || v.refresh || v.more || 'invalidate' in v || 'reset' in v || 'prefetch' in v));
     const value = typeof shown == 'string' ? {url: shown} : shown;
     if (listed) requests(name).push(value);
     if (!track) return;
@@ -3266,6 +3329,7 @@ export function renderComponent(
       preventDefault() { e.defaultPrevented = true; },
     };
     ls.slice().forEach((l: any) => l(e));
+    rt!.mem.follow(e, a);
   };
   // (PARENT and EVENTS, the sinks no driver serves: what was sent on them, as t.sinkValues; before,
   // t.sent('PARENT') made an empty socket fake and returned [])
@@ -3624,8 +3688,11 @@ export function renderComponent(
     })().then(() => done(), done);
   });
 
+  // strict: how many of the collected diagnostics the test has checked (t.diagnostics: all)
+  let seen = 0, diagnosticsRead = false;
   const expectNoDiagnostics = () => {
     throwFailure();
+    seen = collected.length;
     const bad = collected.filter(d => d.severity != 'info');
     if (bad.length) {
       throw new Error(`Expected no diagnostics, got ${bad.length}:\n` + bad.map(d => d.text).join('\n'));
@@ -3664,9 +3731,16 @@ export function renderComponent(
     }
   };
 
-  const dispose = () => {
-    if (disposed) return;
+  // how: 0 throws (t.dispose()), 1 the test already failed (prints instead of throwing over its
+  // error), 2 leaves the checks to the test's end (using, while Vitest's hook will run them)
+  let checksLeft = false;
+  const end = (how: 0 | 1 | 2) => {
+    if (disposed) {
+      if (checksLeft && how != 2) checks(how == 1);
+      return;
+    }
     disposed = true;
+    liveHandles.delete(dispose);
     commandTimers.forEach(clearTimeout);
     clearTimeout(timer);
     clearTimeout(fallback);
@@ -3699,8 +3773,34 @@ export function renderComponent(
     const rs = [...replyWaits];
     replyWaits.clear();
     rs.forEach(r => r(new Error('[Sygnal] renderComponent was disposed before this t.respond/t.fail was delivered'), true));
-    throwFailure();
+    if (how == 2) checksLeft = true;
+    else checks(how == 1);
   };
+  const checks = (failed: boolean) => {
+    checksLeft = false;
+    if (hook) hook.f = undefined;
+    const unread = strict === true && !diagnosticsRead ? collected.slice(seen).filter(d => d.severity != 'info') : [];
+    const text = unread.length ? `[Sygnal] renderComponent(${compName}, { strict: true }): ${unread.length} diagnostic${unread.length > 1 ? 's were' : ' was'} reported that the test never checked (t.expectNoDiagnostics() or t.diagnostics):\n` + unread.map(d => d.text).join('\n') : '';
+    const f = takeFailure();
+    if (failed) {
+      // the test's own error stays the one reported
+      if (f) console.warn(`[Sygnal] renderComponent(${compName}) also failed after the test had: ${f.message}`);
+      if (text) console.warn(text);
+      return;
+    }
+    if (f) {
+      if (text) console.warn(text);
+      throw f;
+    }
+    if (text) throw new Error(text);
+  };
+  const dispose = () => end(0);
+  liveHandles.add(dispose);
+  // Sift: under Vitest, disposed when the test it was made in finishes (the holder lets a
+  // disposed handle be collected before then)
+  const vt = autoDispose ? vitestTest() : undefined;
+  const hook = vt ? {f: end as ((how: 0 | 1 | 2) => void) | undefined} : undefined;
+  if (vt) vt.context.onTestFinished(() => hook!.f?.(vt.result?.state == 'fail' ? 1 : 0));
 
   // PLAN-6 A-4: the agent layer (A-1) on this test's runtime, made on first use. A consequential
   // call with no `confirm` throws (D261): a test says which answer it means
@@ -3751,6 +3851,7 @@ export function renderComponent(
     back: () => traverse('back', -1),
     forward: () => traverse('forward', 1),
     get location() { return routerLocation(); },
+    get pageLoads() { return needRouter('pageLoads').mem.loads; },
     head,
     timers: () => {
       if (!tm) throw new Error(`[Sygnal] t.timers(): ${timerSink} has a real driver (passed in drivers); t.timers lists the timers of the fake renderComponent provides when no driver is passed`);
@@ -3761,11 +3862,13 @@ export function renderComponent(
     browser: tBrowser,
     storage: (key: string) => store[key],
     emitted: sinkValues('EVENTS'),
-    diagnostics: collected,
+    get diagnostics() { diagnosticsRead = true; return collected; },
     commands: (name = 'ELEMENT') => name == 'ELEMENT' ? commandLog : sinkValues(name),
     expectNoDiagnostics,
     html,
     dispose,
+    [DISPOSE]: () => end(hook?.f ? 2 : 0),
+    [ASYNC_DISPOSE]: async () => end(hook?.f ? 2 : 0),
     inspect,
     container,
     query,

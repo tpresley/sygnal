@@ -7,6 +7,11 @@
  *     check: { email: { request: (email) => ({ url: '/api/email-free', query: { email } }), error: (body) => !body.free && 'Taken' } },
  *   }) }
  *
+ * 7.2: every function option (the schema function, `values`, `dynamic`, `request`) gets the bag
+ * last: the host view's `{ ...props, state, context, uid }` (no children / slots), `state` the
+ * host's state. In the intent's sync of `dynamic` / the schema function it has the props and the
+ * state only; `values` before the host starts gets the blank state as its bag too.
+ *
  * Fields are addressed by their `name=` attribute (the path in `values`; rows of an array by
  * id: `addresses.7.street`), heard on the form element (option `form`, default 'form'): input
  * and focusout bubble to it, also from fields rendered by Collection items. Nothing is wired per
@@ -14,7 +19,7 @@
  *
  * Options: `values` (the start values; D239: or a function of the host's state, called when the
  * form starts), `submit` (host action), `request` (PLAN-11 F-3: the form sends the valid submit
- * itself on the `http` sink: a request, or `(data, hostState) => request`, completed with the
+ * itself on the `http` sink: a request, or `(data, hostState, bag) => request`, completed with the
  * body (`multipart: data` when a top-level value is a File / Blob or an array of them, else
  * `json: data`, unless it sets json / multipart / body), `progress: '<key>.PROGRESS'` for a multipart
  * submit or `progress: true` (a JSON submit stays on fetch: progress goes over XMLHttpRequest)
@@ -101,7 +106,7 @@
  */
 import xs from './xstreamCompat'
 import {defineBehavior, was} from './behaviors'
-import {ABORT} from '../shared'
+import {ABORT, readBag} from '../shared'
 import {isStandardSchema} from './standardSchema'
 import {FIELD, fieldOf} from './field'
 import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid, isFile} from './formHelpers'
@@ -183,16 +188,20 @@ export const form = (schema: any, o: any = {}): any => {
   const fn = typeof vo == 'function', B: any = new Proxy(() => B, {get: (_, k) => k == Symbol.toPrimitive ? () => '' : B})
   const clean = (x: any): any => x === B ? '' : Array.isArray(x) ? x.map(clean) : x && typeof x == 'object' ? Object.fromEntries(Object.entries(x).map(([k, y]) => [k, clean(y)])) : x
   let values: any = vo
-  if (fn) try { values = clean(vo(B)) } catch (_) { values = {} }
+  if (fn) try { values = clean(vo(B, B)) } catch (_) { values = {} }
   const cache = new WeakMap(), seen = new WeakMap(), checked = Object.keys(checks)
   // G-575: a submit is pending (until form.DONE / form.ERRORS) only when the host's submit entry
   // sends a request on the `http` sink; any other submit is done once its entry has run. Set when
   // the form merges into its host
   let req = true
-  // the schema for the host state h (RT-1: a schema function's, checked once per schema it returns)
-  const sOf = (h: any) => {
+  // 7.2: the props of the handler running (its 4th argument): a function option's bag is
+  // readBag(P, h), the host's view bag (P is set by every model entry before its step runs)
+  let P: any
+  const bag = (h: any) => readBag(P, h)
+  // the schema for the host state h and bag (RT-1: a schema function's, checked once per schema it returns)
+  const sOf = (h: any, g = bag(h)) => {
     if (!sfn) return schema
-    const x = schema(h)
+    const x = schema(h, g)
     cache.has(x) || isStandardSchema(x) || dev(231, x)
     return x
   }
@@ -342,7 +351,7 @@ export const form = (schema: any, o: any = {}): any => {
     // G-575: a slice kept in parent state from a host that unmounted mid-submit starts unstuck.
     // D239: with resetOnShow (also each time the form element appears again), or a `values`
     // function not called yet, the slice starts over from the start values (h: the host state)
-    VALIDATE: (s, _, _k, h) => again || fn && s.values === values ? fresh(fn ? vo(h) : vo, s, h, again)
+    VALIDATE: (s, _, _k, h) => again || fn && s.values === values ? fresh(fn ? vo(h, bag(h)) : vo, s, h, again)
       : edit({...s, submitting: false, queued: false, pending: {}, progress: null}, s.values, 0, h),
     // RT-1: the dynamic fields (data: { fields }, `dynamic(hostState)`) or the schema changed: entries
     // added, reshaped or gone (their touched, server errors and checks with them; the value kept,
@@ -371,7 +380,7 @@ export const form = (schema: any, o: any = {}): any => {
 
   // PLAN-11 F-3: the `request` option's request for a valid submit (data: the schema's output)
   const send = (vals: any, h: any, k: string, pre: any) => {
-    const data = v(vals, sOf(pre)).value, q = typeof rq == 'function' ? rq(data, h) : rq
+    const data = v(vals, sOf(pre)).value, q = typeof rq == 'function' ? rq(data, h, bag(h)) : rq
     if (!q || q === ABORT) return ABORT
     // progress (over XMLHttpRequest) only for an upload or when asked (`progress: true`): a JSON submit stays on fetch
     const own = 'json' in q || 'multipart' in q || 'body' in q, up = own ? 'multipart' in q : hasFile(data)
@@ -387,11 +396,11 @@ export const form = (schema: any, o: any = {}): any => {
     const out = (s: any, d: any, k: string, h: any) => last[0] === s && last[1] === d && last[2] === h ? last[3] : (last = [s, d, h, steps[a](s, d, k, h)])[3]
     model[a] = {
       // VALIDATE: on the host's state (HOST), for a `values` function; the slice's own steps on it
-      ...a == 'VALIDATE' ? {HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => { const x = out(h[k], d, k, h); return x ? {...h, [k]: x.s} : h }}
-        : {STATE: (s: any, d: any, _n: any, p: any, _o: any, k: string) => out(s, d, k, p?.state)?.s || ABORT},
+      ...a == 'VALIDATE' ? {HOST: (h: any, d: any, _n: any, p: any, _o: any, k: string) => { P = p; const x = out(h[k], d, k, h); return x ? {...h, [k]: x.s} : h }}
+        : {STATE: (s: any, d: any, _n: any, p: any, _o: any, k: string) => (P = p, out(s, d, k, p?.state)?.s || ABORT)},
       // outputs share STATE's transition: computed from the slice before the action
       EFFECT: (s: any, d: any, next: any, p: any, _o: any, k: string) => {
-        s = was(s, p, k)
+        s = was(s, p, k), P = p
         const h = pre(p), x = out(s, d, k, h), w = x?.wait
         if (x?.send) {
           const i = shown(x.s.values, x.s.kept), r = v(i, sOf(h)).value
@@ -403,10 +412,11 @@ export const form = (schema: any, o: any = {}): any => {
         }
         w && Promise.resolve(v(w.input, w.schema)).then(() => next('RESULT', w, 0))
       },
-      ELEMENT: (s: any, d: any, _n: any, p: any, _o: any, k: string) => out(was(s, p, k), d, k, pre(p))?.focus || ABORT,
+      ELEMENT: (s: any, d: any, _n: any, p: any, _o: any, k: string) => (P = p, out(was(s, p, k), d, k, pre(p))?.focus || ABORT),
       // the checks' requests, and (PLAN-11 F-3) the `request` option's for a valid submit; the
       // step from the slice before the action (7.0: outputs get the updated one), the host state as committed
       ...((checked.length || rq) && {[http]: (s: any, d: any, _n: any, p: any, _o: any, k: string) => {
+        P = p
         const x = out(was(s, p, k), d, k, pre(p))
         return x?.req || (x?.send && rq ? send(shown(x.s.values, x.s.kept), p?.state, k, pre(p)) : ABORT)
       }}),
@@ -417,21 +427,25 @@ export const form = (schema: any, o: any = {}): any => {
     form: schema,
     // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375, not validated)
     initialState: {...base(values), validating: true},
-    intent: ({DOM}: any, _o: any, k: any, host: any) => {
+    intent: ({DOM, props$}: any, _o: any, k: any, host: any) => {
       const f = DOM.select(sel)
-      let on = 0, pf: any, ps: any, ph: any, n = 0
+      // (7.2: here the bag is the host's state and, for a sub-component host, its props, again when
+      // they change; no context or uid: those reach the handlers' bags only)
+      const B$ = props$ ? xs.combine(host.stream, props$).map(([h, p]: any) => ({...p, state: h})) : host.stream.map((h: any) => ({state: h}))
+      let on = 0, pf: any, ps: any, ph: any, pg: any, n = 0
       return {
         // RT-1: the dynamic fields and the schema, from the host's state: form.SYNC when the fields
         // change (structurally) or the schema function returns another schema
-        ...(dyn || sfn) && host && {SYNC: host.stream.map((h: any) => {
-          const fields = dyn ? dyn(h) || {} : {}, f = json(fields), sc = sOf(h)
+        ...(dyn || sfn) && host && {SYNC: B$.map((g: any) => {
+          const h = g.state, fields = dyn ? dyn(h, g) || {} : {}, f = json(fields), sc = sOf(h, g)
           // SYG239 (dev): another schema for the same state (called again, the first time only), or
           // for a state that differs only in the form's slice with the same values (memoized on
           // the whole host state: a new schema per state change)
-          sfn && dev(239, () => !n++ ? schema(h) !== sc
-            : sc !== ps && h?.[k]?.values === ph?.[k]?.values && Object.keys({...h, ...ph}).every(x => x == k || h[x] === ph[x]))
+          sfn && dev(239, () => !n++ ? schema(h, g) !== sc
+            : sc !== ps && h?.[k]?.values === ph?.[k]?.values && Object.keys({...h, ...ph}).every(x => x == k || h[x] === ph[x])
+              && Object.keys({...g, ...pg}).every(x => x == 'state' || g[x] === pg[x]))
           const r = f !== pf || sc !== ps
-          pf = f, ps = sc, ph = h
+          pf = f, ps = sc, ph = h, pg = g
           return r && {fields}
         }).filter((x: any) => x)},
         // D239: resetOnShow also starts over each time the form element appears again (a
