@@ -49,7 +49,7 @@ export { Outlet } from './extra/outlet'
 export { sortable } from './extra/sortable'
 export { undoable, undo } from './extra/undo'
 export { persist } from './extra/persist'
-export { renderComponent } from './extra/testing'
+export { renderComponent, cleanup } from './extra/testing'
 // 7.2 dev preview: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
 export { startRecording, replay, replayTest, bugReport, timeline, finalState, RECORDING_SCHEMA, inertDriver } from './extra/replay/index'
 export { set, toggle, emit, event } from './extra/reducers'

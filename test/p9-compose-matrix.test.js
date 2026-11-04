@@ -34,6 +34,7 @@ const MATRIX = {
     /** a reply the backend can't read: no answers */
     bad: { nope: 1 },
     error: /no answers/,
+    badCodes: [],
   },
   llm: {
     make: () => compose.llm({ model: 'qwen3:8b' }),
@@ -47,6 +48,7 @@ const MATRIX = {
     /** JSON the backend can't repair into a layout: only unknown parts (SYG683; text that isn't JSON
      * at all too: the request's parse: false leaves the text to the backend) */
     bad: '{"children":[{"part":"stockTicker"}]}',
+    badCodes: ['SYG683'],
     error: /not a layout \(stockTicker\)/,
   },
 }
@@ -126,6 +128,7 @@ for (const [name, M] of Object.entries(MATRIX)) {
       expect(t.state.page.pending).toBe(null)
       expect(shape(t.state.page.layout)).toEqual(['weather'])
       expect(t.query('.weather')).toBeTruthy()
+      expect(t.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.code)).toEqual(M.badCodes)
     })
 
     it('record lenses write app state, CHILD.select hears a composed part, a follow-up keeps keys and instances', async () => {

@@ -3955,9 +3955,17 @@ export interface RenderOptions {
   /**
    * Enable strict (canonical-form) runtime checks while rendered (SYG508; the other strict
    * codes are sygnal-check --strict only). Requires 'sygnal/diagnostics'. Findings are collected,
-   * not thrown: a test fails on them only with t.expectNoDiagnostics() or diagnostics: 'error'.
+   * and dispose() throws (the test fails) when warn/error ones were reported that the test never
+   * read through t.expectNoDiagnostics() or t.diagnostics; after a test that already failed (Vitest
+   * auto-dispose) they are printed instead, so the test's own error stays the one reported.
    */
   strict?: boolean;
+  /**
+   * Under Vitest, a handle created inside a test (or its beforeEach) is disposed when that test
+   * finishes, passed or failed (`onTestFinished`, as Testing Library's auto-cleanup). `false`
+   * keeps it alive until `t.dispose()`. Default true. Other runners: `afterEach(cleanup)`.
+   */
+  autoDispose?: boolean;
   /**
    * settle()'s quiet window in ms (default 20). A model `next('X', data, ms)` with a longer
    * delay fires after settle() resolved: raise this, or wait with `t.next(pred)`.
@@ -4394,7 +4402,7 @@ export interface RenderResult<STATE = any> {
   storage: <ENTRY = PersistedEntry<STATE>>(key: string) => ENTRY | undefined;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
-  /** Live array of diagnostics reported while rendered */
+  /** Live array of diagnostics reported while rendered (reading it counts as checking them under `strict`) */
   diagnostics: Diagnostic[];
   /**
    * PLAN-4 GS-2: the element commands the tree's instances sent on `ELEMENT`, one entry per command
@@ -4416,8 +4424,16 @@ export interface RenderResult<STATE = any> {
    * with `await t.ready()` (or `t.next(...)`) first. '' for a component that renders nothing.
    */
   html: () => string;
-  /** Tear down the component, clean up listeners and restore the diagnostics mode */
+  /**
+   * Tear down the component, clean up listeners and restore the diagnostics mode. A second call
+   * does nothing. Throws a failure the test hasn't seen yet (an event whose element never
+   * rendered) and, under `strict: true`, the warn/error diagnostics the test never read.
+   */
   dispose: () => void;
+  /** `using t = renderComponent(C)`: `t.dispose()` when the block exits, even on a throw */
+  [Symbol.dispose](): void;
+  /** `await using t = renderComponent(C)` */
+  [Symbol.asyncDispose](): Promise<void>;
   /**
    * The app graph of the rendered tree (components, actions, selectors with the mock DOM's
    * match / isolation results, EVENTS, diagnostics). Throws unless 'sygnal/diagnostics' is loaded.
@@ -4517,6 +4533,21 @@ export function renderComponent<STATE = any, INITIAL = STATE>(
   componentDef: RenderableComponent<STATE, INITIAL>,
   options?: RenderOptions
 ): RenderResult<RenderedState<STATE, INITIAL>>
+
+/**
+ * Dispose every live renderComponent handle, as Testing Library's `cleanup()`. Vitest needs none
+ * (each test's handles are disposed when it finishes); node:test: `afterEach(cleanup)`. Throws
+ * what the disposals threw (strict findings, pending failures) once all are disposed.
+ */
+export function cleanup(): void
+
+// `using` support for projects whose `lib` lacks ESNext.Disposable (same declaration as the lib's)
+declare global {
+  interface SymbolConstructor {
+    readonly dispose: unique symbol
+    readonly asyncDispose: unique symbol
+  }
+}
 
 export interface RenderToStringOptions {
   /** Initial state for the root component */

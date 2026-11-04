@@ -12,6 +12,17 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 - Testing: the router fake records page loads in `t.pageLoads` (`{ url, replace }`): `external` navigations and link clicks the router left to the browser. The location and the page stay.
 - Docs: `guide/router` § Routes Another App Owns.
 
+From the Sift console port: a failing test left its tree running, and `strict: true` hid wiring errors.
+
+**Added: `renderComponent` handles dispose themselves.** In `integration/testing#cleanup`.
+
+- **Vitest:** a handle created inside a test (or its `beforeEach`) is disposed when that test finishes, passed or failed (`onTestFinished`, as Testing Library's auto-cleanup). Vitest is found through its worker state, so apps never import it. A handle made in `beforeAll` or at a file's top level is shared, so it is left alone. Opt out per handle with `renderComponent(C, { autoDispose: false })`.
+- **`using t = renderComponent(C)`** and `await using`: the handle has `[Symbol.dispose]` and `[Symbol.asyncDispose]` (with `Symbol.for('nodejs.dispose')` where the runtime has no `Symbol.dispose`). The declarations add `Symbol.dispose` to `SymbolConstructor`, so they compile without the `ESNext.Disposable` lib too.
+- **`cleanup()`** (from `'sygnal'`) disposes every live handle: `afterEach(cleanup)` under `node:test`. It disposes all of them first, then throws what they threw.
+- `t.dispose()` a second time does nothing.
+
+**Changed: `strict: true` fails the test on diagnostics it never read.** `t.dispose()`, the automatic dispose or `cleanup()` throws, listing them, when warnings or errors were collected and the test never read them through `t.expectNoDiagnostics()` or `t.diagnostics`. Before, `strict` only collected them. When the test has already failed, they are printed with `console.warn` instead, so its own error stays the one reported. Under Vitest, a `using` block hands this check to the end of the test, so the block's own error isn't wrapped in a `SuppressedError`.
+
 ## 7.2.0-preview.3 — dev preview
 
 From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).

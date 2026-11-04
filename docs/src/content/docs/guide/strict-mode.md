@@ -202,6 +202,8 @@ t.expectNoDiagnostics()   // fails on SYG508 (and SYG106) as well; SYG612 always
 t.dispose()               // restores the previous strict setting
 ```
 
+Without the `expectNoDiagnostics()` call, `dispose()` (or the automatic dispose at the end of a Vitest test) throws instead, listing the warnings and errors the test never read: under `strict`, a finding can't pass unnoticed. See [Diagnostics in Tests](/integration/testing/#diagnostics-in-tests).
+
 ## Limits
 
 - The runtime strict check is SYG508. SYG503, SYG505 and SYG507 are static only (`sygnal-check --strict`), because at runtime `emit()` and `{ EVENTS }` look the same and a side effect looks like any other call. The removed forms (SYG501, SYG504, SYG506 statically) are SYG612 at run time.

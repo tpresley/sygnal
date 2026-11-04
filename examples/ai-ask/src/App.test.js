@@ -179,6 +179,7 @@ describe('cards composed by the chat model (compose.llm)', () => {
     await t.respond('LLM', 'Sure! Here are the plans: Free, Team, Business.', 'assistant.CARD')
     await until(() => chatReqs().length === 2)
     expect(askPart(chatReqs()[1], 'f')).toMatchObject({ state: 'output-error', errorText: expect.stringMatching(/^could not show a card: /) })
+    expect(t.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.code)).toEqual(['SYG683'])
   })
 })
 
