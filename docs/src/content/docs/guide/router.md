@@ -229,7 +229,7 @@ Each history entry gets a `{ key, i }` in `history.state`, and the router keeps 
 - a replace leaves the scroll alone;
 - a reload is left to the browser.
 
-After a push, back or forward, focus moves to the first `[data-router-focus]` element, else the `main h1`, else the first `h1` (`tabindex="-1"` is added when needed), so screen readers announce the new page. Initial load and replace don't move focus.
+After a push, back or forward, focus moves to the first `[data-router-focus]` element, else the `main h1`, else the first `h1` (`tabindex="-1"` is added when needed), so screen readers announce the new page. Initial load and replace don't move focus, and neither does a navigation whose new page focused an element itself (an `autoFocus` input).
 
 "After the page renders" means once the DOM has stopped changing for `settleMs` (30 ms), watched with a `MutationObserver`, at most one second. Content that arrives later, such as data still loading, isn't waited for, so a restore can land short on a page that renders its data late. `makeRouter({ routes, scroll: false, focus: false })` turns either off; `focus: '#main-title'` picks other targets.
 

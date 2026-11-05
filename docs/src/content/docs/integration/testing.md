@@ -245,6 +245,8 @@ await t.settle()
 expect(t.emitted).toEqual([])
 ```
 
+Use it also before typing into a component that starts work of its own on entry. `ready()` resolves after the first render, so a `timers: { visit: { after: 0 } }` that sends `form.RESET`, or a request sent on `BOOTSTRAP`, can still be pending. Its reply or reset then lands after `simulateEvent` and replaces what the test typed. `await t.settle()` after `ready()` lets that entry work finish first.
+
 ### Timing details
 
 - `next()`, `waitForState()` and `settle()` decide that the tree is quiet when nothing has rendered, reduced or changed state for a short window (10 ms per check for `next`/`waitForState`, `settleMs` = 20 ms for `settle`).

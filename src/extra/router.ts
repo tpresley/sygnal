@@ -42,8 +42,8 @@ import {SET} from '../core/teardown';
  * - Focus (option `focus`, default '[data-router-focus],main h1,h1'; false disables): after a push or a
  *   back/forward, once the DOM has been quiet for `settleMs` (MutationObserver; capped at 1 s),
  *   the first match of the comma-separated selectors, tried in order, gets focus (tabindex=-1
- *   added when needed, preventScroll). Content that renders later (data still loading) is
- *   missed; the scroll restore has the same limit.
+ *   added when needed, preventScroll), unless the new page focused an element itself (autoFocus).
+ *   Content that renders later (data still loading) is missed; the scroll restore has the same limit.
  * - No window (SSR): no listeners, no history, no replies; href/match/current(url) still work.
  * - Vike (`navigate` option, Vike's navigate()): no link interception (Vike owns links),
  *   navigation calls navigate(url, { overwriteLastHistoryEntry }), scroll is left to Vike, and
@@ -158,12 +158,14 @@ export function makeRouter(options: any = {}) {
       if (!D) return;
       pendingKind = cancel && kind == 'replace' ? pendingKind : kind;
       cancel?.();
-      let t: any, mo: any;
+      // Sift (Phase D): the element focused when the navigation started; one the new page focused
+      // itself since (autoFocus, a widget) is left alone
+      let t: any, mo: any, was = D.activeElement;
       const done = () => {
         cancel?.();
-        const k = pendingKind, h = cur.hash && D.getElementById(cur.hash), p = k == 'pop' && pos.get(key);
+        const k = pendingKind, h = cur.hash && D.getElementById(cur.hash), p = k == 'pop' && pos.get(key), a = D.activeElement;
         if (doScroll) p ? w.scrollTo(p[0], p[1]) : h?.scrollIntoView?.();
-        if (focusSel && k != 'replace') for (const sel of focusSel.split(',')) {
+        if (focusSel && k != 'replace' && !(a && a != was && a != D.body && a.isConnected)) for (const sel of focusSel.split(',')) {
           const el = D.querySelector(sel);
           if (el) {
             if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');

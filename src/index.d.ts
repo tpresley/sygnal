@@ -3638,7 +3638,8 @@ export interface RouterOptions<R extends Record<string, string> = Record<string,
   scroll?: boolean;
   /**
    * After a push or back/forward, once the DOM is quiet, focus the first match of these
-   * comma-separated selectors, tried in order. Default '[data-router-focus],main h1,h1'; false disables
+   * comma-separated selectors, tried in order, unless the new page focused an element itself (autoFocus).
+   * Default '[data-router-focus],main h1,h1'; false disables
    */
   focus?: string | false;
   /** quiet time (ms) before scroll restore and focus. Default 30 */
