@@ -2,6 +2,14 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+**Fixed (from the Sift console port's preview.7 bump):**
+- **SYG103 on an element written with the data prop:** `[data-act="confirm"]` warned when the view writes `data={{ act: 'confirm' }}`, which never spells `data-act` (new in preview.7, with the attribute-selector check). A `data-*` attribute now counts as written when its dataset key is (`act`, `gateKind` for `data-gate-kind`).
+- **SYG103 on a tag drawn by a helper in another file:** sygnal/vite registered only the string literals of a component's relative imports, so `.posture-also input` warned when the `<input>` was in a helper module's JSX. It now also registers a helper's JSX tag names, attribute names and `data={{ … }}` keys.
+- **`t.respond` and a poll the state turns on** (`refetchEvery: state.pending ? 1000 : undefined`): it threw "no pending request" instead of waiting for the poll. It now follows the resource's declared interval, as the driver does.
+- **Docs:** the poll `t.respond` waits for must be due 250 ms before `timeoutMs` runs out (within 1.75 s by default; `renderComponent(C, { timeoutMs })` raises it).
+
 ## 7.2.0-preview.7 — dev preview
 
 **Added: `detached: true` on a fetch request**, a write that outlives its sender (the Sift console port's Phase C; maintainer decision). When the component that sent a write is removed before the reply (a page left), its requests with reply actions are aborted, and a save the server may still apply lost its `updates` and `invalidates`. A detached request isn't aborted with its sender: its `updates` write the cache entries of the resources it named (as they were when it was sent), its `invalidates` refetch, and its `ok` / `error` actions are dropped. React Query's mutations behave this way after an unmount; making it the default for writes with `updates` / `invalidates` is planned for 8.0 (BACKLOG-8.0 B8-4). Guide: `guide/resources` § A write that outlives its page.

@@ -119,6 +119,33 @@ describe("t.respond and refetchEvery: a poll due within timeoutMs is waited for"
     t.dispose()
   })
 
+  it('a poll the state turns on (refetchEvery: state.pending ? 1000 : undefined) is waited for too', async () => {
+    function P({ state }) { return h('p', null, state.item?.data?.pending ? 'pending' : 'done') }
+    P.resources = { item: (s) => ({ url: '/item', refetchEvery: s.item?.data?.pending ? 1000 : undefined }) }
+    P.initialState = {}
+    const t = renderComponent(P)
+    await t.ready()
+    await t.respond('HTTP', { pending: true }, 'item')
+    await t.settle()
+    await t.respond('HTTP', { pending: false }, 'item')
+    expect(t.requests('HTTP').length).toBe(2)
+    // off again: nothing polls, so the next t.respond throws at once
+    await t.settle()
+    expect(() => t.respond('HTTP', { pending: false }, 'item')).toThrow(/no pending HTTP request/)
+    t.dispose()
+  })
+
+  it('a poll due later than timeoutMs less 250 ms (1.8 s of 2 s) throws at once', async () => {
+    function L() { return h('p', null, '-') }
+    L.resources = { item: () => ({ url: '/item', refetchEvery: 1800 }) }
+    L.initialState = {}
+    const t = renderComponent(L)
+    await t.ready()
+    await t.respond('HTTP', 1, 'item')
+    expect(() => t.respond('HTTP', 2, 'item')).toThrow(/polls every 1800ms/)
+    t.dispose()
+  })
+
   it('behind a queued input (the race): the poll is answered every time', async () => {
     function P({ state }) { return h('p', null, String(state.quote?.data?.n ?? '-')) }
     P.resources = { quote: () => ({ url: '/api/q', refetchEvery: 1000 }) }

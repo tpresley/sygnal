@@ -512,7 +512,7 @@ export interface RenderResult {
    * newest pending one. Throws at the call when
    * none matches, unless input is still queued before it or the component isn't ready: then
    * it waits up to 1s (half of timeoutMs if lower) for one; a polled resource's next request
-   * due within timeoutMs is waited for. Resolves after the reply has been
+   * due within timeoutMs less 250 ms is waited for. Resolves after the reply has been
    * reduced and rendered; rejects (and, un-awaited, fails the next wait) otherwise.
    */
   respond: (sinkName: string, value: any, target?: FakeReplyTarget) => Promise<void>;
@@ -2015,7 +2015,7 @@ export function renderComponent(
   // step: PLAN-11 U-2, the driver's progress callback of a request sent with `progress` (t.progress)
   // sb: 7.2, the body of a `stream` request once a t.push / t.respond started it (fakeBody)
   type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void; llm?: any; step?: (phase: string, loaded: number, total: number) => void; sb?: FakeBody; open?: (r: any) => void};
-  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock; llm?: any; polls?: Map<string, number>};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock; llm?: any; polls?: Map<string, number>; every?: Map<string, number>};
   const fakes = new Map<string, Fake>();
   // 5-3: the fake drivers' focus / online listeners (t.focus, t.online)
   const signals = new Set<(s: string) => void>();
@@ -2124,6 +2124,7 @@ export function renderComponent(
       };
       fakes.set(name, (f = at([])));
       f!.polls = polls;
+      f!.every = new Map();
     }
     return f!;
   };
@@ -2231,6 +2232,15 @@ export function renderComponent(
     // 2-C: a socket value goes to the fake's socket driver (it reports SYG610/SYG611 itself)
     if (obj && sockValue(v)) return sockRecord(fake(name).ws, v);
     const f = fake(name);
+    // Sift (after preview.7): a resource's refetchEvery that follows state (turned on by a reply): the
+    // driver starts its timer when the interval changes, after a settled reply (t.respond's pollDue)
+    if (obj && v.resources && typeof v.resources == 'object') Object.entries(v.resources).forEach(([k, q]: [string, any]) => {
+      const ms = q && q.refetchEvery > 0 ? q.refetchEvery : 0;
+      if (ms === (f.every!.get(k) ?? 0)) return;
+      f.every!.set(k, ms);
+      if (ms && !f.pending.some(p => p.live && p.res === k) && requests(name).some(r => r?.resource === k)) f.polls!.set(k, clockNow() + ms);
+      else if (!ms) f.polls!.delete(k);
+    });
     sending = listed ? value : undefined;
     // PLAN-6 L-4: the LLM fake's own driver (the chat driver)
     try { (f.llm ? f.llm.in$ : f.in$).shamefullySendNext(v); } finally { sending = tapped = undefined; }
@@ -2938,7 +2948,7 @@ export function renderComponent(
       (live.length ? `Pending: ${live.map(r => brief(r.value)).join(', ')}. ` : '') +
       (sent ? `The component sent ${sent} (t.requests('${name}') lists every request sent, answered or not)${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
         `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`) +
-      (pv ? ` Resource '${pv.resource}' polls every ${pv.refetchEvery}ms (refetchEvery): its next request is sent ${pv.refetchEvery}ms after the last reply, so advance the clock (vi.advanceTimersByTime(${pv.refetchEvery}) under fake timers) or wait that long (await t.next(...)) before answering it: t.respond waits only for a poll due within timeoutMs (${defaultTimeout}ms).` :
+      (pv ? ` Resource '${pv.resource}' polls every ${pv.refetchEvery}ms (refetchEvery): its next request is sent ${pv.refetchEvery}ms after the last reply, so advance the clock (vi.advanceTimersByTime(${pv.refetchEvery}) under fake timers) or wait that long (await t.next(...)) before answering it: t.respond waits only for a poll due within timeoutMs less ${POLL_SLACK}ms (${defaultTimeout - POLL_SLACK}ms).` :
         waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
   };
   /**
