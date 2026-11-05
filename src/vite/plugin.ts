@@ -139,6 +139,14 @@
  *      same-origin BroadcastChannel: the page fades components with no instance, shows instance
  *      counts, flashes a card when its action runs and shows an instance's state. `graph: false`:
  *      no route, stamps or bridge (the checker of 5 runs check() as before).
+ *  13. Dependency cache (dev server only, never `vite build` or Vitest): when the config sets
+ *      no `cacheDir`, the pre-bundles go to `node_modules/.vite-sygnal` instead of Vite's
+ *      `node_modules/.vite`. A project with a second Vite config in the same folder (a React
+ *      app beside the Sygnal one) otherwise shares the deps folder; the two configs hash
+ *      differently, so each server's start deletes and rewrites the other's pre-bundles, and
+ *      the running server answers 504 Outdated Optimize Dep for the ones gone from disk
+ *      (sygnal/devtools, sygnal/diagnostics): a blank page until `.vite/deps` is deleted.
+ *      Astro sets its own `cacheDir`, which is kept.
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -508,6 +516,12 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       // G-098: Vite doesn't discover the imports of an excluded dependency, so for an
       // installed sygnal 'sygnal' is pre-bundled up front (pages that reach it only through
       // the JSX runtime would otherwise get it, and its CommonJS xstream, unbundled).
+      // 13: its own dependency cache, so a sibling config's server can't swap it out
+      if (isServe && !isVitest && !config?.cacheDir) {
+        const dir = depsCacheDir(root)
+        if (dir) result.cacheDir = dir
+      }
+
       if (isServe && !isVitest) {
         const include = result.optimizeDeps?.include || []
         result.optimizeDeps = {
@@ -981,6 +995,20 @@ function astroClientFiles(root: string): Set<string> {
     files.add(fs.realpathSync(file).split(path.sep).join('/'))
   } catch (_) {}
   return files
+}
+
+/**
+ * The dev server's cacheDir: `node_modules/.vite-sygnal` where Vite would put
+ * `node_modules/.vite` (beside the nearest package.json); undefined (Vite's
+ * default) when there is none.
+ */
+function depsCacheDir(root: string): string | undefined {
+  let dir = root
+  while (!fs.existsSync(path.join(dir, 'package.json'))) {
+    if (dir === path.dirname(dir)) return undefined
+    dir = path.dirname(dir)
+  }
+  return path.join(dir, 'node_modules', '.vite-sygnal')
 }
 
 function sygnalInNodeModules(root: string): boolean {
