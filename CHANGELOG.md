@@ -9,7 +9,11 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 - **SYG103 on a tag drawn by a helper in another file:** sygnal/vite registered only the string literals of a component's relative imports, so `.posture-also input` warned when the `<input>` was in a helper module's JSX. It now also registers a helper's JSX tag names, attribute names and `data={{ … }}` keys.
 - **`t.respond` and a poll the state turns on** (`refetchEvery: state.pending ? 1000 : undefined`): it threw "no pending request" instead of waiting for the poll. It now follows the resource's declared interval, as the driver does.
 - **`sygnal/vite`'s dev server served a blank page when another Vite config in the same folder ran too.** Sift has a React config (`vite.config.ts`) and a Sygnal one (`vite.sygnal.config.ts`) in one folder, and both shared `node_modules/.vite/deps`. Their configs hash differently, so each server's start deleted the other's pre-bundles. The Sygnal page then got 504 Outdated Optimize Dep for `sygnal/devtools` and `sygnal/diagnostics` until `.vite/deps` was deleted; restarting both servers around an upgrade set it off. When the config sets no `cacheDir`, the plugin's dev server now pre-bundles into `node_modules/.vite-sygnal`. `vite build`, Vitest and a `cacheDir` you set (Astro sets one) are unchanged. A project with no other Vite config can delete the old `node_modules/.vite`.
+- **A component root that turns from an element into a fragment, or back, replaced the element** (a child component or a Collection item; the app root was fine). A view returning its trigger `<button>` when closed and `<>{button}{confirm}</>` when open rebuilt the button on every switch, so its focus fell to `<body>`. A keyed fragment's first child with no key of its own now takes the key the fragment would have as one element, as React keeps `X` across `<X/>` ↔ `<><X/>…</>`.
+- **Docs:** `resize` and `intersection` reports wait for the browser's next rendering step, and a hidden tab has none (guide/browser-sources).
 - **Docs:** the poll `t.respond` waits for must be due 250 ms before `timeoutMs` runs out (within 1.75 s by default; `renderComponent(C, { timeoutMs })` raises it).
+
+**Size:** the size gate's budget goes from 43,467 B to 43,503 B (user-approved, +36 B), for the root-shape fix.
 
 ## 7.2.0-preview.7 — dev preview
 
