@@ -2,7 +2,7 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.2.0-preview.9 — dev preview
 
 **Added: `reload: true` on a router `{ to }` / `{ url }` command** (the Sift console port's Phase D; maintainer decision). That one navigation is a full page load (`location.assign`, or `location.replace` with `replace: true`), for a sign-in or sign-out that must drop everything the old session loaded. Leave blocks are asked first and a block's `proceed` keeps it; `t.pageLoads` records it. Before, the only way was listing the path in `external`, which is meant for URLs another app owns.
 
