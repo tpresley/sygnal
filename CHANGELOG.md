@@ -2,6 +2,10 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+**Fixed: `sygnal/vite`'s dev server served a blank page when another Vite config in the same folder ran too** (the Sift console port). Sift has a React config (`vite.config.ts`) and a Sygnal one (`vite.sygnal.config.ts`) in one folder, and both shared `node_modules/.vite/deps`. Their configs hash differently, so each server's start deleted the other's pre-bundles. The Sygnal page then got 504 Outdated Optimize Dep for `sygnal/devtools` and `sygnal/diagnostics` until `.vite/deps` was deleted; restarting both servers around an upgrade set it off. When the config sets no `cacheDir`, the plugin's dev server now pre-bundles into `node_modules/.vite-sygnal`. `vite build`, Vitest and a `cacheDir` you set (Astro sets one) are unchanged. A project with no other Vite config can delete the old `node_modules/.vite`.
+
 ## 7.2.0-preview.7 — dev preview
 
 **Added: `detached: true` on a fetch request**, a write that outlives its sender (the Sift console port's Phase C; maintainer decision). When the component that sent a write is removed before the reply (a page left), its requests with reply actions are aborted, and a save the server may still apply lost its `updates` and `invalidates`. A detached request isn't aborted with its sender: its `updates` write the cache entries of the resources it named (as they were when it was sent), its `invalidates` refetch, and its `ok` / `error` actions are dropped. React Query's mutations behave this way after an unmount; making it the default for writes with `updates` / `invalidates` is planned for 8.0 (BACKLOG-8.0 B8-4). Guide: `guide/resources` § A write that outlives its page.
