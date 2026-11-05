@@ -589,7 +589,7 @@ export interface RenderResult {
   forward: () => Promise<void>;
   /** PLAN-3 5-4c: the in-memory location */
   readonly location: {path: string; search: string; query: Record<string, string>; hash: string; href: string};
-  /** the full page loads the app made (the router's `external`, a link it left to the browser): recorded, not made */
+  /** the full page loads the app made (the router's `external`, a command's `reload: true`, a link it left to the browser): recorded, not made */
   readonly pageLoads: Array<{url: string; replace: boolean}>;
   /** PLAN-3 5-4c: the HEAD fake's merged head (titleTemplate applied) */
   head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};

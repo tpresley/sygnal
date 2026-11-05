@@ -2,7 +2,8 @@
 // makeRouter({ external }): URLs another app owns (a strangler migration, multi-zones). A
 // navigation to one, from a link, a command, a guard's redirect or a block's proceed, is a full
 // page load (location.assign / location.replace), never a pushState; the blocks are asked first.
-// The router fake records page loads in t.pageLoads.
+// A command's reload: true does the same for one navigation. The router fake records page loads
+// in t.pageLoads.
 import { describe, it, expect, afterEach } from 'vitest'
 import xs from 'xstream'
 import { renderComponent } from '../src/extra/testing.js'
@@ -89,6 +90,47 @@ describe('makeRouter({ external })', () => {
     await t.settle()
     expect(t.pageLoads).toEqual([{ url: O + '/auth/login?next=/tasks/2', replace: true }])
     expect(t.location.path).toBe('/tasks/2')
+  })
+
+  it('Sift (Phase D): reload: true makes one navigation to an own route a page load; blocks are asked, and proceed keeps it', async () => {
+    function SignIn({ state }) { return h('p', null, state.route ? state.route.name : '-') }
+    SignIn.route = 'ROUTE'
+    SignIn.initialState = { route: null, pending: null }
+    SignIn.model = {
+      ROUTE: (state, route) => ({ ...state, route }),
+      SIGNED_IN: { ROUTER: () => ({ to: 'task', params: { id: 1 }, reload: true }) },
+      HOME: { ROUTER: () => ({ url: '/', replace: true, reload: true }) },
+      EDIT: { ROUTER: () => ({ block: 'CONFIRM_LEAVE' }) },
+      CONFIRM_LEAVE: (state, attempt) => ({ ...state, pending: attempt.proceed }),
+      YES: { ROUTER: (state) => ({ ...state.pending, block: false }) },
+    }
+    t = renderComponent(SignIn, { router, url: '/tasks/2' })
+    await t.waitForState(s => s.route?.name === 'task')
+    t.simulateAction('SIGNED_IN')
+    t.simulateAction('HOME')
+    await t.settle()
+    expect(t.pageLoads).toEqual([
+      { url: O + '/tasks/1', replace: false },
+      { url: O + '/', replace: true },
+    ])
+    expect(t.location.path).toBe('/tasks/2')
+    // the same route without reload stays client-side
+    await t.navigate({ to: 'task', params: { id: 3 } })
+    expect(t.location.path).toBe('/tasks/3')
+    expect(t.pageLoads).toHaveLength(2)
+    t.simulateAction('EDIT')
+    await t.settle()
+    t.simulateAction('SIGNED_IN')
+    await t.waitForState(s => !!s.pending)
+    expect(t.state.pending).toEqual({ url: '/tasks/1', force: true, reload: true })
+    expect(t.pageLoads).toHaveLength(2)
+    t.simulateAction('YES')
+    await t.settle()
+    expect(t.pageLoads).toEqual([
+      { url: O + '/tasks/1', replace: false },
+      { url: O + '/', replace: true },
+      { url: O + '/tasks/1', replace: false },
+    ])
   })
 
   it('a leave block is asked first; its proceed makes the page load', async () => {

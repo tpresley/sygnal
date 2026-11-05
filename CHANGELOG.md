@@ -4,6 +4,8 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
+**Added: `reload: true` on a router `{ to }` / `{ url }` command** (the Sift console port's Phase D; maintainer decision). That one navigation is a full page load (`location.assign`, or `location.replace` with `replace: true`), for a sign-in or sign-out that must drop everything the old session loaded. Leave blocks are asked first and a block's `proceed` keeps it; `t.pageLoads` records it. Before, the only way was listing the path in `external`, which is meant for URLs another app owns.
+
 **Fixed (from the Sift console port's Phase D):**
 - **`autoFocus` waited for an animation frame**, so in a hidden or background tab it didn't focus until the tab was shown, a runtime without `requestAnimationFrame` never focused, and after a router navigation the router's focus step came first. It now focuses right after the patch that adds the element, as React focuses at mount; an element that can't take focus yet tries again on the next frame.
 - **The router's focus after a navigation took the focus off an `autoFocus` field** of the new page. When the new page focused an element itself, the router now leaves it there.
