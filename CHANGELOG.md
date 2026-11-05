@@ -2,9 +2,9 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.2.0-preview.8 — dev preview
 
-**Fixed (from the Sift console port's preview.7 bump):**
+**Fixed (from the Sift console port: its preview.7 bump and Phase C):**
 - **SYG103 on an element written with the data prop:** `[data-act="confirm"]` warned when the view writes `data={{ act: 'confirm' }}`, which never spells `data-act` (new in preview.7, with the attribute-selector check). A `data-*` attribute now counts as written when its dataset key is (`act`, `gateKind` for `data-gate-kind`).
 - **SYG103 on a tag drawn by a helper in another file:** sygnal/vite registered only the string literals of a component's relative imports, so `.posture-also input` warned when the `<input>` was in a helper module's JSX. It now also registers a helper's JSX tag names, attribute names and `data={{ … }}` keys.
 - **`t.respond` and a poll the state turns on** (`refetchEvery: state.pending ? 1000 : undefined`): it threw "no pending request" instead of waiting for the poll. It now follows the resource's declared interval, as the driver does.
