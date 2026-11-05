@@ -133,6 +133,7 @@ Send commands to the `ROUTER` sink:
 | `{ to: …, replace: true }` | replace the current entry instead |
 | `{ to: …, scroll: false }` | push without scrolling to the top |
 | `{ url: href(…) }` | navigate to a URL built earlier |
+| `{ to: …, reload: true }` | a full page load (`location.assign`, or `location.replace` with `replace`) instead of a client-side navigation |
 | `{ back: true }`, `{ forward: true }`, `{ go: n }` | traverse the history |
 | `{ block: 'CONFIRM_LEAVE' }`, `{ block: false }` | set or clear a navigation guard (below) |
 | `{ prefetch: 'task', params }` | warm the data for a route (below) |
@@ -158,6 +159,8 @@ export default TaskPage
 ```
 
 A `{ to }` or `{ url }` command always pushes a new history entry, even when it names the URL already shown; pass `replace: true` when it shouldn't add one.
+
+`reload: true` makes that one navigation a full page load: after signing in or out, for example, when nothing the old session loaded (cached reads, state) may survive. Leave blocks are asked first, as for any navigation, and a block's `proceed` keeps the `reload`. For URLs another app serves, use [`external`](#routes-another-app-owns) instead: it covers links too.
 
 The `route` key is reserved for the `route` declaration: `{ route: 'home' }` is not a command. A command the router can't perform (an unknown route, a missing param) is reported as SYG620 and ignored, also in production.
 
@@ -229,7 +232,7 @@ Each history entry gets a `{ key, i }` in `history.state`, and the router keeps 
 - a replace leaves the scroll alone;
 - a reload is left to the browser.
 
-After a push, back or forward, focus moves to the first `[data-router-focus]` element, else the `main h1`, else the first `h1` (`tabindex="-1"` is added when needed), so screen readers announce the new page. Initial load and replace don't move focus.
+After a push, back or forward, focus moves to the first `[data-router-focus]` element, else the `main h1`, else the first `h1` (`tabindex="-1"` is added when needed), so screen readers announce the new page. Initial load and replace don't move focus, and neither does a navigation whose new page focused an element itself (an `autoFocus` input).
 
 "After the page renders" means once the DOM has stopped changing for `settleMs` (30 ms), watched with a `MutationObserver`, at most one second. Content that arrives later, such as data still loading, isn't waited for, so a restore can land short on a page that renders its data late. `makeRouter({ routes, scroll: false, focus: false })` turns either off; `focus: '#main-title'` picks other targets.
 
@@ -311,6 +314,6 @@ it('redirects to login from the admin page', async () => {
 })
 ```
 
-`t.navigate('/tasks/2')` or `t.navigate({ to: 'task', params: { id: 2 } })` navigates, `t.back()` and `t.forward()` traverse, and `t.location` is the current location (`path`, `search`, `query`, `hash`, `href`). A `simulateEvent` click on a link goes through the router's link interception. `t.pageLoads` lists the full page loads (`{ url, replace }`): `external` navigations and links the router left to the browser. They are recorded, not made. Each call resolves once the route has been reduced and rendered. A `{ block }` stops them as it would stop a user. `t.head()` returns the merged head when no `HEAD` driver is passed.
+`t.navigate('/tasks/2')` or `t.navigate({ to: 'task', params: { id: 2 } })` navigates, `t.back()` and `t.forward()` traverse, and `t.location` is the current location (`path`, `search`, `query`, `hash`, `href`). A `simulateEvent` click on a link goes through the router's link interception. `t.pageLoads` lists the full page loads (`{ url, replace }`): `external` navigations, commands with `reload: true` and links the router left to the browser. They are recorded, not made. Each call resolves once the route has been reduced and rendered. A `{ block }` stops them as it would stop a user. `t.head()` returns the merged head when no `HEAD` driver is passed.
 
 Outside `renderComponent`, `makeRouter({ routes, window })` (and `history`, `location`, `document`) takes stand-ins, for an in-memory history in a test that calls `run()`.

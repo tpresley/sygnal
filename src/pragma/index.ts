@@ -112,15 +112,14 @@ const applyFocusProps = (data: any): void => {
   data._autoFocus = !!autoFocus
   data._autoSelect = !!autoSelect
 
-  const doFocus = (elm: any) => {
-    if (elm && typeof elm.focus === 'function') {
-      requestAnimationFrame(() => {
-        elm.focus()
-        if (autoSelect && typeof elm.select === 'function') {
-          elm.select()
-        }
-      })
-    }
+  // Sift (Phase D): at once, after the patch (insert / postpatch), as React focuses at mount: a
+  // frame later waited for a hidden tab to be shown, never ran without requestAnimationFrame, and
+  // came after the router's focus. An element that can't take focus yet (not shown) tries again
+  // on the next frame
+  const doFocus = (elm: any, again?: any): any => {
+    elm?.focus?.()
+    if (elm?.ownerDocument?.activeElement != elm) again || typeof requestAnimationFrame == 'function' && requestAnimationFrame(() => doFocus(elm, 1))
+    else if (autoSelect) elm.select?.()
   }
 
   chainHooks(data, {

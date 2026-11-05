@@ -3610,8 +3610,8 @@ export interface Route<NAME extends string = string> {
 
 /** A value for the router's sink (`ROUTER`); `{ route }` is reserved for the `route` static */
 export type RouterCommand<R extends Record<string, string> = Record<string, string>> =
-  | { to: RouteName<R>; params?: Record<string, string | number>; query?: RouteQuery; hash?: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null }
-  | { url: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null }
+  | { to: RouteName<R>; params?: Record<string, string | number>; query?: RouteQuery; hash?: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null; /** a full page load (location.assign / replace) instead of a client-side navigation */ reload?: boolean }
+  | { url: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null; /** a full page load (location.assign / replace) instead of a client-side navigation */ reload?: boolean }
   | { back: true; force?: boolean; block?: string | false | null } | { forward: true; force?: boolean; block?: string | false | null } | { go: number; force?: boolean; block?: string | false | null }
   | { block: string | false | null }
   | { prefetch: RouteName<R> | string; params?: Record<string, string | number>; query?: RouteQuery };
@@ -3638,7 +3638,8 @@ export interface RouterOptions<R extends Record<string, string> = Record<string,
   scroll?: boolean;
   /**
    * After a push or back/forward, once the DOM is quiet, focus the first match of these
-   * comma-separated selectors, tried in order. Default '[data-router-focus],main h1,h1'; false disables
+   * comma-separated selectors, tried in order, unless the new page focused an element itself (autoFocus).
+   * Default '[data-router-focus],main h1,h1'; false disables
    */
   focus?: string | false;
   /** quiet time (ms) before scroll restore and focus. Default 30 */
@@ -4513,7 +4514,7 @@ export interface RenderResult<STATE = any> {
   readonly location: { path: string; search: string; query: Record<string, string>; hash: string; href: string };
   /**
    * Router fake: the full page loads the app made, in order, as absolute URLs: a navigation to an
-   * `external` URL (`replace: true` for a replace) or a link click the router left to the browser.
+   * `external` URL or with `reload: true` (`replace: true` for a replace), or a link click the router left to the browser.
    * Recorded, not made: the location and the rendered page stay as they were
    */
   readonly pageLoads: Array<{ url: string; replace: boolean }>;

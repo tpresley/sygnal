@@ -94,3 +94,9 @@ effect to keep, but the server still applies it).
 
 **Migration path:** 7.x documents `detached`; a strict-mode note before 8.0 for a write with
 `updates` / `invalidates` and no `detached`, so an app can opt in early and see what changes.
+
+**Related, deferred (maintainer, 2026-11-05; Sift Phase D):** `updates` names only the sender's own
+resources. To write a reply into an ancestor's resource (the root's `/auth/me` session after a
+sign-in or a password change), Sift re-declares the identical read in the page so the two share a
+cache entry. That works and is its documented pattern. Revisit with B8-4: `updates` naming a cache
+key or URL, or a `context` resource.

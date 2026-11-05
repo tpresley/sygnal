@@ -419,6 +419,21 @@ describe('scroll and focus (G-169)', () => {
     await waitFor(() => expect(document.activeElement?.className).toBe('mark'))
   })
 
+  it('Sift (Phase D): a page whose input took focus with autoFocus keeps it (the router focuses nothing)', async () => {
+    const r = makeRouter({ routes, settleMs: SETTLE })
+    const p = probe(r, { body: s => s.route?.name == 'task'
+      ? [h('main', null, h('h1', { className: 'h' }, 'Task'), h('input', { className: 'field', autoFocus: true }))]
+      : pages(s) })
+    p.start()
+    await waitFor(() => expect(p.last()?.name).toBe('home'))
+    clickOn(await rendered('.t1'))
+    await waitFor(() => expect(text('.h')).toBe('Task'))
+    await sleep(SETTLE + 60)
+    expect(document.activeElement?.className).toBe('field')
+    window.history.back()
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('Home'))
+  })
+
   it('focus: false and scroll: false turn both off', async () => {
     const r = makeRouter({ routes, settleMs: SETTLE, focus: false, scroll: false })
     const p = probe(r, { body: pages })

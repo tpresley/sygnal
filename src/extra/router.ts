@@ -42,8 +42,8 @@ import {SET} from '../core/teardown';
  * - Focus (option `focus`, default '[data-router-focus],main h1,h1'; false disables): after a push or a
  *   back/forward, once the DOM has been quiet for `settleMs` (MutationObserver; capped at 1 s),
  *   the first match of the comma-separated selectors, tried in order, gets focus (tabindex=-1
- *   added when needed, preventScroll). Content that renders later (data still loading) is
- *   missed; the scroll restore has the same limit.
+ *   added when needed, preventScroll), unless the new page focused an element itself (autoFocus).
+ *   Content that renders later (data still loading) is missed; the scroll restore has the same limit.
  * - No window (SSR): no listeners, no history, no replies; href/match/current(url) still work.
  * - Vike (`navigate` option, Vike's navigate()): no link interception (Vike owns links),
  *   navigation calls navigate(url, { overwriteLastHistoryEntry }), scroll is left to Vike, and
@@ -56,6 +56,8 @@ import {SET} from '../core/teardown';
  *   browser. The blocks are asked first, as for any navigation. Patterns match the path as
  *   `match()` reads it (base removed; in hash mode the page's path). Under Vike it applies to
  *   commands (links are Vike's).
+ * - `reload: true` on a `{ to }` / `{ url }` command: that navigation is a full page load, as an
+ *   external URL's (the blocks asked first; a block's `proceed` keeps it).
  */
 
 type Routes = Record<string, string>;
@@ -158,12 +160,14 @@ export function makeRouter(options: any = {}) {
       if (!D) return;
       pendingKind = cancel && kind == 'replace' ? pendingKind : kind;
       cancel?.();
-      let t: any, mo: any;
+      // Sift (Phase D): the element focused when the navigation started; one the new page focused
+      // itself since (autoFocus, a widget) is left alone
+      let t: any, mo: any, was = D.activeElement;
       const done = () => {
         cancel?.();
-        const k = pendingKind, h = cur.hash && D.getElementById(cur.hash), p = k == 'pop' && pos.get(key);
+        const k = pendingKind, h = cur.hash && D.getElementById(cur.hash), p = k == 'pop' && pos.get(key), a = D.activeElement;
         if (doScroll) p ? w.scrollTo(p[0], p[1]) : h?.scrollIntoView?.();
-        if (focusSel && k != 'replace') for (const sel of focusSel.split(',')) {
+        if (focusSel && k != 'replace' && !(a && a != was && a != D.body && a.isConnected)) for (const sel of focusSel.split(',')) {
           const el = D.querySelector(sel);
           if (el) {
             if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
@@ -220,12 +224,13 @@ export function makeRouter(options: any = {}) {
       return b && (asked = b[0], reply(b[0], b[1], data), 1);
     };
 
-    const ask = (url: string, replace?: boolean) => blocked({to: url, route: match(url), proceed: {url, replace, force: true}});
+    const ask = (url: string, replace?: boolean, reload?: boolean) => blocked({to: url, route: match(url), proceed: {url, replace, force: true, ...reload && {reload}}});
 
-    const go = (url: string, replace?: boolean, scroll?: boolean, f?: any) => {
-      if (!f && ask(url, replace)) return;
-      // another app's URL: a full page load (the blocks were asked; a forced one skips the rest)
-      if (isExternal(url, L.href)) {
+    const go = (url: string, replace?: boolean, scroll?: boolean, f?: any, reload?: boolean) => {
+      if (!f && ask(url, replace, reload)) return;
+      // another app's URL, or a command's `reload: true` (Sift, Phase D: a sign-in that must drop
+      // every cached read): a full page load (the blocks were asked; a forced one skips the rest)
+      if (reload || isExternal(url, L.href)) {
         w.removeEventListener('beforeunload', onUnload);
         return void L[replace ? 'replace' : 'assign'](url);
       }
@@ -365,7 +370,7 @@ export function makeRouter(options: any = {}) {
           later(() => { forceTo = v.force ? idx + d : null; H.go(d); });
         } else if (nav) {
           const url = v.url ?? target(v, v.to);
-          if (url) later(() => go(url, v.replace, v.scroll, v.force));
+          if (url) later(() => go(url, v.replace, v.scroll, v.force, v.reload));
         } else bad(v, 'unknown command', "{ to: 'name', params?, query?, hash?, replace? }, { back: true }, { forward: true }, { block: 'ACTION' } or { prefetch: 'name' }");
       },
       error: (e: any) => console.error('[Sygnal] router', e),

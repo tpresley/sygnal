@@ -2,6 +2,17 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.2.0-preview.9 — dev preview
+
+**Added: `reload: true` on a router `{ to }` / `{ url }` command** (the Sift console port's Phase D; maintainer decision). That one navigation is a full page load (`location.assign`, or `location.replace` with `replace: true`), for a sign-in or sign-out that must drop everything the old session loaded. Leave blocks are asked first and a block's `proceed` keeps it; `t.pageLoads` records it. Before, the only way was listing the path in `external`, which is meant for URLs another app owns.
+
+**Fixed (from the Sift console port's Phase D):**
+- **`autoFocus` waited for an animation frame**, so in a hidden or background tab it didn't focus until the tab was shown, a runtime without `requestAnimationFrame` never focused, and after a router navigation the router's focus step came first. It now focuses right after the patch that adds the element, as React focuses at mount; an element that can't take focus yet tries again on the next frame.
+- **The router's focus after a navigation took the focus off an `autoFocus` field** of the new page. When the new page focused an element itself, the router now leaves it there.
+- **Docs:** `await t.settle()` after `ready()` before typing into a component that starts work on entry (a `visit` timer sending `form.RESET`, a request on `BOOTSTRAP`); integration/testing § settle().
+
+**Size:** the size gate's budget goes from 43,503 B to 43,522 B (user-approved, +19 B), for `autoFocus` at the patch.
+
 ## 7.2.0-preview.8 — dev preview
 
 **Fixed (from the Sift console port: its preview.7 bump and Phase C):**
