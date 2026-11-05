@@ -98,15 +98,16 @@ const tokensOf = (selector: string): string[] =>
     .concat(...Array.from(selector.matchAll(/\[\s*([\w-]+)\s*(?:[~|^$*]?=\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]*)))?[^\]]*\]/g), m =>
       // CT-1: a control's key (`<Add>` / `h(Add)` in the view source)
       m[1] == 'data-control' ? words(m[2] ?? m[3] ?? m[4] ?? '')
-      // Sift (after preview.6): an attribute's name and its value's words (`[data-act="remove"]`)
-      : [m[1], ...words(m[2] ?? m[3] ?? m[4] ?? '')]))
+      // Sift (after preview.6): an attribute's name and its value's words (`[data-act="remove"]`);
+      // a data-* name may be written as its dataset key instead (`data={{ act }}`): `a|b` either
+      : [m[1].startsWith('data-') ? m[1] + '|' + m[1].slice(5).replace(/-(\w)/g, (_, c) => c.toUpperCase()) : m[1], ...words(m[2] ?? m[3] ?? m[4] ?? '')]))
 
 function appearsInView(component: any, selector: string): boolean {
   const src = viewSource(component)
   if (!src) return false
   const tokens = tokensOf(selector)
   if (!tokens.length) return false
-  return tokens.every(t => new RegExp(`(^|[^\\w-])${t.replace(/[-]/g, '\\-')}($|[^\\w-])`).test(src))
+  return tokens.every(t => t.split('|').some(a => new RegExp(`(^|[^\\w-])${a.replace(/[-]/g, '\\-')}($|[^\\w-])`).test(src)))
 }
 
 // G-144: a fragment-rooted component has several root elements

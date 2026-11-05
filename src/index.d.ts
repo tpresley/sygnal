@@ -4408,7 +4408,8 @@ export interface RenderResult<STATE = any> {
    * Throws at the call when nothing matching is pending, unless simulateEvent/simulateAction/
    * respond/fail calls are still queued before it or the component isn't ready yet: then it is
    * delivered after them, waiting up to 1s (half of timeoutMs if lower) for the request.
-   * A polled resource (`refetchEvery`) whose next request is due within timeoutMs is waited for.
+   * A polled resource (`refetchEvery`) whose next request is due within timeoutMs less 250 ms is
+   * waited for (a refetchEvery the state turns on too).
    * Resolves once the reply has been reduced and the tree rendered; rejects (and, if not
    * awaited, fails the next wait) when no request comes or nothing receives a plain reply.
    * On the LLM fake (`llmSink`, default 'LLM'): the whole reply as one text chunk, then the end

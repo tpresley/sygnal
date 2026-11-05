@@ -173,15 +173,15 @@ export const flat = (v: any): any => {
   if (!r) {
     const o: any[] = [];
     let d = 0;
-    // (m, s: locals of each call)
-    const put = (c: any[], k?: string, n: any = {}, m?: any, s?: any) => {
+    // (m, s: locals of each call; f: the key a keyed fragment's first child takes)
+    const put = (c: any[], k?: string, n: any = {}, f?: any, m?: any, s?: any) => {
       for (const x of c) {
         // G-539: a keyed fragment's copies are kept per (fragment, prefix), in flatOf (flat() never
         // takes a fragment): an unchanged one (a Collection item that didn't render again) gives
         // snabbdom the same vnodes
         if (x && !x.sel && x.children) d = 1, x.key == null ? put(x.children, k, n)
           : (m = flatOf.get(x)) && m[0] === k ? o.push(...m[1])
-          : (s = o.length, put(x.children, seg(k, x.key)), flatOf.set(x, [k, o.slice(s)]));
+          : (s = o.length, put(x.children, m = seg(k, x.key), {}, k ? m : x.key), flatOf.set(x, [k, o.slice(s)]));
         else {
           let y = flat(x);
           y !== x && (d = 1);
@@ -190,8 +190,12 @@ export const flat = (v: any): any => {
             // when one of its children is: a Collection's), so snabbdom skips the others. 4-I
             // G-561: a hit compares the prefix and the child's own part (its key, else its count),
             // so the key is only built on a miss
-            const s = y.key ?? (n[y.sel] = -~n[y.sel]), c = cpOf.get(y);
-            y = c && c[0] === k && c[1] === s ? c[2] : (cpOf.set(y, [k, s, y = new Copy(y, {key: seg(k, y.key ?? [y.sel, s])})]), y);
+            // Sift (Phase C): a keyed fragment's first child with no key of its own takes the key the
+            // fragment would have as one element (as React: `<X/>` ↔ `<><X/>…</>` keeps X), so a
+            // component's root that turns from an element into a fragment, or back, keeps the element
+            // (q: its part of the key, the count or own key, else f; a count is never a string)
+            const s = y.key ?? (n[y.sel] = -~n[y.sel]), q = x !== c[0] || f == null || y.key != null ? s : f, h = cpOf.get(y);
+            y = h && h[0] === k && h[1] === q ? h[2] : (cpOf.set(y, [k, q, y = new Copy(y, {key: q === s ? seg(k, y.key ?? [y.sel, s]) : f})]), y);
           }
           o.push(y);
         }

@@ -4,6 +4,8 @@ import path from 'node:path'
 import sygnal from '../dist/vite/plugin.mjs'
 
 // G-099: xstream's `globalthis` resolves to the native-globalThis stub (nativeGlobalThis)
+// plugin.ts 13: the dev server's own deps folder (the repo root has a package.json)
+const CACHE_DIR = path.resolve('node_modules/.vite-sygnal')
 const RESOLVE = { alias: [{ find: /^globalthis$/, replacement: path.resolve('dist/shims/globalthis.cjs') }] }
 
 const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
@@ -69,6 +71,7 @@ describe('vite-plugin-sygnal', () => {
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
         resolve: RESOLVE,
+        cacheDir: CACHE_DIR,
         oxc: {
           jsx: {
             runtime: 'automatic',
@@ -106,6 +109,7 @@ describe('vite-plugin-sygnal', () => {
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
         resolve: RESOLVE,
+        cacheDir: CACHE_DIR,
         optimizeDeps: { exclude: ['sygnal/vike/onRenderClient', 'sygnal/sandbox'] },
       })
     })

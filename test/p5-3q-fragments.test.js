@@ -58,10 +58,10 @@ describe('flat()', () => {
     expect(flat(v)).toBe(v)
   })
 
-  it('splices nested fragments; a keyed one keys its children (own key, else tag and count)', () => {
+  it('splices nested fragments; a keyed one keys its children (own key, else tag and count; a keyless first child: the fragment\'s key, as one element would have)', () => {
     const v = h('ul', null, h(Fragment, { key: 'k' }, h('li', null, 'a'), h('li', { key: 'own' }, 'b'), h(Fragment, null, h('li', null, 'c'), 'text')), h('p', null, 'z'))
     const f = flat(v)
-    expect(f.children.map(c => c.key)).toEqual([K('k', ['li', 1]), K('k', 'own'), K('k', ['li', 2]), K('k', [null, 1]), undefined])
+    expect(f.children.map(c => c.key)).toEqual(['k', K('k', 'own'), K('k', ['li', 2]), K('k', [null, 1]), undefined])
     expect(f.children.map(c => c.text ?? c.children?.[0]?.text ?? c.text)).toEqual(['a', 'b', 'c', 'text', 'z'])
   })
 
@@ -76,7 +76,7 @@ describe('flat()', () => {
   it("a copy writes its element to the app's vnode and keeps its own", () => {
     const i = h('i', null, 'a'), v = h('div', null, h(Fragment, { key: 'k' }, i))
     const c = flat(v).children[0], c2 = flat(h('p', null, h(Fragment, { key: 'j' }, i))).children[0]
-    expect([c.key, c2.key, c.sel, c.data]).toEqual([K('k', ['i', 1]), K('j', ['i', 1]), 'i', i.data])
+    expect([c.key, c2.key, c.sel, c.data]).toEqual(['k', 'j', 'i', i.data])
     c.elm = 'one'; c2.elm = 'two'
     expect([c.elm, c2.elm, i.elm]).toEqual(['one', 'two', 'two'])
   })
