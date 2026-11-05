@@ -64,6 +64,8 @@ export interface StartOptions {
   __override?: Partial<DefSource> & {name?: string; testActions?: string[]}
   /** internal: the root's props (renderComponent's `props`: a child tested alone) */
   __props?: Record<string, any>
+  /** internal: renderComponent's pending lazy imports: every import starts at render (markers/lazy.ts) */
+  __lazy?: Set<Promise<any>>
 }
 
 export class App {

@@ -70,6 +70,7 @@ import outputGuard from './syg256-output-guard.js'
 import lowercaseMarkers from './syg426-lowercase-markers.js'
 import unknownEndpoint from './syg691-unknown-endpoint.js'
 import clockInReducer from './syg258-clock-in-reducer.js'
+import outputReadsCleared from './syg259-output-reads-cleared.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -83,6 +84,7 @@ export const coreRules = [
   emptyStateKey, // SYG410: a child's state="" (or an empty path segment) names an empty key (with --fix)
   switchableStateMap, // SYG429 (PLAN-13 F-3): a Switchable state map key that names no page
   outlet, // SYG455/456/457 (wizard spike): an <Outlet from> naming no wizard; steps and of keys that don't match
+  outputReadsCleared, // SYG259 (7.3, Sift): an output reads a field the same action's STATE set to an empty literal
   bagContextField, // SYG458 (7.2): a declaration static reads a context field off its bag (with --fix)
   domPropCase, // SYG107 (7.2, Sift preview.5): a DOM property name in the wrong case on an HTML element (with --fix)
   behaviorBagState, // SYG459 (7.2, N6): a wizard / form option reads a host-state field off its bag (with --fix)

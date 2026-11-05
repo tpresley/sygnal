@@ -87,6 +87,22 @@ describe('vite plugin: SYG103 view words', () => {
     expect(words).toEqual(expect.arrayContaining(['posture-also', 'input', 'label', 'data-kind', 'act', 'gateKind', 'confirm']))
   })
 
+  it("7.3 (Sift): a helper's helpers too, three relative imports deep, each read once", async () => {
+    const id = files()
+    fs.writeFileSync(path.join(tmp, 'panel.js'), `import { form } from './form.js'\nexport const panel = () => form()\n`)
+    fs.writeFileSync(path.join(tmp, 'form.js'), `import { field } from './field.js'\nimport { panel } from './panel.js'\nexport const form = () => <form>{field()}</form>\n`)
+    fs.writeFileSync(path.join(tmp, 'field.js'), `import { deep } from './deep.js'\nexport const field = () => <textarea className="spec-json" />\n`)
+    fs.writeFileSync(path.join(tmp, 'deep.js'), `export const deep = () => <i className="too-deep" />\n`)
+    watched.length = 0
+    const result = await plugin().transform.call(ctx, PAGE, id)
+    function Page() {}
+    new Function('Page', tailOf(result, PAGE))(Page)
+    const words = globalThis.__SYGNAL_VIEW_TOKENS__.get(Page).split(' ')
+    expect(words).toEqual(expect.arrayContaining(['form', 'spec-json', 'textarea']))
+    expect(words).not.toContain('too-deep')
+    expect(watched.filter(f => f.endsWith('panel.js'))).toHaveLength(1)
+  })
+
   it('nothing for a module without components with selectors, or in a build, under Vitest or with diagnostics off', async () => {
     const id = files()
     const plain = `export const x = 'save'\n`

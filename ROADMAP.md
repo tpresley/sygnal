@@ -455,3 +455,9 @@ Upload and download progress on HTTP requests (over XMLHttpRequest), `multipart`
 **Status:** `DONE`: ships in **7.0.0** (2026-10-19) with `sygnal-check` 0.11.0, `create-sygnal-app` 2.9.0 (templates: `sygnal` ^7.0.0, `sygnal-check` ^0.11.0), the VS Code extension 0.8.0 and the Claude Code plugin 0.2.0 ([PLAN-12](dev-plans/PLAN-12.md), tracker [PLAN-12-status](dev-plans/PLAN-12-status.md); the single-contract spike in [`research/v7-single-contract/`](dev-plans/research/v7-single-contract/README.md); upgrade guide [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/)). Breaking. The size gate is 42,844 B (budget 43,000 B).
 
 One reducer timing contract: STATE runs first and every other sink gets the state it committed, with `props.previousState` for the old one and the opt-in timing audit (SYG257) for upgrading 6.x code. A child whose known path or `byId` target changes or disappears is replaced, so old requests and timers can't reach the new record.
+
+## Sygnal 7.3
+
+### 27. Lazy route tables and the Sift live-writes fixes
+
+**Status:** `DONE`: ships in **7.3.0** with `sygnal-check` 0.14.0, `create-sygnal-app` 2.12.0 (templates: `sygnal` ^7.3.0, `sygnal-check` ^0.14.0), the VS Code extension 0.11.0 and the Claude Code plugin 0.2.3. `lazy()` imports at first render by default, retries a failed import through `onError`, and `renderComponent` waits for imports; `focusWithin` from a fragment-rooted component; SYG104 and SYG103 false positives fixed; new SYG259 in sygnal-check. The size gate's budget is 43,525 B (release notes in [`CHANGELOG.md`](CHANGELOG.md)).

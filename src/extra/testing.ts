@@ -30,6 +30,7 @@ import {actionHooks} from './diagnostics/checks/actionLog';
 import {inFrame, frameCount, onFrameEnd} from './frame';
 import type {ActionCause, ActionListener, ActionRecord} from './diagnostics/checks/actionLog';
 import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './diagnostics/checks/elementCommands';
+import {appearsInView} from './diagnostics/viewWords';
 
 /*
  * (Docs live on these type-only declarations so the TypeScript emit drops
@@ -1826,6 +1827,8 @@ export function renderComponent(
   const live = new Map<string, number>();
   let disposed = false;
   const owners = new Map<string, string>([['', rootName]]);
+  // 7.3: each scope's view function (the SYG104 shared-markup rule)
+  const ownerViews = new Map<string, any>();
   const scopeIds = new Map<string, number>();
   const evTypes: Record<string, string[]> = {};
   const done = new Set<string>();
@@ -1929,7 +1932,9 @@ export function renderComponent(
       if (!v.sel) { if (v.children) for (const k of v.children) walk(k, chain, cur, inside, boundary); return; }
       const sc = scopeOfV(v) || cur;
       const c = chain.concat([[v, sc]]);
-      inside = inside || sc == scope;
+      // 7.3: a child component's root at the top of a fragment-rooted component carries both
+      // scopes (the child's first: isolateValue appends the parent's), and is under the parent
+      inside = inside || sc == scope || !!scope && v.sel.split('.').includes(scope.slice(1));
       if (inside) {
         if (sc == scope) {
           if (desc(sels, c.filter(x => x[1] == scope).map(x => x[0]))) own = true;
@@ -1961,6 +1966,13 @@ export function renderComponent(
       const {own, child, hit} = probe(selector, scope, target);
       if (own) return done.add(key);
       if (!child || !hit) return;
+      // 7.3 (Sift): shared markup, not a missed child event (as checks/dom.ts): the component can
+      // draw matching elements itself and the matched elements' own component listens to the same
+      // selector (each component's own confirmation)
+      if (appearsInView({view: ownerViews.get(scope || '')}, selector)) for (const p of listeners.values()) {
+        const sc = p.filter(isScope).pop();
+        if (sc && sc != scope && selText(p) == selector && probe(selector, sc).own) return done.add(key);
+      }
       done.add(key);
       const childName = owners.get(child) || 'a child component';
       // CT-1: a control is named by its identifier
@@ -2443,6 +2455,7 @@ export function renderComponent(
         // (every instance, with or without an intent: SYG104 names the child, inspect() its id)
         const sc = viewScope(iv);
         if (sc) owners.set(sc, iv.name);
+        ownerViews.set(sc || '', iv.def.view);
         if (iv.sources.DOM?._hub == hub.$) scopeIds.set(sc || '', iv.id);
         senderNames.set(iv.id, iv.name);
         if (iv.def.view?.route && !(routerSink in allDrivers)) failWith(new Error(`[Sygnal] ${iv.name} declares \`route\`, and nothing answers it: pass the app's router, renderComponent(${compName}, { router }) (the object makeRouter() returns), or a ${routerSink} driver in drivers`));
@@ -2533,6 +2546,7 @@ export function renderComponent(
     const v = seed(init, rt!.r.current(), noop, {state: init, previousState: init})
     if (v !== undefined && !isAbort(v)) init = v
   }
+  const lazyWait = new Set<Promise<any>>();
   let sources: any, sinks: any;
   try {
     // the root runs with the test intent, model, initial state and name, and the drivers above.
@@ -2543,6 +2557,9 @@ export function renderComponent(
       __hooks: nextHooks(),
       __entropy: entropyOf(options),
       __props: rootProps,
+      // 7.3: lazy imports start when the component renders (the mock DOM runs no placeholder
+      // hooks), and settle() waits for them
+      __lazy: lazyWait,
       // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
       // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
       __override: {intent: intent ? (s: any) => { const r = intent(s); if (r && typeof r == 'object') testActions.push(...names.filter(n => !(n in r))); return r; } : undefined,
@@ -3763,7 +3780,7 @@ export function renderComponent(
       await Promise.race([readyPromise, new Promise(r => { wait = setTimeout(r, timeoutMs); })]);
       clearTimeout(wait);
       // 4-A1: on the real DOM, quiet also means the latest render is in the DOM
-      const busy = () => !isReady || inputs.length > 0 || (real && !!vtree && (lastPatched !== vtree || !!held));
+      const busy = () => !isReady || inputs.length > 0 || lazyWait.size > 0 || (real && !!vtree && (lastPatched !== vtree || !!held));
       if (!await quiesce(states.length, settleMs, timeoutMs, busy)) {
         const [why] = explainNext(start);
         throw new Error(`settle timed out after ${timeoutMs}ms: ${inputs.length ? `${inputs.length} simulated input(s) still pending` : `the component kept rendering (it never was quiet for settleMs = ${settleMs}ms)`}.` +

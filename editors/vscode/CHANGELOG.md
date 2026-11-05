@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.0
+
+Bundles sygnal-check 0.14.0 (Sygnal 7.3.0). The extension's own code doesn't change.
+
+- New finding: SYG259 (an output of an action reads a field the same action's STATE sets to an empty literal, such as `''` or `null`; read `previousState` instead).
+
 ## 0.10.0
 
 Bundles sygnal-check 0.13.0 (Sygnal 7.2.0). The extension's own code doesn't change.

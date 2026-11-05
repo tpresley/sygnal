@@ -24,6 +24,10 @@
  *   4. "Ever matched" is tracked per component NAME + selector, so a selector
  *      that matches in one Collection item is fine for all of them.
  *
+ * SYG104 noise control (7.3, Sift): no report when the component may draw matching elements
+ * itself (the SYG103 words rule below) and the component owning each matched element listens to
+ * the same selector (a confirmation every component draws its own of).
+ *
  * SYG103 noise control (conditional rendering is normal): a selector whose
  * class/id/tag tokens all appear in the component's view source (or in the
  * words sygnal/vite registered for it: markup drawn by view helpers in its
@@ -40,6 +44,7 @@ import {ScopeChecker} from '../../../cycle/dom/ScopeChecker'
 import type {Scope} from '../../../cycle/dom/isolate'
 import {reportSafely, once, onReset, timing, nameOf} from './shared'
 import {keyOfSelector} from './controls'
+import {appearsInView} from '../viewWords'
 
 interface Tracked {
   name: string
@@ -62,7 +67,6 @@ let tracked = new WeakMap<object, Tracked>()
 let owners = new Map<string, any>()
 const ownerKeys = new WeakMap<object, string>()
 let matched = new Set<string>()
-let viewTokens = new WeakMap<object, string>()
 
 onReset(() => {
   pending = []
@@ -73,42 +77,6 @@ onReset(() => {
 
 const unref = (t: any) => { if (t && typeof t.unref === 'function') t.unref(); return t }
 
-/**
- * The view's source, plus the words sygnal/vite registered for the component (its module's and
- * its relative imports' string literals: markup a view helper draws), when it did
- */
-function viewSource(component: any): string {
-  const view = component && component.view
-  if (typeof view !== 'function') return ''
-  let src = viewTokens.get(view)
-  if (src === undefined) {
-    try { src = Function.prototype.toString.call(view) } catch (_) { src = '' }
-    const registered = (globalThis as any).__SYGNAL_VIEW_TOKENS__?.get?.(view)
-    if (typeof registered == 'string') src += '\n' + registered
-    viewTokens.set(view, src as string)
-  }
-  return src as string
-}
-
-const words = (s: string): string[] => s.match(/[A-Za-z_][\w-]*/g) || []
-
-/** class / id / tag tokens of a selector: '.a .b-c > #d' -> ['a', 'b-c', 'd'] */
-const tokensOf = (selector: string): string[] =>
-  words(selector.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, ' '))
-    .concat(...Array.from(selector.matchAll(/\[\s*([\w-]+)\s*(?:[~|^$*]?=\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]*)))?[^\]]*\]/g), m =>
-      // CT-1: a control's key (`<Add>` / `h(Add)` in the view source)
-      m[1] == 'data-control' ? words(m[2] ?? m[3] ?? m[4] ?? '')
-      // Sift (after preview.6): an attribute's name and its value's words (`[data-act="remove"]`);
-      // a data-* name may be written as its dataset key instead (`data={{ act }}`): `a|b` either
-      : [m[1].startsWith('data-') ? m[1] + '|' + m[1].slice(5).replace(/-(\w)/g, (_, c) => c.toUpperCase()) : m[1], ...words(m[2] ?? m[3] ?? m[4] ?? '')]))
-
-function appearsInView(component: any, selector: string): boolean {
-  const src = viewSource(component)
-  if (!src) return false
-  const tokens = tokensOf(selector)
-  if (!tokens.length) return false
-  return tokens.every(t => t.split('|').some(a => new RegExp(`(^|[^\\w-])${a.replace(/[-]/g, '\\-')}($|[^\\w-])`).test(src)))
-}
 
 // G-144: a fragment-rooted component has several root elements
 function rootElementsOf(t: Tracked): Element[] {
@@ -137,6 +105,13 @@ function childNameFor(t: Tracked, elements: Element[]): string | undefined {
     }
   }
   return undefined
+}
+
+// 7.3 (Sift): the component an element belongs to: the owner of its innermost isolation scope
+function ownerOf(t: Tracked, el: Element): any {
+  let ns: Scope[] | undefined
+  try { ns = t.source._isolateModule.getNamespace(el) } catch (_) { ns = undefined }
+  for (let i = (ns || []).length - 1; i >= 0; i--) if (ns![i].type === 'total') return owners.get(keyOf(ns!.slice(0, i + 1)))
 }
 
 function report103(component: any, t: Tracked, selector: string, severity: 'info' | 'warn'): void {
@@ -177,6 +152,10 @@ function sweep(component: any, t: Tracked, escalate: boolean): void {
 
     if (all.length) {
       t.crossed.add(selector)
+      // 7.3 (Sift): shared markup, not a missed child event: the component can draw matching
+      // elements itself (the selector's words are in its view or its helpers' markup) and every
+      // matched element's own component listens to the same selector (each one's own confirmation)
+      if (appearsInView(component, selector) && all.every(el => tracked.get(ownerOf(t, el))?.selectors.includes(selector))) continue
       if (!once(`SYG104:${t.name}:${selector}`)) continue
       const child = childNameFor(t, all) || 'a child component'
       // CT-1: a control is named by its identifier

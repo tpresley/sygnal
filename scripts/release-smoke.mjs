@@ -134,10 +134,23 @@ for (const p of projects) {
   fs.rmSync(cwd, { recursive: true, force: true })
   fs.writeFileSync(log, '')
   try {
-    scaffold(p, log)
-    const ls = run('npm', ['ls', 'sygnal', 'sygnal-check'], { cwd, log })
-    for (const [name, v] of [['sygnal', V.sygnal], ['sygnal-check', V.check]]) {
-      if (!ls.includes(`${name}@${v}`)) throw new Error(`${name}@${v} isn't the installed version`)
+    // 7.2.0: the registry can serve the new versions to installs minutes after `npm publish`
+    // printed them (the smoke job right after the publish failed every template on npm ls), so a
+    // registry scaffold that doesn't install them is tried again, every 60 s for 5 minutes
+    for (let tries = mode === 'registry' ? 6 : 1; ; ) {
+      try {
+        scaffold(p, log)
+        const ls = run('npm', ['ls', 'sygnal', 'sygnal-check'], { cwd, log })
+        for (const [name, v] of [['sygnal', V.sygnal], ['sygnal-check', V.check]]) {
+          if (!ls.includes(`${name}@${v}`)) throw new Error(`${name}@${v} isn't the installed version`)
+        }
+        break
+      } catch (e) {
+        if (!--tries) throw e
+        console.log(`retry   ${p.name}: ${e.message} (the registry may lag the publish; again in 60 s)`)
+        fs.rmSync(cwd, { recursive: true, force: true })
+        await new Promise((r) => setTimeout(r, 60_000))
+      }
     }
     // PLAN-13 T-1: the scaffold has its .gitignore (stored as `gitignore`: npm drops dotfiles) and
     // loads no remote fonts

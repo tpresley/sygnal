@@ -205,6 +205,10 @@ test, or `sygnal({ diagnostics: { timingAudit: true } })` in `vite.config`, repo
 [SYG257](/reference/errors/#syg257) for each output that reads a field the same action's STATE
 changed. See [Migrating to 7.0](/guide/migrating-to-7/).
 
+A common slip in new code: STATE clears a field (`text: ''`, `draft: null`) and an output of the
+same entry reads it, expecting what the user typed. It reads the cleared value. `sygnal-check`
+reports this as [SYG259](/reference/errors/#syg259); read `previousState.text` instead.
+
 ## Emitting Events with `event()`
 
 `event(type, payload?)` returns an `EVENTS` sink function that puts `{ type, data }` on the global event bus:

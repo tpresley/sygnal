@@ -119,7 +119,7 @@
  *      HMR channel (installMcpBridge from 'sygnal/devtools'). Never in `vite build` or Vitest.
  *  11. SYG103 view words (dev server with diagnostics on; never `vite build`, SSR or Vitest): a
  *      module that sets `X.intent` or `X.uses` gets a tail registering, for each such X, the
- *      words of its string literals and of the relative modules it imports, in
+ *      words of its string literals and of the relative modules it imports (3 deep), in
  *      `globalThis.__SYGNAL_VIEW_TOKENS__`. The runtime SYG103 check then takes a selector drawn
  *      by a view helper (`{state.open && panel()}`) as conditionally rendered, as it does for
  *      markup in the view function itself (see viewTokensTail).
@@ -753,6 +753,7 @@ function componentStampTail(engine: Promise<LiveEngine | null>, id: string): Pro
 // (globalThis.__SYGNAL_VIEW_TOKENS__, a WeakMap read by checks/dom.ts).
 const COMPONENT_WITH_SELECTORS_RE = /(?:^|[^\w$.])([A-Z][\w$]*)\.(?:intent|uses)\s*=(?!=)/g
 const STRING_RE = /(['"])((?:\\.|(?!\1)[^\\\n])*)\1|`((?:\\[\s\S]|[^\\`])*)`/g
+const MAX_HOPS = 3
 const RELATIVE_IMPORT_RE = /(?:\bfrom|\bimport)\s*\(?\s*(['"])(\.{1,2}\/[^'"]+)\1/g
 
 // A string that is itself a selector ('.save', '#id', 'form.ask', '[data-x]') or a path / URL: its
@@ -789,18 +790,24 @@ function viewTokensTail(ctx: any, code: string, id: string): Promise<string> | n
   const words = new Set<string>()
   stringWords(code, words)
   jsxWords(code, words)
-  const specs = new Set(Array.from(blankOut(code, false).matchAll(RELATIVE_IMPORT_RE), m => m[2]))
-  return Promise.all([...specs].map(async (spec) => {
+  // 7.3 (Sift): a helper's helper too (a section → its shared form → the field renderer that draws
+  // `.spec-json`): relative imports are followed MAX_HOPS deep, each module read once
+  const seen = new Set([file])
+  const visit = (src: string, from: string, hops: number): Promise<any> => Promise.all(
+    Array.from(new Set(Array.from(blankOut(src, false).matchAll(RELATIVE_IMPORT_RE), m => m[2])), async (spec) => {
     try {
-      const r = await ctx.resolve(spec, id)
+      const r = await ctx.resolve(spec, from)
       const dep = r && !r.external && cleanId(r.id)
-      if (!dep || !/\.[cm]?[jt]sx?$/.test(dep) || dep.includes('node_modules')) return
+      if (!dep || seen.has(dep) || !/\.[cm]?[jt]sx?$/.test(dep) || dep.includes('node_modules')) return
+      seen.add(dep)
       ctx.addWatchFile?.(dep)
-      const src = await fs.promises.readFile(dep, 'utf8')
-      stringWords(src, words)
-      jsxWords(src, words)
+      const text = await fs.promises.readFile(dep, 'utf8')
+      stringWords(text, words)
+      jsxWords(text, words)
+      if (hops > 1) await visit(text, dep, hops - 1)
     } catch (_) { /* unreadable: its words are just not added */ }
-  })).then(() => {
+  }))
+  return visit(code, id, MAX_HOPS).then(() => {
     const comps = [...names].map(n => `typeof ${n} == 'function' && ${n}`).join(', ')
     return `\n;(() => { try { const m = globalThis.__SYGNAL_VIEW_TOKENS__ ||= new WeakMap(), t = ${JSON.stringify([...words].join(' '))}; for (const c of [${comps}]) if (c) m.set(c, t) } catch (_) {} })();\n`
   })

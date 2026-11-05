@@ -51,6 +51,7 @@ function underlined(src, d) {
 const RANGES = [
   ['SYG256', 'App.jsx', 4, "s.status!=='working'"],
   ['SYG258', 'App.jsx', 4, 'Date.now()'],          // default mode only (SYG509 under --strict)
+  ['SYG259', 'App.jsx', 6, 's.text'],             // the read of the field STATE cleared
   ['SYG454', 'App.jsx', 2, "byId('projects', state.selectedId)"],
   ['SYG101', 'App.jsx', 3, 'HYDRATE'],
   ['SYG102', 'T.jsx', 3, 'A'],
