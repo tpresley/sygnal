@@ -170,6 +170,6 @@ When the user double-clicks to edit, the input appears focused with all text sel
 
 ### How It Works
 
-These props are intercepted by the JSX pragma before they reach the DOM. Under the hood, a snabbdom `insert` hook calls `.focus()` (and optionally `.select()`) when the element is first inserted. The props are never passed to the actual DOM element.
+These props are intercepted by the JSX pragma before they reach the DOM. Under the hood, a snabbdom `insert` hook calls `.focus()` (and optionally `.select()`) when the element is first inserted, right after the patch that adds it, as React focuses at mount. An element that can't take focus yet (not shown) tries again on the next animation frame. After a router navigation, an element the new page focused this way keeps the focus: the router's own focus step is skipped. The props are never passed to the actual DOM element.
 
 If you also set a manual `hook={{ insert: fn }}` on the same element, both hooks run — yours first, then the focus behavior.
