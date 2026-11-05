@@ -2,6 +2,43 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.3.0 — 2026-11-05
+
+With `sygnal-check` 0.14.0 (SYG259), `create-sygnal-app` 2.12.0 (templates on `sygnal` ^7.3.0, `sygnal-check` ^0.14.0), the VS Code extension 0.11.0 and the Claude Code plugin 0.2.3.
+
+
+`lazy()` for code-split route tables (from Sift's per-area split):
+
+- **Changed: `lazy()` without `when` imports at the component's first render**, not when `lazy()` is
+  called (as `React.lazy`), so a table of lazy pages downloads only the page shown. `when: 'render'`
+  names the default. On a server (no `document`) the import still starts at `lazy()`. To keep the
+  old preload for one component, call `load()` after defining it.
+- **Tests:** `renderComponent` starts every import when the component renders, deferred
+  (`when: 'visible' | 'idle'`) ones too, and `t.settle()` waits for them.
+- **A failed import isn't kept:** it renders the owner's `onError` fallback (component name
+  `'lazy'`; without one, the error `<div>` and SYG406), and `load()` or the next mount tries again;
+  a successful retry replaces the fallback.
+- **Fixed:** a second `load()` call threw `TypeError: go is not a function`.
+
+Fixes from Sift's live-writes walk:
+
+- **`focusWithin` from a fragment-rooted component** reaches its children's root elements. A
+  fragment whose only remaining root was a child component (a Cancel that removed the component's
+  own element) dropped the command (SYG640) and left the focus on `<body>`; before that, only the
+  component's first own root element was searched. renderComponent's mock DOM no longer reports
+  SYG640 for it. Size budget 43,522 → 43,525 B (user-approved, +3 B).
+- **SYG104** isn't reported for shared markup: a component that draws its own
+  `.confirm [data-act="confirm"]` and listens to it, around a child that draws and handles its own.
+  A parent that never draws what it listens to is still reported.
+- **New: SYG259** (sygnal-check, warn): an output of an action reads a field the same action's
+  STATE sets to an empty literal (`''`, `null`, `undefined`, `false`, `[]`, `{}`). Since 7.0 it reads
+  the cleared value; read `previousState.field`. Narrow on purpose (the broad case is the opt-in
+  SYG257 audit); a field cleared on some paths and compared with that value is left alone. On
+  Sift's console it found the five reads behind its two bugs and nothing else.
+- **SYG103:** sygnal/vite's view words follow relative imports 3 deep (a section → its shared form
+  → the field renderer), so a shared intent's selectors for markup drawn two modules away count as
+  conditionally rendered.
+
 ## 7.2.0 — 2026-11-05
 
 Sygnal 7.2 gathers ten dev previews (`7.2.0-preview.0` … `preview.9`), most of them shaped by porting a

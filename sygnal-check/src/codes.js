@@ -76,6 +76,7 @@ export const CODES = {
   SYG459: { severity: 'warn', title: 'Behavior option reads a state field off its bag' },
   // record/replay (rules/syg258-clock-in-reducer.js): left out under --strict, where SYG509 reports it
   SYG258: { severity: 'warn', title: 'Clock or randomness read from a global in a STATE reducer' },
+  SYG259: { severity: 'warn', title: "An output reads a field its action's STATE cleared" },
   // PLAN-4 GS-1 behaviors (model/behaviors.js)
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },

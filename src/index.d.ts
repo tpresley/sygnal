@@ -2744,19 +2744,23 @@ export function Slot(props: SlotProps): JSX.Element
 export type LazyComponent<PROPS = any> = ((
   props: PROPS & { state?: any; children?: SygnalChild }
 ) => JSX.Element) & Omit<Component<any, PROPS>, never> & {
-  /** start the import now (a deferred `when` one too: preload on hover, or in a test); resolves once it has loaded or failed */
+  /** start the import now (a deferred `when` one too: preload on hover), or again after it failed; any number of times. Resolves once it has loaded or failed */
   load(): Promise<void>
 }
 
 /**
+ * When the import starts. 'render' (the default, 7.3): the component's first render, as
+ * React.lazy (on a server, with no `document`: at `lazy()`, so a server render has it).
  * PLAN-5 B-4: `when` defers the import until a placeholder is visible ('visible',
  * IntersectionObserver; `rootMargin` to start earlier) or the browser is idle after it is on the
  * page ('idle', requestIdleCallback with a 2 s timeout). The placeholder stays in its place: a
  * Suspense boundary waits for it (its fallback) only once the import has started. SSR renders the
- * placeholder and never loads.
+ * placeholder and never loads. renderComponent starts every import at render; `t.settle()` waits
+ * for it. A failed import renders the owner's `onError` fallback (component name 'lazy'), and
+ * `load()` or the next mount tries again.
  */
 export interface LazyOptions {
-  when?: 'visible' | 'idle'
+  when?: 'render' | 'visible' | 'idle'
   rootMargin?: string
   /** the placeholder's min-height (a number: px; or a CSS length), e.g. the component's expected height */
   placeholderHeight?: number | string

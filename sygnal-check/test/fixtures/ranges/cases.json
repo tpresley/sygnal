@@ -258,6 +258,9 @@
   "SYG258": {
     "App.jsx": "function App({ state }) { return <p>{state.at}</p> }\nApp.initialState = { at: 0 }\nApp.model = {\n  INITIALIZE: (s) => ({ ...s, at: Date.now() }),\n  SAVE: { EFFECT: () => { console.log(Math.random()) } },\n}\n"
   },
+  "SYG259": {
+    "App.jsx": "import { ABORT } from 'sygnal'\nfunction App({ state }) { return <input className=\"box\" value={state.text} /> }\nApp.initialState = { text: '' }\nApp.intent = ({ DOM }) => ({ KEY: DOM.keydown('.box') })\nApp.model = {\n  KEY: { STATE: (s) => ({ ...s, text: '' }), PARENT: (s) => s.text },\n}\n"
+  },
   "SYG509": {
     "App.jsx": "function App({ state }) { return <p>{state.at}</p> }\nApp.initialState = { at: 0 }\nApp.model = {\n  INITIALIZE: (s) => ({ ...s, at: Date.now() }),\n  SAVE: { EFFECT: () => { console.log(Math.random()) } },\n}\n"
   },

@@ -332,7 +332,7 @@ See [Slots guide](/advanced/slots/) for reactive updates and fallback patterns.
 Code-split a component via dynamic import.
 
 ```typescript
-function lazy(loadFn: () => Promise<{ default: Component }>, options?: { when?: 'visible' | 'idle'; rootMargin?: string; placeholderHeight?: number | string }): Component & { load(): Promise<void> }
+function lazy(loadFn: () => Promise<{ default: Component }>, options?: { when?: 'render' | 'visible' | 'idle'; rootMargin?: string; placeholderHeight?: number | string }): Component & { load(): Promise<void> }
 ```
 
 ```jsx
@@ -341,7 +341,7 @@ const HeavyChart = lazy(() => import('./HeavyChart.jsx'))
 const BelowTheFold = lazy(() => import('./BelowTheFold.jsx'), { when: 'visible' })
 ```
 
-Renders a `<div data-sygnal-lazy="loading">` placeholder until the import resolves. Static properties (intent, model, etc.) are copied from the loaded module's default export. `when` defers the import until a placeholder enters the viewport (`'visible'`, `rootMargin`) or the browser is idle (`'idle'`); the placeholder stays in its place (`placeholderHeight`: its min-height), a Suspense boundary shows its fallback only once the import has started, and `renderToString` renders the placeholder. `load()` starts the import now (preloading). Guide: [Lazy Loading](/advanced/lazy-loading/#loading-when-visible-or-idle).
+Renders a `<div data-sygnal-lazy="loading">` placeholder until the import resolves. The import starts at the component's first render (7.3; on a server, at `lazy()`). Static properties (intent, model, etc.) are copied from the loaded module's default export. A failed import renders the owner's `onError` fallback (component name `'lazy'`); `load()` or the next mount tries again. `renderComponent` starts every import at render, and `t.settle()` waits for it. `when` defers the import until a placeholder enters the viewport (`'visible'`, `rootMargin`) or the browser is idle (`'idle'`); the placeholder stays in its place (`placeholderHeight`: its min-height), a Suspense boundary shows its fallback only once the import has started, and `renderToString` renders the placeholder. `load()` starts the import now (preloading; any number of times). Guide: [Lazy Loading](/advanced/lazy-loading/#loading-when-visible-or-idle).
 
 ---
 

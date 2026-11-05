@@ -1319,6 +1319,16 @@ A STATE reducer calls `Date.now()`, `new Date()` with no arguments, `Math.random
 
 **Fix:** Take the value from the reducer's 4th argument: `ADD_TASK: (state, title, next, { now, uuid }) => ({ ...state, tasks: [...state.tasks, { id: uuid(), title, created: now() }] })` instead of `crypto.randomUUID()` and `Date.now()`; `new Date()` becomes `new Date(now())`. A component prop with the same name shadows them.
 
+### SYG259
+
+**An output reads a field its action's STATE cleared**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+An action's STATE reducer sets a top-level state field to an empty literal (`''`, `null`, `undefined`, `false`, `[]` or `{}`), and another handler of the same model entry (EFFECT, PARENT, HTTP, EVENTS, ELEMENT or another sink) reads that field from its state argument. Since Sygnal 7.0 the STATE reducer runs first and the other outputs get the committed state, so the handler always reads the cleared value: an Enter that clears a text box and sends its text up with PARENT sends `''`. Only the object literal the reducer returns and reads of the handler's first parameter (`state.text`, `state['text']`, or a destructured `({ text })`) are checked; a field STATE sets to a computed value isn't reported, because sending the new state is the usual intent (the opt-in runtime audit SYG257 covers every field an output reads after STATE changed it). To turn it off, add it to `ignore` in `sygnal-check.config.json` or put `// sygnal-ignore SYG259` above the line.
+
+**Fix:** Read the value from before the action, on the handler's 4th argument: `PARENT: (state, data, next, { previousState }) => previousState.text`. Or pass the value in the action's data from the intent (`KEY: DOM.keydown('.box').filter(e => e.key === 'Enter').map(e => e.target.value)`) and read `data`.
+
 ### SYG260
 
 **undo() or undoable() on a key shared() syncs**

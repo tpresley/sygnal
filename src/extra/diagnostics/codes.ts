@@ -398,6 +398,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG257: 'Output reads a field its action changed (7.0 timing audit)',
   // record/replay: static only (sygnal-check rules/syg258-clock-in-reducer.js; SYG509 under --strict)
   SYG258: 'Clock or randomness read from a global in a STATE reducer',
+  // 7.3 (Sift's live-writes walk): static only (sygnal-check)
+  SYG259: "An output reads a field its action's STATE cleared",
   // sygnal/yjs (research: dev-plans/research/crdt-state): shared() reports them (dev), SYG260 statically too
   SYG260: 'undo() or undoable() on a key shared() syncs',
   SYG261: 'shared() inferred the kind of an empty array',
@@ -674,6 +676,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG257: 'info',
   // record/replay: static only (sygnal-check); listed so the entry knows its title
   SYG258: 'warn',
+  SYG259: 'warn',
   // sygnal/yjs: reported with the severity passed (shared() in dev; sygnal-check: SYG260)
   SYG260: 'warn',
   SYG261: 'warn',

@@ -38,7 +38,9 @@ export default function HeavyChart() {
 
 While loading, a `<div data-sygnal-lazy="loading">` placeholder is rendered. Once the import resolves, the real component renders and receives all its static properties (intent, model, etc.).
 
-`lazy()` starts the import when it is called, so the chunk downloads at once, in the background. A component used in a [Suspense](/advanced/suspense/) boundary shows the boundary's fallback until it has loaded.
+The import starts the first time the component renders, as with `React.lazy`: a table of lazy pages downloads only the page that is shown, and each other page when it is first shown. Every use of the component shares one import. A component used in a [Suspense](/advanced/suspense/) boundary shows the boundary's fallback until it has loaded. To download a chunk before it renders, call its `load()` (below). On a server, where there is no `document`, the import starts when `lazy()` is called, so a server render made after it has loaded renders the component.
+
+Before Sygnal 7.3, the import always started when `lazy()` was called. To keep that for one component, call `load()` right after defining it: `const HeavyChart = lazy(…); HeavyChart.load()`.
 
 ## Loading when visible or idle
 
@@ -86,12 +88,13 @@ export default function HelpPanel() {
 
 | `when` | The import starts |
 |---|---|
+| `'render'` (the default) | The first time the component renders |
 | `'visible'` | When a placeholder of the component enters the viewport (`IntersectionObserver`; `rootMargin: '200px'` starts it 200 px before). Without `IntersectionObserver`, as soon as the placeholder is on the page |
 | `'idle'` | When the browser is idle after a placeholder is on the page (`requestIdleCallback`, at most 2 s later; a short timeout where there is none, as in Safari) |
 
 Until then the placeholder is `<div data-sygnal-lazy="deferred" data-sygnal-when="visible">` (or `"idle"`), in the component's own place. A Suspense boundary doesn't wait for a placeholder whose import hasn't started: it shows its content, with the placeholder where the component will be, so the placeholder can scroll into view on its own. Once the import starts, the boundary shows its fallback until the component is there. `placeholderHeight` (a number in px, or a CSS length) gives the placeholder a minimum height: give it the size the component will have, so the page doesn't jump when it loads, and so that several empty placeholders in a row are not all in view at once. Every use of the component shares one import, started by whichever placeholder triggers first.
 
-`load()` starts the import at once, for example to preload on hover:
+`load()` starts the import at once, for example to preload on hover. It can be called any number of times; every call returns the same import:
 
 ```jsx
 Dashboard.intent = ({ DOM }) => ({ PRELOAD: DOM.mouseenter('.sales-link') })
@@ -100,4 +103,26 @@ Dashboard.model = {
 }
 ```
 
-`renderToString` renders the placeholder and never starts a deferred import, so the server output doesn't depend on timing; the import starts in the browser after hydration. `renderComponent`'s mock DOM doesn't run the placeholder's hooks either, so a test that needs the component calls `await SalesChart.load()` and then `await t.settle()`.
+`renderToString` renders the placeholder and never starts a deferred import, so the server output doesn't depend on timing; the import starts in the browser after hydration.
+
+In tests, `renderComponent` starts every import, deferred ones too, when the component renders, and `t.settle()` waits until they have loaded: render the real root, `await t.settle()`, and the lazy pages are there.
+
+## When the import fails
+
+A failed import (a network error, or a chunk that a newer deploy removed, which then returns 404) renders the owner's [error fallback](/advanced/error-boundaries/) in the component's place: the `onError` of the component whose view uses it, called with the import's error and the component name `'lazy'`. Without an `onError`, the place shows the default error `<div data-sygnal-error="lazy">`, and the error is reported as [SYG406](/reference/errors/#syg406), to `run()`'s `onError` too.
+
+The failure isn't kept. `load()` tries the import again, and so does the next mount of the component (after it left the page, or in an owner rendering it for the first time); a render of the same owner doesn't. When the retry succeeds, the component replaces the fallback:
+
+```jsx
+function Shell({ state }) {
+  return <main><Outlet of={PAGES} current={state.page} /></main>
+}
+Shell.onError = (error, { componentName }) => componentName === 'lazy'
+  ? <p>This page could not load. <button className="retry">Try again</button> <button className="reload">Reload</button></p>
+  : <p>Something went wrong.</p>
+Shell.intent = ({ DOM }) => ({ RETRY: DOM.click('.retry'), RELOAD: DOM.click('.reload') })
+Shell.model = {
+  RETRY: { EFFECT: (state) => { PAGES[state.page].load() } },
+  RELOAD: { EFFECT: () => { location.reload() } },
+}
+```

@@ -142,25 +142,37 @@ describe('SSR, tests, and no option', () => {
     expect(load).not.toHaveBeenCalled()
   })
 
-  it('renderComponent (mock DOM): the placeholder until load()', async () => {
+  it('renderComponent (mock DOM): 7.3: the import starts at render, and settle() waits for it', async () => {
     const load = loader()
     const LazyChart = lazy(load, { when: 'idle' })
     function Page() { return h('div', null, [h(LazyChart, { title: 'mock' })]) }
     Page.initialState = {}
     const t = renderComponent(Page)
     await t.ready()
-    expect(load).not.toHaveBeenCalled()
-    await LazyChart.load()
+    expect(load).toHaveBeenCalledTimes(1)
     await t.settle()
     expect(t.html()).toContain('mock')
     t.dispose()
   })
 
-  it('without when: loads at lazy() as before, and load() returns the same promise', async () => {
+  it('without when: 7.3: nothing loads at lazy() in a browser; load() starts it and returns the same promise', async () => {
     const load = loader()
     const LazyChart = lazy(load)
-    expect(load).toHaveBeenCalledTimes(1)
+    expect(load).not.toHaveBeenCalled()
     await LazyChart.load()
+    expect(load).toHaveBeenCalledTimes(1)
     expect(LazyChart.__sygnalLazyLoaded()).toBe(true)
+  })
+
+  it('load() can be called again (preloading on every hover), with or without when', async () => {
+    for (const opts of [undefined, { when: 'idle' }]) {
+      const load = loader()
+      const LazyChart = lazy(load, opts)
+      const p = LazyChart.load()
+      expect(LazyChart.load()).toBe(p)
+      await p
+      expect(LazyChart.load()).toBe(p)
+      expect(load).toHaveBeenCalledTimes(1)
+    }
   })
 })
