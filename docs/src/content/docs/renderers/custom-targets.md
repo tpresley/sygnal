@@ -3,6 +3,10 @@ title: Writing a Renderer Target
 description: Build your own Sygnal renderer target with sygnal/host. The host tree, the host driver, painting, input as DOM events, your own tag vocabulary, and testing
 ---
 
+:::caution[Experimental, outside semver]
+`sygnal/host` is experimental in Sygnal 7.2: its API may change in any release.
+:::
+
 `sygnal/terminal` and `sygnal/agent-ui` are built on a public kit, `sygnal/host`. Use it to render Sygnal apps anywhere JavaScript runs: a native UI layer, a canvas, a JSON UI protocol, a renderer in another thread or process, or a test harness.
 
 ## The model

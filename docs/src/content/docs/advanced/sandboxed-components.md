@@ -3,8 +3,8 @@ title: Sandboxed Components
 description: Run untrusted or model-written Sygnal components with sygnal/sandbox. QuickJS-in-WASM with no access to the page, rendered into the real DOM through an allowlist, events declared with Standard Schemas, a Worker tier for hostile code, and hard limits on time, memory and output
 ---
 
-:::caution[Dev preview]
-`sygnal/sandbox` is experimental in 7.2. Its options and defaults may change before it is stable. The protocol between the page and the guest is internal and versioned.
+:::caution[Experimental, outside semver]
+`sygnal/sandbox` is experimental in Sygnal 7.2: its options and defaults may change in any release. The protocol between the page and the guest is internal and versioned.
 :::
 
 `sygnal/sandbox` runs a Sygnal component that your app didn't write: a component a model generated, a plugin a user pasted in, or a marketplace widget. The component runs in its own QuickJS engine compiled to WebAssembly. It has no `window`, `document`, `fetch`, storage or Node APIs, only the drivers the page grants. It still renders into the page's real DOM, so it looks and feels like the rest of the app, and its events come back to your intent as validated data.

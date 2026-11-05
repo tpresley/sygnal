@@ -3,6 +3,10 @@ title: Agent UI
 description: Render a Sygnal app for an LLM agent with sygnal/agent-ui. An accessibility snapshot to read, tool calls to act, an MCP server, and how it fits with the agent declarations of sygnal/ai
 ---
 
+:::caution[Experimental, outside semver]
+`sygnal/agent-ui` is experimental in Sygnal 7.2: its API may change in any release.
+:::
+
 `sygnal/agent-ui` renders a Sygnal app for an **LLM agent**. The agent's screen is a text snapshot of the UI's accessibility tree, and its input is tool calls: `ui_click`, `ui_type`, `ui_press`, `ui_select` and `ui_check`. Each call becomes the same DOM events a person's click or typing makes. The app doesn't change, and no browser is involved.
 
 ```jsx

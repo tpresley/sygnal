@@ -3,6 +3,10 @@ title: React Native
 description: Run Sygnal components on iOS and Android with sygnal/react-native. SygnalView, how primitives and HTML map to native components, controlled fields, native stylesheets, lists, incremental rendering, and your own components
 ---
 
+:::caution[Experimental, outside semver]
+`sygnal/react-native` is experimental in Sygnal 7.2: its API may change in any release.
+:::
+
 `sygnal/react-native` runs a Sygnal app on React Native. Your components, intents and models stay as they are. The view renders into a [host tree](/renderers/custom-targets/), and the bridge shows that tree as React Native components. Native callbacks arrive as the DOM events your intents already listen for: `onPress` is a `click`, `onChangeText` an `input`.
 
 ```js

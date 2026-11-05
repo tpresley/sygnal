@@ -3,6 +3,10 @@ title: "Write Once: Web, Native, Terminal"
 description: One Sygnal component file for the web, React Native, the terminal and agents. The primitives from sygnal/primitives, controls in intents, React Native styles everywhere, and what each target does with them
 ---
 
+:::caution[Experimental, outside semver]
+`sygnal/primitives` is experimental in Sygnal 7.2: its API may change in any release.
+:::
+
 `sygnal/primitives` gives you eight components that every target understands: `View`, `Text`, `Pressable`, `TextInput`, `Switch`, `Image`, `ScrollView` and `List`. A component written with them runs unchanged on:
 
 | Target | How it runs the primitives |

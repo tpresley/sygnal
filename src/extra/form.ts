@@ -105,7 +105,7 @@
  * run when the host is created.
  */
 import xs from './xstreamCompat'
-import {defineBehavior, was} from './behaviors'
+import {defineBehavior, was, context$} from './behaviors'
 import {ABORT, readBag} from '../shared'
 import {isStandardSchema} from './standardSchema'
 import {FIELD, fieldOf} from './field'
@@ -427,11 +427,12 @@ export const form = (schema: any, o: any = {}): any => {
     form: schema,
     // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375, not validated)
     initialState: {...base(values), validating: true},
-    intent: ({DOM, props$}: any, _o: any, k: any, host: any) => {
+    intent: ({DOM, props$}: any, _o: any, k: any, host: any, I: any) => {
       const f = DOM.select(sel)
-      // (7.2: here the bag is the host's state and, for a sub-component host, its props, again when
-      // they change; no context or uid: those reach the handlers' bags only)
-      const B$ = props$ ? xs.combine(host.stream, props$).map(([h, p]: any) => ({...p, state: h})) : host.stream.map((h: any) => ({state: h}))
+      // (7.2: here the bag is the host's: its state, a sub-component's props, its context and uid,
+      // again when the state, the props or the context changes)
+      const c$ = context$(I)
+      const B$ = props$ ? xs.combine(host.stream, props$, c$).map(([h, p, c]: any) => ({...p, state: h, context: c, uid: I?.uid})) : xs.combine(host.stream, c$).map(([h, c]: any) => ({state: h, context: c, uid: I?.uid}))
       let on = 0, pf: any, ps: any, ph: any, pg: any, n = 0
       return {
         // RT-1: the dynamic fields and the schema, from the host's state: form.SYNC when the fields

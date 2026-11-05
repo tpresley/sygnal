@@ -4,7 +4,7 @@ description: Multi-step flows with the wizard behavior and the Outlet — a shar
 ---
 
 :::caution[Experimental, outside semver]
-`wizard()` and `<Outlet>` are a 7.2 dev preview. Their names, options and slice may still change.
+`wizard()` and `<Outlet>` are experimental in Sygnal 7.2: their names, options and slice may change in any release.
 :::
 
 A wizard is one flow over several steps: a draft that the steps fill in, Back and Next, and a stepper. Declare the flow with the `wizard()` [behavior](/guide/behaviors/), and render the current step with `<Outlet>`. **Only the current step exists:**
@@ -140,7 +140,7 @@ export default NewProject
   - `group`, for [alternative steps](#alternative-steps-and-an-outcome) that share one stepper entry;
   - `outcome`, for a [final screen](#alternative-steps-and-an-outcome) after the flow.
 - **`draft`:** the draft a flow starts with. A function gets the host's state.
-- **`draftKey`:** the draft's name in a step's state (default `'draft'`). Use another when the steps already have a `draft` of their own: `draftKey: 'flow'` gives them `state.flow`.
+- **`draftKey`:** the draft's name in a step's state (default `'draft'`). Use another when the steps already have a `draft` of their own: `draftKey: 'flow'` gives them `state.flow`. It can't be a component spec key (`actions`, `props`, `context`, `calculated`, ...): `WizardStepComp` would read `{ actions: Draft }` as a spec, so TypeScript rejects it.
 - **The buttons:** `next`, `back`, `reset` and `goto` are selectors whose clicks move. A `goto` element names its step in `data-step`.
 - **`finish`:** a host action. Next on the last step dispatches it with the draft.
 
@@ -179,7 +179,7 @@ What a step's state keeps, and when:
   - `step` is what the step sees: its `initialState`, its own slice, and the draft;
   - `bag` is what the host's view gets ([What every function gets](/guide/state/#what-every-function-gets)): its props, `context`, `uid`, and `state`, the host's state, for what the step doesn't hold (the route, a setting, a record id prop).
 
-  `draft`, `key` and `url.from` get `(state, bag)`, `resetTo` and the wizard-level `discard` `(slice, bag)`. What the wizard watches in its intent (the key, the leave guard, the derived fields) gets the host's props and state, not its context or uid.
+  `draft`, `key` and `url.from` get `(state, bag)`, `resetTo` and the wizard-level `discard` `(slice, bag)`. What the wizard watches in its intent (the key, the leave guard, the derived fields) gets the same bag, and runs again when the host's context changes, so `key: (s, { context }) => context.route?.query.session` works.
 
   A step can therefore be skipped because of an earlier step's answer, as the Seats step is in the recipe. The derived fields (`steps`, `canNext`, …) are updated whenever the slice or the host's state changes.
 - **Types:** `wizard<Draft, State, { review: ReviewState }>` types each step's slice (`state.wizard.local.review`). A step component is a `WizardStepComp`, whose `initialState` is its own fields:

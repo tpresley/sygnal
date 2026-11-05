@@ -418,7 +418,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG684: 'Client tool shadows an agent tool',
   SYG685: 'Answer for a tool call that is not open',
   SYG686: 'Ask catalog without a result part',
-  // sygnal/api (dev preview)
+  // sygnal/api (experimental)
   SYG690: 'API contract skew',
   SYG691: 'Unknown API endpoint',
   SYG692: 'Sandbox event dropped',

@@ -1,5 +1,5 @@
 /*
- * 'sygnal/sandbox' (dev preview; research: dev-plans/research/sandbox): untrusted or generated
+ * 'sygnal/sandbox' (experimental; research: dev-plans/research/sandbox): untrusted or generated
  * Sygnal components in QuickJS-in-WASM, rendered into the page's real DOM through an allowlist.
  *
  *   import { Sandboxed } from 'sygnal/sandbox'

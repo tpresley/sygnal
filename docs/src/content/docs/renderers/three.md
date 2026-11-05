@@ -3,6 +3,10 @@ title: three.js
 description: Build three.js scenes as Sygnal views with sygnal/three. Meshes, lights and cameras as JSX, raycast clicks and hovers as DOM events for intents, models and textures loaded with Suspense, dragging with pointer capture, per-frame animation outside state, a controlled camera, keyboard access, and tests without WebGL
 ---
 
+:::caution[Experimental, outside semver]
+`sygnal/three` is experimental in Sygnal 7.2: its API may change in any release.
+:::
+
 `sygnal/three` renders a three.js scene from JSX. A `<Scene>` sits in an ordinary component tree, and its children (`<mesh>`, `<group>`, `<boxGeometry>`, `<meshStandardMaterial>`, lights, cameras) become THREE objects. The children are elements of your app, so a cube can be a component with its own intent and model, kept in a `<Collection>`. A click on the canvas is a raycast, and the cube it hits gets a DOM `click`, so `DOM.click('.cube')` works as it does for a button.
 
 ```sh
@@ -331,4 +335,4 @@ The [agent UI](/renderers/agent-ui/) reads the same tree: a scene whose meshes h
 
 ## Size and limits
 
-`sygnal/three` is about 6 KB gzip on top of three.js (GLTFLoader is loaded only when a model needs it), and adds nothing to an app that doesn't import it. It is a dev preview in 7.2: the API may change. Not yet supported: instanced meshes with an event per instance, and cloning skinned (animated) models: `<Model>` clones with `Object3D.clone()`, which doesn't rebind a skeleton, and doesn't play the model's animations.
+`sygnal/three` is about 6 KB gzip on top of three.js (GLTFLoader is loaded only when a model needs it), and adds nothing to an app that doesn't import it. It is experimental in Sygnal 7.2: its API may change in any release. Not yet supported: instanced meshes with an event per instance, and cloning skinned (animated) models: `<Model>` clones with `Object3D.clone()`, which doesn't rebind a skeleton, and doesn't play the model's animations.

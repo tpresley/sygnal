@@ -26,10 +26,9 @@
  * a step's `discard`) get the same view and the bag: `(step, bag)`; `dirty` gets `(step, stepName,
  * bag)` (the outlet registers the steps' initialStates). 7.2: the bag is the one the host's view
  * gets, `{ ...props, state, context, uid }` with `state` the host's whole state (no children /
- * slots). Where the wizard reads it (see `bagOf` below) it is complete, except: the intent's
- * watches (the key, the leave guard, the derived fields' sync, the route) have the host's props
- * and state but no context or uid; the read-time normalizer and the start slice have only
- * `state`. Its
+ * slots). Where the wizard reads it (see `bagOf` below) it is complete, the intent's watches (the
+ * key, the leave guard, the derived fields' sync, the route) included: they run again when the
+ * host's context changes; the read-time normalizer and the start slice have only `state`. Its
  * `visit` defaults are written into its slice on each entry (scratch), and again when the host
  * starts (MOUNT: a host mounted again shows the step anew). A step's own slice survives Back.
  *
@@ -62,7 +61,7 @@
  * Linear reachability: a step is reachable when every step before it that isn't skipped is valid.
  */
 import xs from './xstreamCompat'
-import {defineBehavior, was} from './behaviors'
+import {defineBehavior, was, context$} from './behaviors'
 import {ABORT, readBag} from '../shared'
 import {dropRepeats} from './xstreamExtras'
 import {objIsEqual} from '../cycle/state/objIsEqual'
@@ -397,10 +396,12 @@ export const wizard = (o: any = {}): any => {
   const b = defineBehavior({
     initialState: init,
     triggers: {NEXT: 'next', BACK: 'back', RESET: 'reset', GOTO: 'goto', DISCARD: 'leave', STAY: 'stay'},
-    intent: ({DOM, CHILD, props$, ...S}: any, _o: any, k: string, host: any) => {
-      // what the intent watches gets the bag of the host's state and (a sub-component host) its
-      // props, again when either changes; no context or uid here (the handlers' bags have them)
-      const B$ = props$ ? xs.combine(host.stream, props$).map(([h, p]: any) => readBag(p, h, 'wizard')) : host.stream.map((h: any) => readBag(null, h, 'wizard'))
+    intent: ({DOM, CHILD, props$, ...S}: any, _o: any, k: string, host: any, I: any) => {
+      // what the intent watches gets the host's bag (its state, a sub-component's props, its context
+      // and uid), again when the state, the props or the context changes
+      const bag = (h: any, p: any, c: any) => readBag({...p, context: c, uid: I?.uid}, h, 'wizard')
+      const c$ = context$(I)
+      const B$ = props$ ? xs.combine(host.stream, props$, c$).map(([h, p, c]: any) => bag(h, p, c)) : xs.combine(host.stream, c$).map(([h, c]: any) => bag(h, null, c))
       const watch = (f: (B: any) => any) => B$.map(f).compose(dropRepeats(objIsEqual))
       // the steps' PARENT messages ({ wizard: 'NEXT' | 'BACK' | 'GOTO' | 'RESET' | 'FINISH', step?, draft? }),
       // from every step component the outlet registered (now or later)

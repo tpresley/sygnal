@@ -1,5 +1,5 @@
 /*
- * 'sygnal/canvas' (experimental, 7.2 dev preview; research and the maintainer's decisions:
+ * 'sygnal/canvas' (experimental in 7.2; research and the maintainer's decisions:
  * dev-plans/research/canvas-apps): an infinite 2D canvas island for editors, whiteboards and
  * diagrams, plus the editor kit.
  *

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0
+
+Bundles sygnal-check 0.13.0 (Sygnal 7.2.0). The extension's own code doesn't change.
+
+- New findings: SYG107 (a DOM property in the wrong case, such as `novalidate`, with a quick fix), SYG118 (a host intent action that replaces a behavior's trigger), SYG258 and SYG509 (`Date.now()` / `Math.random()` read in a reducer or handler instead of the handler's `now()` / `random()`), SYG260 (`undo()` on a key `shared()` syncs), SYG303 (`STATE.stream` with `dropRepeats()` in an intent), SYG455–SYG457 (an `<Outlet>` whose `from`, `of` or step doesn't match its wizard), SYG458 and SYG459 (a declaration or behavior option reading a context or state field off its bag, with quick fixes) and SYG691 (an unknown endpoint on an `orpcClient` contract).
+- Fewer false findings: SYG102, SYG110 and SYG702 follow helper functions.
+
 ## 0.9.0
 
 Bundles sygnal-check 0.12.0 (Sygnal 7.1.0). The extension's own code doesn't change.

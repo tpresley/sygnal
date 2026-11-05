@@ -48,6 +48,7 @@
  */
 import xs from './xstreamCompat'
 import {isAbort, readBag} from '../shared'
+import {INST} from '../core/teardown'
 /** A behavior output's slice from before the action (outputs get the updated one): for a transition shared with STATE */
 export const was = (s: any, p: any, k: string) => p?.previousState ? p.previousState[k] : s
 /**
@@ -164,13 +165,14 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
     owned[ns(a)] = k
   }
 
-  // one combined intent per instance: the behaviors' actions, then the host's own (which win)
+  // one combined intent per instance: the behaviors' actions, then the host's own (which win);
+  // (internal, not in the types: a 5th argument, the host instance, for Sygnal's own behaviors' context$ / uid)
   if (!c._uses) {
     const own = c.intent, list: any[] = c._uses = []
     c.intent = (so: any) => {
       const o: any = {}
       for (const [k, b, slice] of list) {
-        const st = so[S], i = b.intent?.({...so, [S]: st?.select({get: (s: any) => s?.[k] ?? slice})}, b.options, k, st)
+        const st = so[S], i = b.intent?.({...so, [S]: st?.select({get: (s: any) => s?.[k] ?? slice})}, b.options, k, st, so[INST])
         for (const a in i) o[k + '.' + a] = i[a], owned[k + '.' + a] = k
       }
       const h = own?.(so), test = h?.__sygnalTestActions || []
@@ -180,6 +182,22 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
     }
   }
   c._uses.push([k, b, slice])
+}
+
+/**
+ * The host instance's context as a memory stream, fed after each action with STATE.stream (7.2:
+ * what Sygnal's own behaviors watch, the wizard's key and the form's dynamic fields); the same
+ * context is the same object (Inst.context()), so it emits on a change only. Here, not in the
+ * core: an app without behaviors pays nothing
+ */
+export const context$ = (I: any): any => {
+  if (!I?.context) return xs.of(undefined)
+  if (I.cx$) return I.cx$
+  const s = I.cx$ = xs.createWithMemory(), n = I.notify
+  s.shamefullySendNext(I.context())
+  I.notify = function () { n.call(this); const c = this.context(); c !== s._v && s.shamefullySendNext(c) }
+  I.app.watchers.add(I)
+  return s
 }
 
 /**

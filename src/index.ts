@@ -50,7 +50,7 @@ export { sortable } from './extra/sortable'
 export { undoable, undo } from './extra/undo'
 export { persist } from './extra/persist'
 export { renderComponent, cleanup } from './extra/testing'
-// 7.2 dev preview: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
+// experimental in 7.2: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
 export { startRecording, replay, replayTest, bugReport, timeline, finalState, RECORDING_SCHEMA, inertDriver } from './extra/replay/index'
 export { set, toggle, emit, event } from './extra/reducers'
 export { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from './extra/pwa'
@@ -84,7 +84,7 @@ export { defineCatalog, compose, composeWith, fromTree, toTree, removeNode } fro
 export { openToolCalls, askCard } from './extra/ai/index'
 // PLAN-9 M-1: <Composed catalog from /> (documented import: 'sygnal/ai')
 export { Composed } from './extra/ai/index'
-// sygnal/api (dev preview; documented import: 'sygnal/api', src/api.ts): typed API clients
+// sygnal/api (experimental; documented import: 'sygnal/api', src/api.ts): typed API clients
 export { orpcClient, openApiClient, honoClient, contractHash, contractSkew, isContractSkew, contractFetch, fixture, errorFixture } from './extra/api/index'
 // function-first (*.server.ts): 'sygnal/api' names these query / mutation / stream
 export { query as serverQuery, mutation as serverMutation, stream as serverStream, serverFunctions, __serverFunction } from './extra/api/index'

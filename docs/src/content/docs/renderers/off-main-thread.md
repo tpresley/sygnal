@@ -3,8 +3,8 @@ title: Running off the Main Thread
 description: Run a whole Sygnal app in a Web Worker with sygnal/worker (experimental) — when it pays and when it doesn't, the page bridge, drivers that stay on the page, declared preventDefault, fields, and what isn't supported yet
 ---
 
-:::caution[Experimental]
-`sygnal/worker` and `sygnal/worker/page` are a dev preview in 7.2. Their API may change, and some features don't work in a worker app yet (see [Not supported yet](#not-supported-yet)). Feedback is welcome.
+:::caution[Experimental, outside semver]
+`sygnal/worker` and `sygnal/worker/page` are experimental in Sygnal 7.2: their API may change in any release, and some features don't work in a worker app yet (see [Not supported yet](#not-supported-yet)). Feedback is welcome.
 :::
 
 A Sygnal app can run entirely in a Web Worker: its models, views, `Collection`s and the drivers that work there (HTTP, SSE, WebSocket, `sygnal/ai`, timers). The page runs only a small bridge. It applies the worker's changes to the DOM, sends the user's input back, and hosts the drivers that need the page, such as `localStorage` and the router. **The app code doesn't change.** Only the entry files do.

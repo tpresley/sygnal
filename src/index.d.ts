@@ -1388,6 +1388,8 @@ export type WizardStepState<DRAFT = any, OWN = {}, DK extends string = 'draft'> 
  *   const Review: WizardStepComp<ReviewState> = ({ state }) => …
  *   const Define: WizardStepComp<DefineState, { flow: Draft }, { actions: Actions }> = ({ state }) => … state.flow …
  */
+/** wizard()'s draftKey can't name a component spec key: WizardStepComp<Own, { [draftKey]: Draft }> would read it as a spec (7.2) */
+type WizardDraftKeyCheck<DK extends string> = string extends DK ? {} : DK extends Exclude<keyof ComponentSpec, 'state'> ? { draftKey: `draftKey '${DK}' is a component spec key; choose another name` } : {}
 /** a WizardStepComp's second argument read as a component spec (every key a ComponentSpec key), not a draft */
 type IsStepSpec<A> = [A] extends [undefined] ? false : [keyof A] extends [never] ? false : keyof A extends Exclude<keyof ComponentSpec, 'state'> ? true : false
 type StepState<OWN, D> = [D] extends [undefined] ? OWN : OWN & D
@@ -1488,7 +1490,7 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   steps: { [K in keyof NoInfer<LOCAL>]: WizardStep<DRAFT, NoInfer<LOCAL>[K], HOST, DK, LOCAL, DIALOG> };
   /** The draft a flow starts with, or a function of the host's state called at each start */
   draft?: DRAFT | ((state: HOST, bag: BehaviorBag<HOST>) => DRAFT);
-  /** The draft's key in a step's state (default 'draft') */
+  /** The draft's key in a step's state (default 'draft'); not a component spec key (`actions`, `props`, `context`, ...), which WizardStepComp's second argument would read as a spec */
   draftKey?: DK;
   /**
    * The flow key (a record, session or report id). Only a change from one key to another starts the
@@ -1541,7 +1543,7 @@ export type WizardMessage =
  * (step, draft, each step's own slice, the stepper's `steps`) and 'wizard.NEXT', 'wizard.BACK',
  * 'wizard.GOTO', 'wizard.RESET', 'wizard.FINISH', 'wizard.DISCARD', 'wizard.STAY'.
  */
-export function wizard<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft', DIALOG = any>(options: WizardOptions<DRAFT, HOST, LOCAL, DK, DIALOG>): Behavior<WizardState<DRAFT, LOCAL>, WizardActions, WizardCalculated<DIALOG>, WizardOptions<DRAFT, HOST, LOCAL, DK, DIALOG>>
+export function wizard<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft', DIALOG = any>(options: WizardOptions<DRAFT, HOST, LOCAL, DK, DIALOG> & WizardDraftKeyCheck<DK>): Behavior<WizardState<DRAFT, LOCAL>, WizardActions, WizardCalculated<DIALOG>, WizardOptions<DRAFT, HOST, LOCAL, DK, DIALOG>>
 
 export type OutletProps<OF extends Record<string, AnyComponent> = Record<string, AnyComponent>> = {
   /** name -> component */
@@ -4800,7 +4802,7 @@ declare global {
 }
 
 // PLAN-6 (D253): implemented in the main package; documented import 'sygnal/ai'
-// 7.2 dev preview: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
+// experimental in 7.2: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
 export { startRecording, replay, replayTest, bugReport, timeline, finalState, RECORDING_SCHEMA, inertDriver } from './replay.d'
 export type { Recording, RecordedAction, RecordedCause, RecordOptions, Recorder, ReplayOptions, ReplayResult, ReplayDivergence, ReplayTestOptions } from './replay.d'
 export { messageText, withToolResults } from './ai.d'

@@ -172,10 +172,10 @@ describe('the wizard: (stepView, bag), dirty (stepView, stepName, bag), (hostSta
     await t.ready(); await t.settle()
     expect(t.state.flow.wizard).toMatchObject({ key: 7, draft: { title: 'T7' } })
     expect(t.state.flow.wizard.steps[0].label).toBe('One 7')
-    // a handler's bag is complete; the intent's watches (the derived fields' sync) have the props and
-    // the state (the start slice and the read-time normalizer: the state only)
+    // a handler's bag is complete, and so are the intent's watches (the derived fields' sync), 7.2
+    // (the start slice and the read-time normalizer: the state only)
     expect(seen.valid).toContainEqual([7, 'function', true])
-    expect(seen.valid).toContainEqual([7, 'undefined', false])
+    expect(seen.valid).not.toContainEqual([7, 'undefined', false])
     expect(seen.dirty).toEqual(['one', 7])
     // a new prop: a new key (the intent's watch follows the props), the flow anew with its draft
     t.simulateAction('RID', 8)
@@ -208,6 +208,32 @@ describe('the form: values, dynamic, the schema function and request get the bag
     await t.settle()
     expect(got.request).toBe(3)
     expect(t.requests('HTTP').map((r) => r.url)).toContain('/api/items/3')
+    t.dispose()
+  })
+})
+
+describe('7.2: the form\'s dynamic fields get the context and follow it', async () => {
+  const { form } = await import('../src/extra/form.ts')
+  const { z } = await import('zod')
+  it('a context change alone re-reads dynamic', async () => {
+    const seen = []
+    function Edit({ state }) { return h('form', null, h('input', { name: 'title', value: state.form.values.title })) }
+    Edit.uses = {
+      form: form(z.object({ title: z.string() }), {
+        values: { title: '' },
+        dynamic: (st, { context, uid }) => (seen.push([context.lang, typeof uid]), context.lang == 'fr' ? { note: { value: '' } } : {}),
+      }),
+    }
+    function Root() { return h('main', null, h(Edit, { state: 'edit' })) }
+    Root.initialState = { lang: 'en', edit: {} }
+    Root.context = { lang: (s) => s.lang }
+    Root.model = { LANG: (s, lang) => ({ ...s, lang }) }
+    const t = renderComponent(Root)
+    await t.ready(); await t.settle()
+    expect(seen).toContainEqual(['en', 'function'])
+    t.simulateAction('LANG', 'fr')
+    await t.settle()
+    expect(seen).toContainEqual(['fr', 'function'])
     t.dispose()
   })
 })

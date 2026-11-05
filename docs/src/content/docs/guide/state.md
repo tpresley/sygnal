@@ -78,7 +78,7 @@ Some functions keep their arguments, on purpose:
 - **A Collection's `filter` / `sort`, `estimateSize` and a lens prop** are written in the view, so they close over everything it has.
 - **`intent`** works on sources; **`onError`** on the error.
 
-Where a field can't be known yet, the bag has less: a behavior's start slice gets `{ state: undefined }`; what the wizard and the form watch in their intent (the flow key, the leave guard, a form's `dynamic` fields) has the host's props and state, not its context or uid.
+Where a field can't be known yet, the bag has less: a behavior's start slice gets `{ state: undefined }`. What the wizard and the form watch in their intent (the flow key, the leave guard, a form's `dynamic` fields) gets the whole bag, and runs again when the host's state, props or context changes.
 
 Before 7.2 a declaration static's second argument was the context. `(state, { route })` still reads a context field until 8.0, with a dev warning ([SYG458](/reference/errors/#syg458)), and a prop of the same name wins; `sygnal-check --fix` rewrites it to `(state, { context: { route } })`.
 

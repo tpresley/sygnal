@@ -1,4 +1,4 @@
-// 'sygnal/canvas' (experimental, 7.2 dev preview): an infinite 2D canvas island and the editor kit.
+// 'sygnal/canvas' (experimental in 7.2, outside semver): an infinite 2D canvas island and the editor kit.
 // Guide: https://sygnal.js.org/renderers/canvas
 import type { Widget, VNode, ABORT } from 'sygnal'
 
