@@ -99,18 +99,48 @@ describe("mock DOM: listening through the document (a Portal's content)", () => 
   })
 })
 
-// (a rule, not a fix: integration/testing "A poll is a timer". t.respond's wait behind queued input
-// (up to 1 s) catches a timer's request only well inside that second; a 1 s poll races it)
-describe("t.respond and refetchEvery: answer a poll once it has been sent", () => {
+// t.respond's wait behind queued input (up to 1 s) caught a timer's request only well inside that
+// second, so a 1 s poll raced it. A poll due within timeoutMs is waited for now (maintainer decision)
+describe("t.respond and refetchEvery: a poll due within timeoutMs is waited for", () => {
   function Q({ state }) { return h('p', null, String(state.quote?.data?.n ?? '-')) }
   Q.resources = { quote: () => ({ url: '/api/q', refetchEvery: 1000 }) }
   Q.initialState = {}
 
-  it('nothing queued: t.respond throws at once, naming the poll', async () => {
+  it('nothing pending yet: t.respond waits for the poll and answers it', async () => {
     const t = renderComponent(Q)
     await t.ready()
     await t.respond('HTTP', { n: 1 }, 'quote')
-    expect(() => t.respond('HTTP', { n: 2 }, 'quote')).toThrow(/polls every 1000ms \(refetchEvery\)/)
+    const t0 = Date.now()
+    await t.respond('HTTP', { n: 2 }, 'quote')
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(900)
+    expect(t.state.quote).toMatchObject({ data: { n: 2 }, status: 'success' })
+    await t.respond('HTTP', { n: 3 }, 'quote')
+    expect(t.state.quote.data).toEqual({ n: 3 })
+    t.dispose()
+  })
+
+  it('behind a queued input (the race): the poll is answered every time', async () => {
+    function P({ state }) { return h('p', null, String(state.quote?.data?.n ?? '-')) }
+    P.resources = { quote: () => ({ url: '/api/q', refetchEvery: 1000 }) }
+    P.initialState = { clicks: 0 }
+    P.model = { CLICK: (s) => ({ ...s, clicks: s.clicks + 1 }) }
+    const t = renderComponent(P)
+    await t.ready()
+    await t.respond('HTTP', { n: 1 }, 'quote')
+    t.simulateAction('CLICK')
+    await t.respond('HTTP', { n: 2 }, 'quote')
+    expect(t.state).toMatchObject({ clicks: 1, quote: { data: { n: 2 } } })
+    t.dispose()
+  })
+
+  it('a poll due later than timeoutMs: t.respond throws at once, naming the poll', async () => {
+    function S() { return h('p', null, '-') }
+    S.resources = { quote: () => ({ url: '/api/q', refetchEvery: 5000 }) }
+    S.initialState = {}
+    const t = renderComponent(S)
+    await t.ready()
+    await t.respond('HTTP', { n: 1 }, 'quote')
+    expect(() => t.respond('HTTP', { n: 2 }, 'quote')).toThrow(/polls every 5000ms \(refetchEvery\)/)
     t.dispose()
   })
 
@@ -122,6 +152,18 @@ describe("t.respond and refetchEvery: answer a poll once it has been sent", () =
     await t.respond('HTTP', { n: 2 }, 'quote')
     expect(t.state.quote).toMatchObject({ data: { n: 2 }, status: 'success' })
     t.dispose()
+  })
+
+  it('fake timers: an awaited t.respond advances the clock to the poll', async () => {
+    vi.useFakeTimers()
+    try {
+      const t = renderComponent(Q)
+      await t.ready()
+      await t.respond('HTTP', { n: 1 }, 'quote')
+      await t.respond('HTTP', { n: 2 }, 'quote')
+      expect(t.state.quote.data).toEqual({ n: 2 })
+      t.dispose()
+    } finally { vi.useRealTimers() }
   })
 
   it('fake timers: advance by refetchEvery, then answer it', async () => {

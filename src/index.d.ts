@@ -1530,7 +1530,9 @@ export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RES
 /** What a step sends as a PARENT message to move the flow: `NEXT: { PARENT: () => ({ wizard: 'NEXT' }) }` */
 export type WizardMessage =
   | { wizard: 'NEXT' | 'BACK' | 'FINISH' }
+  /** `draft` (with a new `key`): merged over `draft(state)` on the route entered */
   | { wizard: 'GOTO'; step: string; key?: unknown; query?: Record<string, string | number | boolean | null | undefined>; draft?: Record<string, any> }
+  /** `draft`: merged over `draft(state)` (with `url`, on the route the reset lands on); a field set to `undefined` is dropped */
   | { wizard: 'RESET'; draft?: any }
 
 /**
@@ -3023,6 +3025,13 @@ export type FetchRequest = string | {
    */
   invalidateOn?: FetchInvalidateOn;
   /**
+   * A write that outlives its sender (React Query's mutations after an unmount): not aborted when
+   * the component that sent it is disposed. Its `updates` (the named resources as they were when
+   * it was sent) and `invalidates` still apply; its `ok` / `error` actions are dropped once the
+   * sender is gone. Not for resources or `{ prefetch }`. Disposing the app still aborts it
+   */
+  detached?: boolean;
+  /**
    * PLAN-3 6-A (G-184; React Query's setQueryData): after a 2xx reply, write it into this
    * component's resources with these names (and their `queryCache()` entries) before the `ok`
    * action and before `invalidates`: `updates: 'item'` (the reply becomes `state.item.data`), or
@@ -4399,6 +4408,7 @@ export interface RenderResult<STATE = any> {
    * Throws at the call when nothing matching is pending, unless simulateEvent/simulateAction/
    * respond/fail calls are still queued before it or the component isn't ready yet: then it is
    * delivered after them, waiting up to 1s (half of timeoutMs if lower) for the request.
+   * A polled resource (`refetchEvery`) whose next request is due within timeoutMs is waited for.
    * Resolves once the reply has been reduced and the tree rendered; rejects (and, if not
    * awaited, fails the next wait) when no request comes or nothing receives a plain reply.
    * On the LLM fake (`llmSink`, default 'LLM'): the whole reply as one text chunk, then the end
@@ -4487,9 +4497,13 @@ export interface RenderResult<STATE = any> {
    * and the tree rendered.
    */
   navigate: (target: string | { to: string; params?: Record<string, string | number>; query?: Record<string, any>; hash?: string; replace?: boolean }) => Promise<void>;
-  /** Router fake: the browser's back button (popstate a task later; a block undoes it). Throws with no entry to go back to */
+  /**
+   * Router fake: the browser's back button (popstate a task later; a block undoes it). With no
+   * entry to go back to it throws at the call, as t.respond does (`expect(() => t.back()).toThrow()`),
+   * or, behind queued input, rejects
+   */
   back: () => Promise<void>;
-  /** Router fake: the browser's forward button. Throws with no entry to go forward to */
+  /** Router fake: the browser's forward button. With no entry to go forward to: as t.back() */
   forward: () => Promise<void>;
   /**
    * Router fake: the in-memory location: `path` (pathname), `search` ('?tab=x' or ''), `query`

@@ -263,6 +263,18 @@ Item.model = {
 - Other mounted resources reading the same cache entry show the new data too. A resource that is idle (its entry returned a falsy value) is skipped; a paused one (a hidden page) is updated.
 - Nothing is written when the request fails. The `ok` action still gets the reply.
 
+**A write that outlives its page.** When the component that sent a request is removed (the user leaves the page before the reply), its requests with reply actions are aborted, and so are their `updates` and `invalidates`. The server may still apply a save that was aborted on the client, and the reads then stay stale. Mark such a write `detached: true` to let it finish, as React Query's mutations do after an unmount:
+
+```js
+Item.model = {
+  SAVE: { HTTP: (state) => ({ url: `/api/items/${state.id}`, method: 'PUT', json: state.form, ok: 'SAVED', updates: 'item', invalidates: '/api/items', detached: true }) },
+}
+```
+
+- It isn't aborted when its component is removed. Its `updates` still write the cache entries of the resources it names (as they were when it was sent), and its `invalidates` still refetch the mounted resources that match.
+- Its `ok` and `error` actions are dropped once the component is gone: nothing receives them. Put what must happen in any case in `updates` and `invalidates`.
+- Disposing the whole app (or the driver) still aborts it.
+
 ## Focus, reconnect and polling
 
 - With a `queryCache()`, when the window regains focus (or the tab becomes visible) and when the browser comes back online, every **stale** mounted resource refetches, keeping its data. Turn either off with `refetchOnFocus: false` / `refetchOnReconnect: false`. Resources in hidden pages don't refetch.

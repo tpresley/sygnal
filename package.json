@@ -1,6 +1,6 @@
 {
   "name": "sygnal",
-  "version": "7.2.0-preview.6",
+  "version": "7.2.0-preview.7",
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
   "main": "./dist/index.cjs.js",
   "types": "./dist/index.d.ts",

@@ -90,11 +90,16 @@ function viewSource(component: any): string {
   return src as string
 }
 
+const words = (s: string): string[] => s.match(/[A-Za-z_][\w-]*/g) || []
+
 /** class / id / tag tokens of a selector: '.a .b-c > #d' -> ['a', 'b-c', 'd'] */
 const tokensOf = (selector: string): string[] =>
-  (selector.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, ' ').match(/[A-Za-z_][\w-]*/g) || [] as string[])
-    // CT-1: a control's key (`<Add>` / `h(Add)` in the view source)
-    .concat(Array.from(selector.matchAll(/\[data-control="([^"]+)"\]/g), m => m[1]))
+  words(selector.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, ' '))
+    .concat(...Array.from(selector.matchAll(/\[\s*([\w-]+)\s*(?:[~|^$*]?=\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]*)))?[^\]]*\]/g), m =>
+      // CT-1: a control's key (`<Add>` / `h(Add)` in the view source)
+      m[1] == 'data-control' ? words(m[2] ?? m[3] ?? m[4] ?? '')
+      // Sift (after preview.6): an attribute's name and its value's words (`[data-act="remove"]`)
+      : [m[1], ...words(m[2] ?? m[3] ?? m[4] ?? '')]))
 
 function appearsInView(component: any, selector: string): boolean {
   const src = viewSource(component)

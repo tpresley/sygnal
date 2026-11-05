@@ -112,7 +112,9 @@ export function reportElementCommand(component: any, cmd: any, el?: any, elsewhe
       message: missing
         ? `${what} in ${name} has no target (${String(target)}), so the command was dropped`
         : `${what} in ${name} matched no element: nothing in ${name}'s own view matches ${control ? `the control ${control}` : `'${String(target)}'`} (waited 1 s), so the command was dropped` +
-          (outside ? `. A matching element is rendered outside ${name}'s view (by an ancestor, a child component or another part of the page), and a command reaches only its sender's own elements` : ''),
+          (outside ? `. A matching element is rendered outside ${name}'s view (by an ancestor, a child component or another part of the page), and a command reaches only its sender's own elements` +
+            // Sift: a host focusing a child control's button
+            (method == 'focus' && !control ? `. For an element inside a child component, send { focus: focusWithin('${String(target)}') }` : '') : ''),
       fix: missing
         ? `Give the method a control or a selector: { ${method}: Email }`
         : `Render the element in ${name}'s view, or send the command from the component that renders it: a child component's elements are isolated from its parent, and a command reaches only its sender's own elements (in a Collection, each item sends its own). For an element an ancestor renders, hand it off: emit EVENTS: event('FOCUS_NAME') from ${name} (or send PARENT) and send ELEMENT: { ${method}: … } from the ancestor's entry for it; for one inside a child, the parent can use { ${method}: focusWithin('…') }`,

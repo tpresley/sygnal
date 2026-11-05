@@ -311,6 +311,20 @@ describe('mock DOM: t.commands records the commands sent', () => {
     expect(d.data.outside).toBe(true)
   })
 
+  it("SYG640: a host focusing a child component's element is pointed at focusWithin (Sift, Phase C)", async () => {
+    const Menu = () => h('button', { className: 'menu-button' }, 'Menu')
+    const Header = () => h('header', null, h(Menu, null), h('button', { className: 'done' }, 'Done'))
+    Header.initialState = {}
+    Header.intent = ({ DOM }) => ({ DONE: DOM.click('.done') })
+    Header.model = { DONE: { ELEMENT: { focus: '.menu-button' } } }
+    t = renderComponent(Header)
+    await t.ready()
+    t.simulateEvent('.done', 'click')
+    await vi.waitFor(() => expect(codes()).toContain('SYG640'), { timeout: 5000, interval: 20 })
+    const d = t.diagnostics.find(d => d.code == 'SYG640')
+    expect(d.message).toMatch(/For an element inside a child component, send \{ focus: focusWithin\('\.menu-button'\) \}/)
+  })
+
   it('SYG641: a spec control with no such command names the commands it declares', async () => {
     t = renderComponent(Planner)
     await t.ready()

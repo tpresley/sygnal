@@ -2,6 +2,24 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.2.0-preview.7 — dev preview
+
+**Added: `detached: true` on a fetch request**, a write that outlives its sender (the Sift console port's Phase C; maintainer decision). When the component that sent a write is removed before the reply (a page left), its requests with reply actions are aborted, and a save the server may still apply lost its `updates` and `invalidates`. A detached request isn't aborted with its sender: its `updates` write the cache entries of the resources it named (as they were when it was sent), its `invalidates` refetch, and its `ok` / `error` actions are dropped. React Query's mutations behave this way after an unmount; making it the default for writes with `updates` / `invalidates` is planned for 8.0 (BACKLOG-8.0 B8-4). Guide: `guide/resources` § A write that outlives its page.
+
+**Docs:** `guide/wizards` § A step seeded from its own data: reseed a step when its data is revised (React's `key={updatedAt}`), with `STATE.watch`.
+
+**Fixed: a wizard step that saves or drops its edits and leaves the flow in the same action got the leave dialog** (the Sift console port). The guard lifted its block only from a watch on `dirty`, a flush after the action, so `SAVED: { STATE: …saved…, ROUTER: () => ({ to: 'filter' }) }` asked "Discard your edits?" after a successful save, and a step's own confirmed "Leave" opened a second dialog. The guard now reads `dirty` after that action's `STATE`; such a step no longer needs `force: true`. A navigation while the step is still dirty is held as before.
+
+**Dev diagnostics:** SYG640 for a `focus` command whose target is in a child component names `focusWithin('…')` in the message, not only in the fix.
+
+**Docs:** `t.back()` / `t.forward()` with no history entry throw at the call, like `t.respond`; behind queued input they reject.
+
+**Changed: `t.respond` waits for a polled resource's next request** (the Sift console port; maintainer decision). With nothing pending for a resource with `refetchEvery`, a `t.respond` that targets it waits for the next poll when it is due within `timeoutMs` (2 s by default), and under fake timers advances the clock to it. Before, it threw at the call, and behind queued input its 1 s wait raced a 1 s poll, so such a test passed only some of the time. A poll due later still throws at the call, naming the poll.
+
+**Changed: a wizard RESET's `draft` is merged over `draft()`** (the Sift console port, after preview.6; maintainer decision), and so is a GOTO-with-a-new-key's. `{ wizard: 'RESET', draft: { carried } }` starts over with what `draft(state, bag)` gives plus `carried`; before, the message's draft replaced it, so carrying one field meant restating the others. In URL mode the merge is over `draft()` on the route the reset lands on. A field set to `undefined` drops it. A RESET that relied on its draft leaving out fields `draft()` gives now needs to set them to `undefined`.
+
+**Fixed: SYG103 reported an attribute selector for an element the view renders in some states only** (the Sift console port, after preview.6). `DOM.select('[data-act="remove"]')` warned after the idle time when the button wasn't on screen: the check takes a selector whose words appear in the view as conditionally rendered, but it ignored what's inside `[...]`. The attribute's name and its value's words count now; a misspelled one is still reported.
+
 ## 7.2.0-preview.6 — dev preview
 
 **Added: `ROUTER.navigation()`**, how the current route was reached: `'load'`, `'push'` (a link or a command), `'replace'` or `'traverse'` (the browser's Back or Forward). The test fake reports it too (`t.navigate`, `t.back`).

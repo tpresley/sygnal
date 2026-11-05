@@ -152,7 +152,7 @@ export default NewProject
 Describe.model = {
   OPENED: { PARENT: () => ({ wizard: 'NEXT' }) },              // also 'BACK' and 'FINISH'
   EDIT_SOURCE: { PARENT: () => ({ wizard: 'GOTO', step: 'source' }) },
-  START_OVER: { PARENT: () => ({ wizard: 'RESET' }) },         // `draft: { … }` starts with that draft
+  START_OVER: { PARENT: () => ({ wizard: 'RESET' }) },         // `draft: { … }` merged over draft()
 }
 ```
 
@@ -200,6 +200,24 @@ Account.uses = { form: form(accountSchema, { values: { email: '' }, submit: 'DON
 Account.model = { DONE: { PARENT: () => ({ wizard: 'NEXT' }) } }
 ```
 
+**A step seeded from its own data**, and seeded again when that data is revised: React's `key={updatedAt}` on the step. Review builds an editable spec from a proposal it loads. Going Back and returning keeps the user's edits, but a revised proposal replaces the spec, edits and all, since they were made against the old one. Watch the data's stamp, and keep the stamp the spec was built from next to it:
+
+```jsx
+Review.resources = { proposal: (state) => ({ url: `/api/sessions/${state.draft.session}/proposal` }) }
+Review.intent = ({ STATE }) => ({
+  SEED: STATE.watch((state) => state.proposal?.data?.updatedAt ?? null, { immediate: true }),
+})
+Review.model = {
+  SEED: (state, stamp) => stamp == null || stamp === state.specFor
+    ? ABORT
+    : { ...state, spec: specFrom(state.proposal.data), specFor: stamp },
+}
+```
+
+- The watch runs on entry (`immediate`) and on every change of the stamp, so the data arriving after the step mounts seeds it too.
+- Back and forth with the same proposal keeps the spec: `specFor` already matches. A new flow key or Start over makes the step's slice again, so the spec is rebuilt.
+- To keep some edits across a revision instead, merge them in `SEED` rather than replacing the spec.
+
 ## The flow key
 
 A flow belongs to a record: a session, a draft being edited, a report. Name it with `key`:
@@ -225,7 +243,7 @@ wizard({
 - **A second record from inside the flow:** a step that creates another record (Back to step one, Continue, a new session) moves there with `{ wizard: 'GOTO', step: 'describe', key: newSession }`.
   - The flow starts over for the new key, straight at that step. In URL mode the wizard navigates there, past the leave guard.
   - The query starts fresh, as on any step's navigation: the route gets the key and `query`, `{ wizard: 'GOTO', step: 'analyze', key: session, query: { report } }`. A value of the current route the new flow needs goes in `query`.
-  - `draft` seeds the new flow. Without it, the draft comes from `draft(state)` on the route it lands on.
+  - The new flow's draft is `draft(state)` on the route it lands on, with the message's `draft` merged over it: `draft: { carried }` adds a field, `draft: { bound: undefined }` drops one.
   - While the flow has no key yet, the key is adopted and the flow kept, as for a key the route names.
 - **Host state only:** `key` reads the host's state, not its context. Keep the route in the host's state (or the root's), as the [router recipe](/guide/router/#reading-the-route) does.
 
@@ -240,9 +258,9 @@ An entry is the wizard's host mounting again in the same page session; `'entry'`
 
 ## Start over
 
-`reset: '.start-over'`, the `wizard.RESET` action, or a step's `{ wizard: 'RESET' }` starts the flow over: the draft, every step's slice, and the first step. When the action's data (the message's `draft`) is a plain object, it is the new draft.
+`reset: '.start-over'`, the `wizard.RESET` action, or a step's `{ wizard: 'RESET' }` starts the flow over: the draft, every step's slice, and the first step. When the action's data (the message's `draft`) is a plain object, it is merged over `draft(state, bag)`: pass only what the new flow adds or changes, `{ wizard: 'RESET', draft: { source: null } }`, and set a field to `undefined` to drop it.
 
-In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state, bag)` on that route, once it has landed, not on the route left, and so do the first step's `visit` defaults (a `visit` function sees the landed route; a RESET with a `draft` keeps that draft). `resetTo` names another place:
+In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state, bag)` on that route, once it has landed, not on the route left, and so do the first step's `visit` defaults (a `visit` function sees the landed route; a RESET's `draft` is merged over that route's draft). `resetTo` names another place:
 - a router command: `resetTo: { to: 'newFilter' }`;
 - or a function of the slice *being reset* and the bag, when the flow's data decides where its start over goes: `resetTo: (prev) => ({ to: 'newFilter', query: { filter: prev.draft.bound } })`.
 
@@ -288,6 +306,7 @@ wizard({ steps: { describe: { dialog: { title: 'Discard your reply?' } }, review
   - Next, Back and the stepper;
   - the browser's back and forward between steps;
   - a step's own navigation to another step. A step that created the flow's record and moves on with the new key passes too, while the flow has no key yet.
+- **A step that saves or drops its edits and leaves in the same action** isn't held: the guard reads `dirty` after that action's `STATE`. `SAVED: { STATE: (s) => ({ ...s, saved: true }), ROUTER: () => ({ to: 'filter', params }) }` navigates with no dialog, and so does a step's own confirmed "Leave" that clears the edits in `STATE`. No `force` is needed.
 
 **A held navigation** goes in `state.wizard.leaving` and opens the `confirm` dialog with `showModal()`:
 - **Discard** (`leave`) runs the current step's `discard`, else the wizard's `discard`, else starts the flow over. Then it makes the navigation.

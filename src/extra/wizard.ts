@@ -42,7 +42,7 @@
  *
  * Moves: NEXT (the next step not skipped, when the current one is valid; on the last step, the
  * `finish` host action with the draft), BACK, GOTO (a name, or a click on `goto` with data-step:
- * only a reachable step), RESET (start over; a plain object is the new draft), FINISH (the
+ * only a reachable step), RESET (start over; a plain object merged over draft()), FINISH (the
  * `finish` action). A step sends them as a PARENT message: `{ wizard: 'NEXT' }`, `{ wizard:
  * 'GOTO', step }`, `{ wizard: 'RESET', draft? }`, `{ wizard: 'FINISH' }`. With `url`, a move is a
  * ROUTER command and the step follows the route (ROUTE); a route to a step that isn't reachable is
@@ -165,11 +165,11 @@ export const wizard = (o: any = {}): any => {
   // an entry: a new visit, the step's visit defaults written into its slice
   const enter = (w: any, n: string, B: any) =>
     ({...w, step: n, visit: (w.visit || 0) + 1, visited: w.visited.includes(n) ? w.visited : [...w.visited, n], local: scratch(w, n, B), leaving: null})
-  // the flow anew for key k (the draft from the host state; `d`: a draft given to RESET)
+  // the flow anew for key k (the draft from the host state; `d`: a RESET's or GOTO's draft, merged over it)
   // (url: at the step the route names when it is reachable, unless `top`: a reset)
   // (`to`: the step to enter, straight: a GOTO with a new key doesn't pass through step one)
   const fresh = (w: any, B: any, k: any, d?: any, top?: boolean, to?: string) => {
-    const dd = d ?? draftOf(B), n = {...w, key: k, draft: dd, initial: dd, local: {}, visited: [], leaving: null, reseed: null}
+    const b = draftOf(B), dd = d ? {...b, ...d} : b, n = {...w, key: k, draft: dd, initial: dd, local: {}, visited: [], leaving: null, reseed: null}
     const at = url && !top && routeStep(B)
     return enter(n, to ?? (at && reachable(n, at, B) ? at : first), B)
   }
@@ -256,12 +256,14 @@ export const wizard = (o: any = {}): any => {
       return put(B, k, l === w.local && again ? w : {...w, local: l, [SEEN]: true})
     }},
     // url: the wizard's own navigation (Start over, a GOTO with a new key) landed: the draft's
-    // untouched fields from draft(state) on the route entered, not the one left (unless the message
-    // gave the draft: reseed.refill false), and the step's visit defaults again on that route
+    // untouched fields from draft(state) on the route entered, not the one left (the message's draft,
+    // `reseed.over`, merged over them again), and the step's visit defaults again on that route
     RESEED: {HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => {
       const w = h[k], B = bag(p, h)
       if (w.reseed == null) return h
-      const f = w.reseed.refill ? refill(w, B) : w
+      let f = refill(w, B)
+      const o = w.reseed.over
+      if (o) f = {...f, draft: {...f.draft, ...o}, initial: {...f.initial, ...o}}
       return put(B, k, {...f, local: scratch(f, f.step, B), reseed: null})
     }},
     // the host's state changed (a step's write, the host's own data): the derived fields again
@@ -286,12 +288,12 @@ export const wizard = (o: any = {}): any => {
         const w = h[k], B = bag(p, h)
         if (plainObj(d) && 'key' in d) {
           // (as for a key the route names: adopted when the flow has none yet, or the same key; else
-          // the flow anew, at that step straight; `draft` seeds it, else (url) draft(state) is taken
-          // once the route it navigates to has landed, RESEED)
+          // the flow anew, at that step straight; `draft` merged over draft(state), (url) the one of
+          // the route it navigates to once landed, RESEED)
           const keep = w.key == null || Object.is(w.key, d.key), n = names.includes(d.step) ? d.step : first
           let f = keep ? (w.key == null && d.key != null ? adopt(w, d.key, B) : w) : fresh(w, B, d.key ?? null, d.draft, true, n)
           if (keep && plainObj(d.draft)) f = {...f, draft: {...f.draft, ...d.draft}, initial: {...f.initial, ...d.draft}}
-          if (url) f = {...f, reseed: {at: sig(routeOf(B)), refill: !plainObj(d.draft)}}
+          if (url) f = {...f, reseed: {at: sig(routeOf(B)), over: plainObj(d.draft) ? d.draft : null}}
           return put(B, k, keep && n != f.step ? enter(f, n, B) : f)
         }
         const n = target(w, 'GOTO', d, B)
@@ -310,10 +312,11 @@ export const wizard = (o: any = {}): any => {
     RESET: {
       ...shut,
       // (url: when it navigates (resetTo, or to the first step's route), the flow anew with no key
-      // (the route it lands on names one, or none) and the draft taken from that route once landed)
+      // (the route it lands on names one, or none) and the draft taken from that route once landed;
+      // a draft in the message merged over draft(state))
       HOST: (h: any, d: any, _n: any, p: any, _o: any, k: string) => {
         const B = bag(p, h), nav = url && (!!resetTo || routeStep(B) != first), f = fresh(h[k], B, nav ? null : h[k].key, plainObj(d) ? d : undefined, true)
-        return put(B, k, nav ? {...f, reseed: {at: sig(routeOf(B)), refill: !plainObj(d)}} : f)
+        return put(B, k, nav ? {...f, reseed: {at: sig(routeOf(B)), over: plainObj(d) ? d : null}} : f)
       },
       // url: to `resetTo`, else back to the first step's route (the state is already at the first step)
       ...(url || resetTo) && {[R]: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => resetTo
@@ -345,11 +348,16 @@ export const wizard = (o: any = {}): any => {
   }
   if (guarded) Object.assign(model, {
     GUARD: {[R]: (_w: any, d: any, _n: any, _p: any, _o: any, k: string) => ({block: d ? k + '.LEAVE' : false})},
-    // the router's attempt { to, route, proceed }: inside the flow, made (the block kept); else held
+    // the router's attempt { to, route, proceed }: inside the flow, made (the block kept); out of it,
+    // made with the block lifted when the step isn't dirty any more (Sift: the action that sent the
+    // navigation saved or cleared it in its STATE, before GUARD's watch lifted the block), else held
     LEAVE: {
-      STATE: (w: any, a: any, _n: any, p: any) => inFlow(w, a?.route, bag(p, p?.state)) ? ABORT : {...w, leaving: a?.proceed ?? null},
-      [R]: (w: any, a: any, _n: any, p: any, _o: any, k: string) => inFlow(was(w, p, k), a?.route, bag(p)) ? {...a.proceed, block: k + '.LEAVE'} : ABORT,
-      ...confirm && {ELEMENT: (w: any, a: any, _n: any, p: any, _o: any, k: string) => inFlow(was(w, p, k), a?.route, bag(p)) ? ABORT : {showModal: confirm}},
+      STATE: (w: any, a: any, _n: any, p: any) => { const B = bag(p, p?.state); return inFlow(w, a?.route, B) || !dirtyIn(w, B) ? ABORT : {...w, leaving: a?.proceed ?? null} },
+      [R]: (w: any, a: any, _n: any, p: any, _o: any, k: string) => {
+        const s = was(w, p, k), B = bag(p)
+        return inFlow(s, a?.route, B) ? {...a.proceed, block: k + '.LEAVE'} : dirtyIn(s, B) ? ABORT : {...a.proceed, block: false}
+      },
+      ...confirm && {ELEMENT: (w: any, a: any, _n: any, p: any, _o: any, k: string) => { const s = was(w, p, k), B = bag(p); return inFlow(s, a?.route, B) || !dirtyIn(s, B) ? ABORT : {showModal: confirm} }},
     },
     DISCARD: {
       HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => {
