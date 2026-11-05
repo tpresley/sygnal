@@ -35,6 +35,22 @@ describe('SYG103 and attribute selectors', () => {
     })
   }
 
+  // Sift (after preview.7): the element written with the data prop (data={{ act }}), its dataset key
+  for (const selector of ['.confirm [data-act="confirm"]', '[data-gate-kind="hold"]']) {
+    it(`${selector} for an element written with the data prop isn't reported`, async () => {
+      function Dialog({ state }) {
+        return h('div', null, state.open ? h('p', { className: 'confirm' }, h('button', { data: { act: 'confirm', gateKind: 'hold' } }, 'Go')) : null)
+      }
+      Dialog.initialState = { open: false }
+      Dialog.intent = ({ DOM }) => ({ GO: DOM.select(selector).events('click') })
+      Dialog.model = { GO: (state) => state }
+      t = renderComponent(Dialog, { dom: 'real' })
+      await t.ready()
+      await settle(150)
+      expect(syg103()).toEqual([])
+    })
+  }
+
   for (const selector of ['[data-act="remvoe"]', '[data-axt="remove"]']) {
     it(`a misspelled ${selector} is still reported`, async () => {
       t = renderComponent(makeList(selector), { dom: 'real' })

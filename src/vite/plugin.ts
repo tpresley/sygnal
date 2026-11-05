@@ -754,6 +754,18 @@ function stringWords(code: string, into: Set<string>): void {
   }
 }
 
+// Sift (after preview.7): a helper's markup is JSX in its raw source, so its tags (`<input>`),
+// attribute names (`data-act=`) and the keys of a `data={{ act }}` prop are words too
+const JSX_TAG_RE = /<([a-z][\w-]*)(?=[\s/>])/g
+const JSX_ATTR_RE = /\s([A-Za-z_][\w-]*)=(?!=)/g
+const DATA_PROP_RE = /\bdata=\{\{([^}]*)\}\}/g
+function jsxWords(code: string, into: Set<string>): void {
+  const bare = blankOut(code, true)
+  for (const m of bare.matchAll(JSX_TAG_RE)) into.add(m[1])
+  for (const m of bare.matchAll(JSX_ATTR_RE)) into.add(m[1])
+  for (const m of blankOut(code, false).matchAll(DATA_PROP_RE)) for (const k of m[1].matchAll(/([A-Za-z_$][\w$]*)\s*:/g)) into.add(k[1])
+}
+
 function viewTokensTail(ctx: any, code: string, id: string): Promise<string> | null {
   const file = cleanId(id)
   if (!/\.[jt]sx?$/.test(file) || id.includes('node_modules') || id.startsWith('\0')) return null
@@ -762,6 +774,7 @@ function viewTokensTail(ctx: any, code: string, id: string): Promise<string> | n
   if (!names.size) return null
   const words = new Set<string>()
   stringWords(code, words)
+  jsxWords(code, words)
   const specs = new Set(Array.from(blankOut(code, false).matchAll(RELATIVE_IMPORT_RE), m => m[2]))
   return Promise.all([...specs].map(async (spec) => {
     try {
@@ -769,7 +782,9 @@ function viewTokensTail(ctx: any, code: string, id: string): Promise<string> | n
       const dep = r && !r.external && cleanId(r.id)
       if (!dep || !/\.[cm]?[jt]sx?$/.test(dep) || dep.includes('node_modules')) return
       ctx.addWatchFile?.(dep)
-      stringWords(await fs.promises.readFile(dep, 'utf8'), words)
+      const src = await fs.promises.readFile(dep, 'utf8')
+      stringWords(src, words)
+      jsxWords(src, words)
     } catch (_) { /* unreadable: its words are just not added */ }
   })).then(() => {
     const comps = [...names].map(n => `typeof ${n} == 'function' && ${n}`).join(', ')

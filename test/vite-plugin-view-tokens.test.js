@@ -71,6 +71,22 @@ describe('vite plugin: SYG103 view words', () => {
     expect(watched).toContain(path.join(tmp, 'panel.js'))
   })
 
+  it("a helper module's JSX: its tags, attribute names and data prop keys (Sift, after preview.7)", async () => {
+    const id = files()
+    fs.writeFileSync(path.join(tmp, 'panel.js'), `export const panel = () => (
+  <label className="gate-ack posture-also">
+    <input type="checkbox" checked={true} />
+    <button data-kind={kind} data={{ act: 'confirm', gateKind: x }}>Go</button>
+  </label>
+)
+`)
+    const result = await plugin().transform.call(ctx, PAGE, id)
+    function Page() {}
+    new Function('Page', tailOf(result, PAGE))(Page)
+    const words = globalThis.__SYGNAL_VIEW_TOKENS__.get(Page).split(' ')
+    expect(words).toEqual(expect.arrayContaining(['posture-also', 'input', 'label', 'data-kind', 'act', 'gateKind', 'confirm']))
+  })
+
   it('nothing for a module without components with selectors, or in a build, under Vitest or with diagnostics off', async () => {
     const id = files()
     const plain = `export const x = 'save'\n`
