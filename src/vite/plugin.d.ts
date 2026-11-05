@@ -175,7 +175,7 @@ export interface SygnalPluginOptions {
   graph?: boolean
 
   /**
-   * sygnal/api (dev preview): wire the app's API into the dev server and the client build.
+   * sygnal/api (experimental): wire the app's API into the dev server and the client build.
    * - `handler`: a module whose default export is a Fetch handler (Request → Response), served in
    *   dev at `prefix` (default '/api'); a production server mounts the same module.
    * - `contracts`: contract modules (oRPC) that client code gets as routes and a build-time

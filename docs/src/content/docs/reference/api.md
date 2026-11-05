@@ -674,7 +674,7 @@ import { replay } from 'sygnal'            // or 'sygnal/replay'
 function replay(Component, recording: Recording | string, options?: ReplayOptions): Promise<ReplayResult>
 ```
 
-Replays a recording made with `startRecording()` from `sygnal/replay` in `renderComponent`, and compares each action and screen update with it: `{ ok, divergence, view, effects, unhandled, unresolved, warnings, final, t }`. Options: `drivers`, `render`, `stopAt`, `entropy`, `warn`. `sygnal/replay` also exports `startRecording({ redact, dropNoops, vnodes })`, `replayTest(recording)`, `bugReport(recording, result)`, `timeline()`, `finalState()`, `RECORDING_SCHEMA` and `inertDriver()`. Dev preview: see [Record and Replay](/guide/record-replay/).
+Replays a recording made with `startRecording()` from `sygnal/replay` in `renderComponent`, and compares each action and screen update with it: `{ ok, divergence, view, effects, unhandled, unresolved, warnings, final, t }`. Options: `drivers`, `render`, `stopAt`, `entropy`, `warn`. `sygnal/replay` also exports `startRecording({ redact, dropNoops, vnodes })`, `replayTest(recording)`, `bugReport(recording, result)`, `timeline()`, `finalState()`, `RECORDING_SCHEMA` and `inertDriver()`. Experimental: see [Record and Replay](/guide/record-replay/).
 
 ---
 

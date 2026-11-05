@@ -165,3 +165,11 @@ export const bagged = wizard<Draft, Host>({
   // @ts-expect-error the bag's state is the host state
   dirty: (s, step, { state }) => state.nope,
 })
+
+// 7.2: a draftKey naming a component spec key is a type error (WizardStepComp would read it as a spec)
+// @ts-expect-error 'actions' is a ComponentSpec key
+wizard({ steps: { a: {} }, draftKey: 'actions' })
+// @ts-expect-error 'context' too
+wizard({ steps: { a: {} }, draftKey: 'context' })
+wizard({ steps: { a: {} }, draftKey: 'flow' })
+wizard({ steps: { a: {} } })

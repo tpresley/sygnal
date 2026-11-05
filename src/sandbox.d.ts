@@ -1,4 +1,4 @@
-// 'sygnal/sandbox' (dev preview): untrusted or generated Sygnal components in QuickJS-in-WASM.
+// 'sygnal/sandbox' (experimental): untrusted or generated Sygnal components in QuickJS-in-WASM.
 // Needs quickjs-emscripten-core and @jitl/quickjs-wasmfile-release-sync (optional peer dependencies).
 // Guide: https://sygnal.js.org/advanced/sandboxed-components
 import type { Widget } from 'sygnal'

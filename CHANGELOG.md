@@ -2,7 +2,67 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## 7.2.0-preview.9 — dev preview
+## 7.2.0 — 2026-11-05
+
+Sygnal 7.2 gathers ten dev previews (`7.2.0-preview.0` … `preview.9`), most of them shaped by porting a
+production console (Sift) to Sygnal: other renderers (terminal, React Native, an LLM agent, a Web
+Worker, canvas, three.js), typed API contracts, record and replay, a sandbox for generated components,
+collaborative state, wizards, one bag `(subject, …args, bag)` for every function over state, and many
+fixes. Each preview's notes follow below, newest first.
+
+**Upgrading from 7.1.0.** Most of 7.2 is additive. What an app can notice, each described in its
+preview's notes:
+- **One bag** (preview.4): declaration statics (`resources`, `timers`, `connections`, `head`,
+  `browser`, `route`) get `(state, bag)` instead of `(state, context)`. The context's fields stay on
+  the bag until 8.0, with **SYG458** (dev entry and `sygnal-check --fix`).
+- **Rendering** (preview.1): a view returning `null`, `false` or `undefined` renders nothing, and
+  `false` on a string DOM property removes the attribute, as in React.
+- **Children** (preview.3): a child that a state change removes no longer acts on that state.
+- **Portals** (preview.6): events from a `<Portal>`'s content reach the component that renders it.
+- **Forms and UI** (preview.0): `processForm()` gives arrays for `<select multiple>` and checkbox
+  groups; the `form` behavior keeps a checkbox group in document order; `sygnal/ui`'s `dialog()` and
+  `popover()` slices carry an `id`, a modal dialog's Escape goes through the model, tooltips show on
+  `:focus-visible` only; Menu, Select and Combobox lists are `position: fixed`.
+- **AI** (preview.3): `compose.llm()` keeps the page's other parts in a fresh preview, times out after
+  300 s and stops a runaway reply.
+- **Testing**: `renderComponent` handles are disposed when the test ends, and `strict: true` fails on
+  diagnostics the test never read (preview.4); `t.simulateAction` fails on a name its target doesn't
+  handle (preview.0); `t.respond` waits for a polled resource's next request (preview.7).
+
+**Experimental, outside semver.** These ship in 7.2 but may change in any release: `wizard()` and
+`<Outlet>`, `sygnal/replay`, `sygnal/api` and server functions (`serverQuery`, `serverMutation`,
+`serverStream`, sygnal/vite's `api` option), `sygnal/sandbox` and `compose.generated`, `sygnal/yjs`,
+`sygnal/canvas`, `sygnal/three`, `sygnal/worker`, the renderer kit and its targets (`sygnal/host`,
+`sygnal/terminal`, `sygnal/agent-ui`, `sygnal/react-native`, `sygnal/primitives`) and the Vite plugin's
+`compile` option. Their docs pages say so in the same words.
+
+**Since preview.9.**
+- **The wizard's and the form's watches get the whole bag.** The flow `key`, `dirty`, the leave guard
+  and a form's `dynamic` fields, when the behavior's own intent calls them, now get `context` and `uid`
+  as their type said, and run again when the host's context changes, so `key: (s, { context }) =>
+  context.session` starts the flow over on a new session. 0 B in the core: the context stream lives in
+  the behaviors' module.
+- **`wizard()`'s `draftKey` can't name a component spec key** (`actions`, `props`, `context`,
+  `calculated`, ...): TypeScript rejects it, since `WizardStepComp<Own, { actions: Draft }>` would read
+  the draft as a spec.
+- **Docs:** one "Experimental, outside semver" notice on every experimental feature's page.
+
+**Measured impact.** Size: the kanban gate is (a) 43,522 B with `nativeGlobalThis: false` (7.1.0:
+42,982 B; budget 43,522 B, 0 B headroom; the budget was raised from 43,000 B in steps the maintainer
+approved, each noted in its preview) and (b) 39,532 B by default. The new subpaths, the dev
+diagnostics entry, the test helper and `sygnal-check` add nothing to an app that doesn't use them.
+The perf count gate is within its limits.
+
+**Companion packages.**
+- **`sygnal-check` 0.13.0:** the 7.2 rules (SYG107, SYG118, SYG258, SYG260, SYG303, SYG455–SYG459,
+  SYG509, SYG691), `--fix` for SYG107, SYG258/509, SYG302 and SYG458/459, helpers followed in SYG102,
+  SYG110 and SYG702, and incremental checking (preview.0). Its caret range doesn't reach 0.13.0 from
+  `^0.12.0`, so update the dev dependency.
+- **`create-sygnal-app` 2.11.0:** templates depend on `sygnal` ^7.2.0 and `sygnal-check` ^0.13.0.
+- **VS Code extension 0.10.0:** bundles `sygnal-check` 0.13.0.
+- **Claude Code plugin 0.2.2:** the `sygnal-dev` skill's 7.2 text.
+
+### From 7.2.0-preview.9
 
 **Added: `reload: true` on a router `{ to }` / `{ url }` command** (the Sift console port's Phase D; maintainer decision). That one navigation is a full page load (`location.assign`, or `location.replace` with `replace: true`), for a sign-in or sign-out that must drop everything the old session loaded. Leave blocks are asked first and a block's `proceed` keeps it; `t.pageLoads` records it. Before, the only way was listing the path in `external`, which is meant for URLs another app owns.
 
@@ -13,7 +73,7 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Size:** the size gate's budget goes from 43,503 B to 43,522 B (user-approved, +19 B), for `autoFocus` at the patch.
 
-## 7.2.0-preview.8 — dev preview
+### From 7.2.0-preview.8
 
 **Fixed (from the Sift console port: its preview.7 bump and Phase C):**
 - **SYG103 on an element written with the data prop:** `[data-act="confirm"]` warned when the view writes `data={{ act: 'confirm' }}`, which never spells `data-act` (new in preview.7, with the attribute-selector check). A `data-*` attribute now counts as written when its dataset key is (`act`, `gateKind` for `data-gate-kind`).
@@ -26,7 +86,7 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Size:** the size gate's budget goes from 43,467 B to 43,503 B (user-approved, +36 B), for the root-shape fix.
 
-## 7.2.0-preview.7 — dev preview
+### From 7.2.0-preview.7
 
 **Added: `detached: true` on a fetch request**, a write that outlives its sender (the Sift console port's Phase C; maintainer decision). When the component that sent a write is removed before the reply (a page left), its requests with reply actions are aborted, and a save the server may still apply lost its `updates` and `invalidates`. A detached request isn't aborted with its sender: its `updates` write the cache entries of the resources it named (as they were when it was sent), its `invalidates` refetch, and its `ok` / `error` actions are dropped. React Query's mutations behave this way after an unmount; making it the default for writes with `updates` / `invalidates` is planned for 8.0 (BACKLOG-8.0 B8-4). Guide: `guide/resources` § A write that outlives its page.
 
@@ -44,7 +104,7 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Fixed: SYG103 reported an attribute selector for an element the view renders in some states only** (the Sift console port, after preview.6). `DOM.select('[data-act="remove"]')` warned after the idle time when the button wasn't on screen: the check takes a selector whose words appear in the view as conditionally rendered, but it ignored what's inside `[...]`. The attribute's name and its value's words count now; a misspelled one is still reported.
 
-## 7.2.0-preview.6 — dev preview
+### From 7.2.0-preview.6
 
 **Added: `ROUTER.navigation()`**, how the current route was reached: `'load'`, `'push'` (a link or a command), `'replace'` or `'traverse'` (the browser's Back or Forward). The test fake reports it too (`t.navigate`, `t.back`).
 
@@ -79,7 +139,7 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 - `guide/resources` § Writing a reply into the cache: the `updates` write is its own state change, so a resource gated on a field the `ok` action sets fetches once in between. Gate it on the cache, or set the field in the action that sends the request.
 - `guide/wizards` § Start over: the first step's `visit` defaults come from the landed route too.
 
-## 7.2.0-preview.5 — dev preview
+### From 7.2.0-preview.5
 
 **Fixed: entering a finished wizard again showed its outcome step** (found while building `examples/filter-wizard`). After Created → All filters → New filter, the wizard showed Created again: an outcome step replaced every route into the steps with its own, a fresh entry from another page included. Now a host that mounts on another route while the flow is on its outcome starts a new flow at step one. A reload on the outcome's route, Back from another page to it, and Back from it into the steps (still refused) are unchanged.
 
@@ -101,7 +161,7 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 - A plain parameter that only reads context fields is rewritten to the bag's context under the same name, so the body stays: `(s, context: Ctx) => context.csrf` → `(s, { context }: { context: Ctx }) => context.csrf`. Before, there was no fix and the suggestion was `context.context.csrf`.
 - A context read through a same-module helper is reported, at the argument: `bound: (_s, context) => boundId(context)` where `boundId` reads `context.route`. A helper the checker can't see stays silent (the dev entry's warning covers it).
 
-## 7.2.0-preview.4 — dev preview
+### From 7.2.0-preview.4
 
 **Added: `makeRouter({ external })`, for routes another app owns** (the Sift console port, behind an nginx strangler). Before, the router took over links, `{ to }` commands and guard redirects to the old app's URLs and showed its own not-found route: Sift's sign-out hung on "Loading session…". `data-router-ignore` only covered single links, and Vike's `navigate` turned off interception entirely.
 
@@ -163,7 +223,7 @@ From the Sift port (a resource function couldn't see the component's props), gen
 
 **Size:** the size gate's budget goes from 43,144 B to 43,263 B (user-approved, +119 B), for the one-shape bag.
 
-## 7.2.0-preview.3 — dev preview
+### From 7.2.0-preview.3
 
 From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).
 
@@ -322,7 +382,7 @@ reports).
 - Resources and props, `strict` and `waitForState` in tests, `afterEach` dispose under node:test,
   `isolatedState` for a widget used several times, hidden vs removed form fields.
 
-## 7.2.0-preview.2 — dev preview
+### From 7.2.0-preview.2
 
 Fixes found while releasing 7.2.0-preview.1 and in the Sift port, and string / number views typed.
 
@@ -354,7 +414,7 @@ Fixes found while releasing 7.2.0-preview.1 and in the Sift port, and string / n
   every path a `null` view is (`test/text-view.test.js`), and llms.txt and the skill say a view may
   return a string or a number.
 
-## 7.2.0-preview.1 — dev preview
+### From 7.2.0-preview.1
 
 Fixes and additions from porting a large React app to the 7.2 preview. Everything is additive except
 the two entries marked **Behaviour change** (a view returning `null`, and `false` on a string prop).
@@ -403,10 +463,10 @@ llms.txt.
 
 **Companion packages.** sygnal-check accepts `chunk` as an HTTP reply action.
 
-## 7.2.0-preview.0 — dev preview
+### From 7.2.0-preview.0
 
-A dev preview (`npm install sygnal@next sygnal-check@next`). Its new subpaths and the `compile` option are
-experimental, and their APIs may change before 7.2.0. Everything is additive except the entries under
+The first dev preview. Its new subpaths and the `compile` option are experimental (outside semver,
+see above). Everything is additive except the entries under
 **Changed**: `processForm()` arrays, the `form` behavior's checkbox-group order, and `sygnal/ui`'s
 dialog, popover and tooltip behaviour (each marked **Behaviour change** or state-visible). An app that
 uses none of these behaves as on 7.1.0.

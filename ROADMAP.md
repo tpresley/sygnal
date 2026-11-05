@@ -424,6 +424,16 @@ Let a model build an app's UI from parts the app prepared (real Sygnal component
 
 ---
 
+## Sygnal 7.2
+
+### 26. Renderers, contracts and the Sift port (7.2 previews)
+
+**Status:** `DONE`: ships in **7.2.0** with `sygnal-check` 0.13.0, `create-sygnal-app` 2.11.0 (templates: `sygnal` ^7.2.0, `sygnal-check` ^0.13.0), the VS Code extension 0.10.0 and the Claude Code plugin 0.2.2, after ten dev previews (`7.2.0-preview.0` … `preview.9`) stress-tested by the Sift console port (release notes in [`CHANGELOG.md`](CHANGELOG.md)). The size gate's budget is 43,522 B.
+
+One bag `(subject, …args, bag)` for every declaration, behaviors' read-time normalizers, portal events, record / replay hooks in the core, and the router's `external` and `reload`. Experimental, outside semver: `wizard()` + `<Outlet>`, `sygnal/replay`, `sygnal/api` and server functions, `sygnal/sandbox` and `compose.generated`, `sygnal/yjs`, `sygnal/canvas`, `sygnal/three`, `sygnal/worker`, the renderer kit and its targets, the `compile` option.
+
+---
+
 ## Sygnal 7.1
 
 ### 25. Feedback from Building an App on 7.0 (PLAN-13)

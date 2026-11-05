@@ -3,6 +3,10 @@ title: Compiled Views (experimental)
 description: Let the Vite plugin compile JSX views at build time, for faster updates and faster server rendering
 ---
 
+:::caution[Experimental, outside semver]
+The Vite plugin's `compile` option is experimental in Sygnal 7.2: its API may change in any release.
+:::
+
 The [Vite plugin](/integration/bundler-config/) can compile your JSX views at build time. Your components stay as they are: the same view functions, the same intent and model. The plugin rewrites the JSX in them into code that does less work when it runs. The DOM is the same with or without it.
 
 ```javascript

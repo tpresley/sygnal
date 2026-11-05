@@ -154,6 +154,31 @@ describe('wizard + Outlet', () => {
     expect(t.query('.note').value).toBe('')
   })
 
+  it('7.2: the key reads the host\'s context, and a context change starts the flow over', async () => {
+    const flow = makeFlow({ key: (s, { context, uid }) => uid && context.session, draft: (s, { context }) => ({ title: 'for ' + context.session }) })
+    function Flow({ state }) {
+      return h('section', null, h(Outlet, { of: STEPS, from: 'wizard' }), h('button', { className: 'next' }, 'Next'))
+    }
+    Flow.uses = { wizard: flow }
+    function App() {
+      return h('main', null, h('button', { className: 'session' }, 'other session'), h(Flow, { state: 'flow' }))
+    }
+    App.initialState = { session: 's1', flow: {} }
+    App.context = { session: (s) => s.session }
+    App.intent = ({ DOM }) => ({ SESSION: DOM.click('.session').mapTo('s2') })
+    App.model = { SESSION: (s, session) => ({ ...s, session }) }
+    t = renderComponent(App, { dom: 'real' })
+    await t.ready(); await tick()
+    expect(t.state.flow.wizard).toMatchObject({ key: 's1', draft: { title: 'for s1' } })
+    await click('.next')
+    expect(t.state.flow.wizard.step).toBe('review')
+
+    // only the context changes for Flow: its own state and props are the same
+    await click('.session')
+    expect(t.state.flow.wizard).toMatchObject({ key: 's2', step: 'source', draft: { title: 'for s2' } })
+    expect(t.query('.title').value).toBe('for s2')
+  })
+
   it('finish: Next on the last step dispatches the host action with the draft', async () => {
     const Flow = host(makeFlow({ finish: 'CREATE' }))
     Flow.model = { ...Flow.model, CREATE: (s, draft) => ({ ...s, created: draft.title }) }

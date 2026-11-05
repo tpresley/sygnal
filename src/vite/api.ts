@@ -1,5 +1,5 @@
 /**
- * sygnal/vite's `api` option (sygnal/api, dev preview; research: dev-plans/research/fullstack-contracts/):
+ * sygnal/vite's `api` option (sygnal/api, experimental; research: dev-plans/research/fullstack-contracts/):
  *
  * - `handler`: in dev, requests under `prefix` go to that module's default export, a Fetch handler
  *   (Request → Response): the same module a production server mounts. The plugin only bridges

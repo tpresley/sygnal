@@ -1,4 +1,4 @@
-// Types for 'sygnal/replay' (7.2 dev preview). The implementation lives in src/extra/replay/;
+// Types for 'sygnal/replay' (experimental in 7.2). The implementation lives in src/extra/replay/;
 // the main entry re-exports these (replay() sits next to renderComponent).
 import type { RenderResult } from 'sygnal'
 

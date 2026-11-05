@@ -5,8 +5,8 @@ description: Share part of the state tree between users through a Yjs document w
 
 `sygnal/yjs` lets several users edit one part of the state at the same time, with or without a connection. A key of your state lives in a [Yjs](https://yjs.dev) document, a CRDT that merges concurrent edits without a server deciding. Your reducers don't change. The driver turns each new value of that key into document operations, and other users' changes come back as an action.
 
-:::caution[Experimental]
-`sygnal/yjs` is a dev preview: its API may change in a minor release. It needs `yjs` and `y-protocols`, which are optional peer dependencies:
+:::caution[Experimental, outside semver]
+`sygnal/yjs` is experimental in Sygnal 7.2: its API may change in any release. It needs `yjs` and `y-protocols`, which are optional peer dependencies:
 
 ```bash
 npm install yjs y-protocols

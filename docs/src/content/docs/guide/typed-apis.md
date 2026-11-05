@@ -1,10 +1,10 @@
 ---
 title: Typed APIs
-description: Typed clients for an API contract with sygnal/api (dev preview) — oRPC, OpenAPI and Hono, or function-first *.server.ts modules — with requests as data, typed replies and errors, contract fixtures and version-skew detection
+description: Typed clients for an API contract with sygnal/api (experimental) — oRPC, OpenAPI and Hono, or function-first *.server.ts modules — with requests as data, typed replies and errors, contract fixtures and version-skew detection
 ---
 
-:::caution[Dev preview]
-`sygnal/api` is a dev preview. Its API may change before it is stable. Feedback is welcome.
+:::caution[Experimental, outside semver]
+`sygnal/api` is experimental in Sygnal 7.2: its API may change in any release. Feedback is welcome.
 :::
 
 `sygnal/api` builds a typed client from an API contract that your server already has. With a client, you don't write a URL, a route or a reply type in a component. Each procedure of the contract becomes a function that **builds a request**: the same plain data the [HTTP](/guide/http/) and [socket](/guide/sockets/) drivers already take. Effects stay data, replies still come back as actions, and the drivers' features (resources, the query cache, `latest`, retries, reconnects) all apply.

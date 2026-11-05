@@ -1,4 +1,4 @@
-// sygnal/replay (7.2 dev preview; research: dev-plans/research/record-replay): the recording
+// sygnal/replay (experimental in 7.2; research: dev-plans/research/record-replay): the recording
 // format's helpers (no core import).
 //
 // - encode / decode: action data as JSON. A DOM event becomes { $event: type, key?, target? }, an

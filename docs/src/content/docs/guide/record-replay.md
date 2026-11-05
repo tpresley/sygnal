@@ -3,8 +3,8 @@ title: Record and Replay
 description: Record a session in the browser, replay it as a test, and get a report of where changed code diverges
 ---
 
-:::caution[Dev preview]
-`sygnal/replay` is experimental in 7.2. The recording format is versioned (`version: 1`), but the API may still change.
+:::caution[Experimental, outside semver]
+`sygnal/replay` is experimental in Sygnal 7.2: its API may change in any release. The recording format is versioned (`version: 1`).
 :::
 
 A Sygnal app's behavior is its models folded over its actions, and every input (a click, a server reply, a timer tick) enters as an action. `sygnal/replay` records those input actions, plus the clock and randomness the handlers read, while you use the app. It can then replay the session in [`renderComponent`](/integration/testing/): the same inputs reach the same component instances in the same order, with no browser, network or timers. After every action and every screen update the replay compares the result with the recording, so it can tell you where new code first behaves differently.

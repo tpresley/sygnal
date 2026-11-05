@@ -880,7 +880,7 @@ The [`chat` behavior](/guide/agent/#an-in-app-assistant-chat) and the call rules
 ## Generated parts (experimental)
 
 :::caution[Experimental, outside semver]
-`compose.generated` is in the 7.2 dev preview as an opt-in. Its API can change in any release, and how often real models write a working part against its rules hasn't been measured yet. Keep it behind a flag, and prefer prepared parts.
+`compose.generated` is experimental in Sygnal 7.2, as an opt-in: its API may change in any release, and how often real models write a working part against its rules hasn't been measured yet. Keep it behind a flag, and prefer prepared parts.
 :::
 
 Sometimes no prepared part shows what the user asks for. A **generated part** lets the model write that one part's component as code, which runs in [`sygnal/sandbox`](/advanced/sandboxed-components/). The rule "the model only chooses" is relaxed inside the box only:

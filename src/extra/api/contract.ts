@@ -1,5 +1,5 @@
 /*
- * 'sygnal/api' (dev preview; index.ts adds contractFetch: this module imports no diagnostics, so
+ * 'sygnal/api' (experimental; index.ts adds contractFetch: this module imports no diagnostics, so
  * sygnal/vite can bundle it without a second copy of their state; research: dev-plans/research/fullstack-contracts/): typed clients
  * for an API whose contract the server already has. A client turns a call into plain data the
  * existing drivers understand, so effects stay data and replies come back as actions:

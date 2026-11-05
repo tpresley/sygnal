@@ -3,7 +3,11 @@ title: Canvas
 description: Build canvas editors, whiteboards, diagrams and 2D games with sygnal/canvas (experimental). Shapes are data in state, painted, culled and hit-tested by one canvas element; a hit is a DOM event with the shape's id. A controlled camera with built-in pan and zoom, pointer capture, a static and a live layer, the camera cache, an accessibility projection, live and parallax layers, sprites and a follow camera for games, wrapped text, images, and an editor kit (gestures, snapping, handles, resize, undo that works with sygnal/yjs, SVG export)
 ---
 
-`sygnal/canvas` is an infinite 2D canvas for apps whose content is a document of shapes: editors, whiteboards, diagrams, floor plans, and [2D games](#games). It is **experimental** (the 7.2 dev preview): the API may still change.
+`sygnal/canvas` is an infinite 2D canvas for apps whose content is a document of shapes: editors, whiteboards, diagrams, floor plans, and [2D games](#games).
+
+:::caution[Experimental, outside semver]
+`sygnal/canvas` is experimental in Sygnal 7.2: its API may change in any release.
+:::
 
 The shapes are plain data in your state. One element, `<shapes items={state.shapes} />`, puts all of them on the canvas: the canvas paints them, skips the ones out of view, and hit-tests them. A press on a shape is an ordinary DOM event on that element, with `event.hit` set to the shape's id, so intents stay what they are everywhere else: `DOM.select('.doc').events('pointerdown')`. There is no element or component per shape, which is what keeps a 10,000-shape document cheap.
 
@@ -434,4 +438,4 @@ expect(t.state.shapes[0]).toMatchObject({ x: 100, y: 60 })
 
 ## Status
 
-Experimental, in the 7.2 dev preview. Not built yet: rich text (a text node is single-style), dirty-rectangle repaints for small edits in huge documents, a spatial index for hit testing past about 50,000 shapes, a WebGL backend, and running the canvas inside [`sygnal/worker`](/renderers/off-main-thread/) (its target doesn't run widgets yet).
+Experimental in Sygnal 7.2. Not built yet: rich text (a text node is single-style), dirty-rectangle repaints for small edits in huge documents, a spatial index for hit testing past about 50,000 shapes, a WebGL backend, and running the canvas inside [`sygnal/worker`](/renderers/off-main-thread/) (its target doesn't run widgets yet).

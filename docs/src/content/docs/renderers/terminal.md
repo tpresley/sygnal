@@ -3,6 +3,10 @@ title: Terminal Apps
 description: Run Sygnal components in a terminal with sygnal/terminal. runTerminal, keys, dropdowns and dialogs, full-screen layouts with boxes, the terminal stylesheet, mouse and paste, quitting, and testing with createTerminal
 ---
 
+:::caution[Experimental, outside semver]
+`sygnal/terminal` is experimental in Sygnal 7.2: its API may change in any release.
+:::
+
 `sygnal/terminal` runs a Sygnal app in a terminal. Your components, intents and models stay the same. The view's HTML is painted as text, and key presses become the DOM events your intents already listen for.
 
 ```jsx

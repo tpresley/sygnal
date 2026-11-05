@@ -1,4 +1,4 @@
-// Types for 'sygnal/api' (dev preview). The implementation lives in src/extra/api/.
+// Types for 'sygnal/api' (experimental). The implementation lives in src/extra/api/.
 // Structural only: no oRPC, openapi-typescript or Hono types are imported, so an app needs only
 // the library it uses.
 import type { ResourceRequest, SseConnection, FetchFailure, StandardSchemaLike } from 'sygnal'

@@ -1,4 +1,4 @@
-// 'sygnal/replay' (7.2 dev preview): record a session, replay it as a test, report divergences.
+// 'sygnal/replay' (experimental in 7.2): record a session, replay it as a test, report divergences.
 // The code lives in the main package (src/extra/replay/), and this entry re-exports it from the
 // external 'sygnal' (rollup maps './index' to it), as 'sygnal/ai' and 'sygnal/api' do: one copy
 // per app. replay() is also on the main entry, next to renderComponent.
