@@ -4,7 +4,9 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## 7.3.1 — 2026-11-07
 
-With `sygnal-check` 0.15.0 (SYG108, SYG109, SYG110 for CSS Modules).
+With `sygnal-check` 0.15.0 (SYG108, SYG109, SYG110 for CSS Modules), `create-sygnal-app` 2.13.0 (templates on
+`sygnal` ^7.3.1, `sygnal-check` ^0.15.0), the VS Code extension 0.12.0 and the Claude Code plugin 0.2.4 (the
+skill's styling reference).
 
 Fixes for `style` and `class` values:
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.0
+
+Bundles sygnal-check 0.15.0 (Sygnal 7.3.1). The extension's own code doesn't change.
+
+- New findings: SYG108 (an intent selector that isn't valid CSS, such as `.hover:bg-red-500`) and SYG109 (a number for a style property that needs a unit, with a quick fix).
+- SYG110 is now a warning when a CSS Module class is used as an event hook.
+
 ## 0.11.0
 
 Bundles sygnal-check 0.14.0 (Sygnal 7.3.0). The extension's own code doesn't change.
