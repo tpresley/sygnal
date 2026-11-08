@@ -365,7 +365,9 @@
  "style string": {
   "children": [],
   "data": {
-   "style": "color: red"
+   "style": {
+    "cssText": "color: red"
+   }
   },
   "elm": "<undef>",
   "key": "<undef>",

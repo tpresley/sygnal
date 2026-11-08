@@ -182,15 +182,35 @@ Sygnal sets a JSX name on an HTML element as the DOM property of that name, in t
 
 **Fix:** Write the DOM property's name: `<input autocomplete="off" inputMode="numeric" maxLength={4} />`, `<img srcset={…} />`, `<td colSpan={2} />`. For an attribute that has no DOM property, use the attrs module: `attrs-autocomplete="off"` or `attrs={{ autocomplete: 'off' }}`. `sygnal-check --fix` renames the attribute.
 
+### SYG108
+
+**Intent selector is not valid CSS**
+
+Severity: `error` · Reported by: `sygnal-check`
+
+An intent selector (`DOM.click('.x')`, `DOM.select('.x')`) that the browser can't parse. Sygnal matches selectors with `Element.matches()`, so an invalid one throws a `SyntaxError` on every matching event, and the throw takes the component's other DOM listeners down with it. The usual cause is a utility-class name used as the hook: a Tailwind class like `hover:bg-red-500` (the `:bg-red-500` reads as a pseudo-class), `w-1/2` (`/` needs escaping), `w-[10px]` (`[` starts an attribute selector) or a name starting with a digit. Reported for an unknown pseudo-class or pseudo-element, characters that need escaping in a class or id, a leading digit, an invalid attribute selector, and unbalanced brackets or parentheses. Real pseudo-classes (`.a:hover`, `:not(.b)`, `input:checked`), vendor-prefixed ones, attribute selectors and escaped forms (`.hover\:x`) are valid and not reported. A selector with a dynamic part is not checked.
+
+**Fix:** Give the element a separate plain class as the event hook and select that: `<button className="save hover:bg-red-500">` with `DOM.click('.save')`. Or use a control. If you do need to match such a class, escape it: `DOM.click('.hover\\:bg-red-500')` in a JavaScript string.
+
+### SYG109
+
+**Numeric style value without a unit**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+Sygnal assigns each key of `style` to `elm.style` as written and does not append `px` (React does; Sygnal deliberately doesn't). For a property that needs a unit, a number is invalid CSS, so `style={{ width: 10 }}` sets nothing, silently. Zero is valid, and so are unitless properties such as `opacity`, `zIndex`, `flexGrow`, `fontWeight`, `lineHeight` and the SVG `strokeWidth` (the list is React's `isUnitlessNumber`, plus the few CSS number properties React's list misses). Custom properties (`--x`) are never reported, and `delayed`, `remove` and `destroy` sub-objects are checked too. `sygnal-check` reports a number literal or a const number on an HTML element; tags from `sygnal/primitives` append `px` themselves, and a project using a renderer where numbers mean cells or points (`sygnal/terminal`, `sygnal/react-native`, `sygnal/host`, `sygnal/canvas`, `sygnal/three`) is not reported. The dev entry reports dynamic values (`width: state.w`), once per component and property, and only under the browser DOM driver.
+
+**Fix:** Write a string with the unit: `style={{ width: '10px' }}` (or `` `${state.w}px` ``). `sygnal-check --fix` rewrites a number literal to `'10px'`, except for time and angle properties such as `transitionDuration` or `rotate`, where the unit is yours to choose.
+
 ### SYG110
 
 **Intent selector not present in the component view**
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-A class or id selector used in the intent (`DOM.select('.x')`, `DOM.click('.x')`, ...) is never rendered by the component's own view, nor by JSX passed into it as children/slots, so the action never fires. For a control (`DOM.click(Add)`), the view never renders `<Add>`. It is reported as info instead of warn when a dynamic `className`/`id` in the view might produce the name, or when the selector itself is not a static string and could not be checked.
+A class or id selector used in the intent (`DOM.select('.x')`, `DOM.click('.x')`, ...) is never rendered by the component's own view, nor by JSX passed into it as children/slots, so the action never fires. For a control (`DOM.click(Add)`), the view never renders `<Add>`. It is reported as info instead of warn when a dynamic `className`/`id` in the view might produce the name, or when the selector itself is not a static string and could not be checked. A class read from a CSS Module (`className={s.save}` with `import s from './x.module.css'`) is a warn, not an info: the module's name is hashed in the build (`_save_1old6_1`), so `DOM.click('.save')` silently never fires. It warns when the selector names the member the view reads, or when the view's only dynamic classes are module reads; `cva()`/`twMerge()` output whose text contains the class stays info.
 
-**Fix:** Fix the selector to match the view, or add the class/id to the element, e.g. `className="x"`; use a string literal (or module-level const) selector so it can be checked. For a control, render it in the view (`<Add>Add</Add>`) or listen to a control the view does render.
+**Fix:** Fix the selector to match the view, or add the class/id to the element, e.g. `className="x"`; use a string literal (or module-level const) selector so it can be checked. For a control, render it in the view (`<Add>Add</Add>`) or listen to a control the view does render. For a CSS Module class, keep a stable hook class beside it (``className={`save ${s.save}`}``), listen to a control, or select the hashed name (``DOM.click(`.${s.save}`)``).
 
 Before:
 

@@ -106,6 +106,17 @@ function tracked(el: HostElement, methods: Record<string, any>, data = false): a
   const attr = (k: string | symbol) => 'data-' + String(k).replace(/[A-Z]/g, c => '-' + c.toLowerCase())
   return new Proxy(target, {
     set(t, k, v) {
+      // CSS-1: a style string (the style module's cssText): its declarations, camelCase as a
+      // renderer reads them and as the worker's page writes them (a `;` in url(...) stays)
+      if (k === 'cssText' && !data) {
+        for (const o of Object.keys(t)) delete t[o]
+        for (const d of String(v).split(/;(?![^(]*\))/)) {
+          const i = d.indexOf(':'), n = d.slice(0, i).trim()
+          if (i > 0) t[n.startsWith('--') ? n : n.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = d.slice(i + 1).replace(/!important/i, '').trim()
+        }
+        el.ownerDocument.changed(el, true)
+        return true
+      }
       // (a dataset's values are strings, as the DOM's)
       if (data) v = String(v)
       if (t[k] === v) return true

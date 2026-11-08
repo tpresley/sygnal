@@ -72,6 +72,8 @@ const RANGES = [
   ['SYG458', 'App.jsx', 3, 'route'],
   ['SYG459', 'App.jsx', 4, 'session'],
   ['SYG107', 'App.jsx', 4, 'autoComplete="off"'],
+  ['SYG108', 'App.jsx', 2, "'.a:p-1'"],
+  ['SYG109', 'App.jsx', 2, 'width: 10'],
   ['SYG410', 'App.jsx', 2, 'state=""'],          // the attribute (what --fix removes)
   ['SYG124', 'App.jsx', 7, 'TodoItem'],
   ['SYG125', 'App.jsx', 2, 'Add.model'],

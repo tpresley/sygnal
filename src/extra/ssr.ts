@@ -34,6 +34,12 @@ function escapeHtml(str: string, attr?: boolean): string {
   return String(str).replace(innerHtmlMode ? (attr ? /[&"]/g : /[&<>]/g) : /[&<>"']/g, (ch) => ESC_MAP[ch])
 }
 
+// CSS-8: the HTML parser doesn't decode entities in <style> and <script> text (`a > b` as `&gt;` is
+// another selector, `&quot;` a syntax error), so it's written as is, as the browser's innerHTML; only
+// what could close the element is escaped, in the element's own language
+const rawText = (tag: string, t: any): string => String(t).replace(tag == 'style' ? /(<\/?)(s)(?=tyle)/gi : /(<\/?)(s)(?=cript)/gi,
+  (_, open, c) => open + (tag == 'style' ? `\\${c.charCodeAt(0).toString(16)} ` : `\\u00${c.charCodeAt(0).toString(16)}`))
+
 // CV-1 (compiled SSR, sygnal/vite `compile`, src/vite/compile.ts): a compiled element's inside is
 // HTML parts made while the view runs: strings, and [child path, vnode] for what wasn't compiled
 // (a component, a marker, a field, ...), rendered by the walk at the path the JSX runtime's tree
@@ -142,6 +148,11 @@ function camelToKebab(str: string): string {
     .toLowerCase()
 }
 
+// CSS-7: what the browser's style object calls it: a custom property as written (`--myVar`: case
+// matters), cssFloat is float, and the ms prefix is lowercase in camelCase (msTransform)
+const cssName = (k: string): string =>
+  k.startsWith('--') ? k : k == 'cssFloat' ? 'float' : camelToKebab(k.replace(/^ms(?=[A-Z])/, 'Ms'))
+
 /**
  * Serialize an inline style object to a CSS string.
  */
@@ -149,10 +160,13 @@ function serializeStyle(style: Record<string, any>): string {
   const parts: string[] = []
   for (const key of Object.keys(style)) {
     const val = style[key]
-    if (val == null || val === '') continue
+    // CSS-3: a boolean clears, as the style module's write does (not `color: false`)
+    if (val == null || val === '' || val === !!val) continue
     // Skip snabbdom's delayed/remove/destroy style hooks
     if (key === 'delayed' || key === 'remove' || key === 'destroy') continue
-    const cssKey = camelToKebab(key)
+    // CSS-1: style="color: red" (the pragma's { cssText }), as written
+    if (key === 'cssText') { parts.push(String(val).trim().replace(/;$/, '')); continue }
+    const cssKey = cssName(key)
     parts.push(`${cssKey}: ${val}`)
   }
   return parts.join('; ')
@@ -877,17 +891,18 @@ function vnodeToHtml(vnode: any, sv?: SV): string {
     return html
   }
 
+  const raw = tag == 'style' || tag == 'script'
   // Children — snabbdom uses `text` for single text children (even when
   // `children` holds a text element object). Prioritize `text` when set.
   if (content !== undefined) {
     html += content
   } else if (vnode.text != null) {
-    html += escapeHtml(String(vnode.text))
+    html += raw ? rawText(tag, vnode.text) : escapeHtml(String(vnode.text))
   } else if (vnode.children) {
     // children can be an array or a single text element object
     const kids = Array.isArray(vnode.children) ? vnode.children : [vnode.children]
     for (const child of kids) {
-      html += vnodeToHtml(child, sv)
+      html += raw && child?.text != null && !child.sel ? rawText(tag, child.text) : vnodeToHtml(child, sv)
     }
   }
 

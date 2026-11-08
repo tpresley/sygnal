@@ -49,11 +49,13 @@ describe('classes', () => {
   })
 
   describe('validation', () => {
-    it('throws for invalid class names with special chars', () => {
-      expect(() => classes('foo.bar')).toThrow('not a valid CSS class name')
+    it('accepts any token without whitespace (CSS-6: Tailwind names)', () => {
+      expect(classes('foo.bar', 'hover:bg-red-500', 'w-1/2', '[&>a]:underline')).toBe('foo.bar hover:bg-red-500 w-1/2 [&>a]:underline')
+      expect(classes(['md:flex'], { 'w-1.5': true })).toBe('md:flex w-1.5')
     })
-    it('throws for class names with spaces in objects', () => {
-      expect(() => classes({ 'foo bar': true })).toThrow('not a valid CSS class name')
+    it('splits several names in a string on any whitespace, and in an object key', () => {
+      expect(classes('a\tb\n c')).toBe('a b c')
+      expect(classes({ 'foo bar': true, 'x y': false })).toBe('foo bar')
     })
     it('accepts hyphens and underscores', () => {
       expect(classes('my-class', 'my_class')).toBe('my-class my_class')

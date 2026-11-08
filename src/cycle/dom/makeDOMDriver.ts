@@ -110,10 +110,12 @@ const adopt = (e: any, v: any): any => {
         : m == 'open' ? 0
         : m in o && !d.ns ? pr[o[m]] = y
         : x.removeAttribute(m);
+      // CSS-10: an innerHTML element's content is the prop's: its nodes aren't adopted (the patch would
+      // remove a text node Firefox keeps when it sets innerHTML on a <style>, leaving it empty)
       // G-484: a textarea's value no longer follows its text, which goes
       x.localName == 'textarea' && (x.value = x.value);
       const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
-      n = {sel: w.sel, key: w.key, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s || w.$b ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x, $a: w.$b && 1};
+      n = {sel: w.sel, key: w.key, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s || w.$b || p.innerHTML != null ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x, $a: w.$b && 1};
     } else if (t != 1 && (t != 3 || !/\S/.test(x.data))) {
       x.remove();
       continue;

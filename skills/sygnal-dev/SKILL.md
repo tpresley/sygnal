@@ -13,7 +13,7 @@ description: >
 
 Canonical forms, API facts, wiring rules and testing for everyday work. Full spec: `node_modules/sygnal/llms.txt`. Other features (Portals, Transitions, Suspense, Slots, SSR, Astro/Vike): https://sygnal.js.org/guide/components/. **Write only the canonical forms shown here**: `sygnal-check --strict` flags the others (SYG5xx).
 
-**References** (load one before writing that feature; each assumes this file): [ai](references/ai.md) (`sygnal/ai`: one-off LLM requests, `agent` static, decisions, composed pages and chat cards), [ui](references/ui.md) (`sygnal/ui` parts, Menu/Select/Combobox, `sortable`, `<VirtualCollection>`, `browser` static, library recipes), [graphics](references/graphics.md) (islands, `sygnal/three`, `sygnal/canvas`), [typed-apis](references/typed-apis.md) (`sygnal/api`), [collaboration](references/collaboration.md) (`sygnal/yjs`), [renderers](references/renderers.md) (terminal, agent-ui, React Native, Web Worker), [sandbox](references/sandbox.md), [replay](references/replay.md).
+**References** (load one before writing that feature; each assumes this file): [ai](references/ai.md) (`sygnal/ai`: one-off LLM requests, `agent` static, decisions, composed pages and chat cards), [styling](references/styling.md) (CSS Modules, Tailwind, `style` and `class` values, CSP), [ui](references/ui.md) (`sygnal/ui` parts, Menu/Select/Combobox, `sortable`, `<VirtualCollection>`, `browser` static, library recipes), [graphics](references/graphics.md) (islands, `sygnal/three`, `sygnal/canvas`), [typed-apis](references/typed-apis.md) (`sygnal/api`), [collaboration](references/collaboration.md) (`sygnal/yjs`), [renderers](references/renderers.md) (terminal, agent-ui, React Native, Web Worker), [sandbox](references/sandbox.md), [replay](references/replay.md).
 
 ## 1. Workflow
 
@@ -324,6 +324,7 @@ TaskPage.model = {
 - **Collection `from` must name an array field of the state** (SYG401). Over a calculated field the list is read-only: item writes and removal (`() => undefined`) are discarded, so use `from="items"` with `sort=`/`filter=`.
 - **A controlled input needs an input listener**: `value={state.x}` plus `DOM.input('.x').value()`, otherwise a re-render resets the text (SYG111). `value={null}` clears the field; leaving `value` out makes it uncontrolled.
 - Also: reducers return the complete new state (`{ ...state, ... }`); never mutate (a mutated `state` returned as-is is ignored: SYG222); no side effects in views or STATE reducers (use EFFECT or a driver).
+- **A class is styling and the event hook.** `className={s.save}` (CSS Modules) renders a hashed name, so `DOM.click('.save')` never fires: add a plain hook class beside it. `DOM.click('.hover:x')` (a Tailwind variant) is an invalid selector that stops the component's listeners. `style` values are CSS: `{ width: 10 }` does nothing, write `'10px'`. [styling](references/styling.md).
 
 ## 6. Canonical forms (never write the right-hand column)
 

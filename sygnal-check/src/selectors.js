@@ -67,6 +67,128 @@ export function selectorRequirements(selector) {
   return out
 }
 
+// The pseudo-classes and pseudo-elements browsers parse. A vendor-prefixed name (`:-moz-x`,
+// `::-webkit-x`) is never reported
+const PSEUDO_CLASSES = new Set([
+  'active', 'active-view-transition', 'active-view-transition-type', 'any-link', 'autofill', 'blank', 'buffering',
+  'checked', 'current', 'default', 'defined', 'dir', 'disabled', 'empty', 'enabled', 'first', 'first-child',
+  'first-of-type', 'focus', 'focus-visible', 'focus-within', 'fullscreen', 'future', 'has', 'has-slotted', 'host',
+  'host-context', 'hover', 'in-range', 'indeterminate', 'interest-source', 'interest-target', 'invalid', 'is', 'lang',
+  'last-child', 'last-of-type', 'left', 'link', 'local-link', 'modal', 'muted', 'not', 'nth-child', 'nth-col',
+  'nth-last-child', 'nth-last-col', 'nth-last-of-type', 'nth-of-type', 'only-child', 'only-of-type', 'open', 'optional',
+  'out-of-range', 'past', 'paused', 'picture-in-picture', 'placeholder-shown', 'playing', 'popover-open', 'read-only',
+  'read-write', 'required', 'right', 'root', 'scope', 'seeking', 'stalled', 'state', 'target', 'target-current',
+  'target-within', 'user-invalid', 'user-valid', 'valid', 'visited', 'volume-locked', 'where', 'xr-overlay',
+  // the pseudo-elements that also parse with one colon
+  'after', 'before', 'first-letter', 'first-line',
+])
+const PSEUDO_ELEMENTS = new Set([
+  'after', 'backdrop', 'before', 'checkmark', 'column', 'cue', 'cue-region', 'details-content', 'file-selector-button',
+  'first-letter', 'first-line', 'grammar-error', 'highlight', 'marker', 'part', 'picker', 'picker-icon', 'placeholder',
+  'scroll-button', 'scroll-marker', 'scroll-marker-group', 'search-text', 'selection', 'slotted', 'spelling-error',
+  'target-text', 'view-transition', 'view-transition-group', 'view-transition-image-pair', 'view-transition-new',
+  'view-transition-old',
+])
+// (:is and :where take a forgiving list: what's inside never throws)
+const CHECKED_ARGS = new Set(['not', 'has'])
+const NEEDS_ARGS = new Set(['not', 'is', 'where', 'has', 'nth-child', 'nth-last-child', 'nth-of-type', 'nth-last-of-type', 'nth-col', 'nth-last-col', 'lang', 'dir', 'state', 'host-context'])
+
+const NAME = String.raw`(?:[\w\u0080-￿-]|\\[\s\S])`
+const IDENT = String.raw`(?:--|-?(?:[a-zA-Z_\u0080-￿]|\\[\s\S]))${NAME}*`
+const STRING = String.raw`"(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\]|\\[\s\S])*'`
+const ATTRIBUTE = new RegExp(String.raw`^\s*(?:(?:${IDENT}|\*)?\|(?!=))?${IDENT}\s*(?:[~|^$*]?=\s*(?:${IDENT}|${STRING})\s*[iIsS]?\s*)?$`)
+
+// end of the identifier at `i` (past escapes; a hex escape keeps its one optional space), and
+// `error` when there is none there: 'digit', or 'empty'
+function readIdent(s, i) {
+  const start = i
+  if (s[i] === '-' && s[i + 1] !== '-') i++
+  if (/[0-9]/.test(s[i] || '')) return { end: i, error: 'digit' }
+  const nameStart = i
+  while (i < s.length) {
+    if (s[i] === '\\' && i + 1 < s.length) {
+      const hex = /^[0-9a-fA-F]{1,6}\s?/.exec(s.slice(i + 1, i + 8))
+      i += 1 + (hex ? hex[0].length : 1)
+    } else if (/[\w-]/.test(s[i]) || s[i] > '\x7f') i++
+    else break
+  }
+  return i === nameStart ? { end: start, error: 'empty' } : { end: i }
+}
+
+// index of the `close` matching the `open` at `i` (strings and escapes skipped), or -1
+function closingIndex(s, i, open, close) {
+  let depth = 0
+  for (; i < s.length; i++) {
+    const c = s[i]
+    if (c === '\\') i++
+    else if (c === '"' || c === "'") {
+      for (i++; i < s.length && s[i] !== c; i++) if (s[i] === '\\') i++
+    } else if (c === open) depth++
+    else if (c === close && --depth === 0) return i
+  }
+  return -1
+}
+
+function scanPseudo(s, i) {
+  const colons = s[i + 1] === ':' ? 2 : 1
+  const id = readIdent(s, i + colons)
+  if (id.error) return { problem: `'${':'.repeat(colons)}' must be followed by a ${colons === 2 ? 'pseudo-element' : 'pseudo-class'} name` }
+  const raw = s.slice(i + colons, id.end)
+  const name = raw.toLowerCase()
+  const shown = ':'.repeat(colons) + raw
+  if (!name.startsWith('-') && !(colons === 2 ? PSEUDO_ELEMENTS : PSEUDO_CLASSES).has(name)) {
+    return { problem: `${shown} is not a CSS ${colons === 2 ? 'pseudo-element' : 'pseudo-class'}` }
+  }
+  if (s[id.end] !== '(') return NEEDS_ARGS.has(name) ? { problem: `${shown} needs arguments in parentheses` } : { end: id.end }
+  // (a block left open at the end of the selector is closed by the CSS parser: `:not(.a` is valid)
+  if (CHECKED_ARGS.has(name)) {
+    const r = scanList(s, id.end + 1, true)
+    return r.problem ? r : { end: r.end + 1 }
+  }
+  const close = closingIndex(s, id.end, '(', ')')
+  return { end: close === -1 ? s.length : close + 1 }
+}
+
+function scanList(s, i, nested) {
+  while (i < s.length) {
+    const c = s[i]
+    if (c === ')') return nested ? { end: i } : { problem: "unexpected ')'" }
+    if (/[\s,>+~*&|]/.test(c)) { i++; continue }
+    if (c === '.' || c === '#') {
+      const id = readIdent(s, i + 1)
+      if (id.error === 'digit') return { problem: `${c === '.' ? 'a class' : 'an id'} can't start with a digit unless the digit is escaped` }
+      if (id.error) return { problem: `'${c}' must be followed by a name` }
+      i = id.end
+    } else if (c === '[') {
+      const close = closingIndex(s, i, '[', ']')
+      const body = s.slice(i + 1, close === -1 ? s.length : close)
+      if (!ATTRIBUTE.test(body)) return { problem: close === -1 ? "the '[' is never closed" : `${s.slice(i, close + 1)} is not a valid attribute selector` }
+      i = close === -1 ? s.length : close + 1
+    } else if (c === ':') {
+      const r = scanPseudo(s, i)
+      if (r.problem) return r
+      i = r.end
+    } else {
+      const id = readIdent(s, i)
+      if (id.error === 'digit') return { problem: `'${c}' can't start a name unless it is escaped` }
+      if (id.error) return { problem: `'${c}' can't appear in a selector unless it is escaped` }
+      i = id.end
+    }
+  }
+  return { end: i }
+}
+
+/**
+ * Why `selector` is not a CSS selector the browser can parse (`matches()` would throw a
+ * SyntaxError), as a short phrase, or null when it is valid. Conservative: only what is
+ * certainly invalid is reported (a stray combinator or comma is left to the browser).
+ */
+export function selectorProblem(selector) {
+  const s = selector.trim()
+  if (GLOBAL_SELECTORS.has(s)) return null
+  return scanList(s, 0, false).problem || null
+}
+
 /** Parse a hyperscript selector such as 'div.a.b#c' (snabbdom h()). */
 export function hyperscriptSel(sel) {
   const classes = []

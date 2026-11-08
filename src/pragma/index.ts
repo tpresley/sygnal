@@ -157,8 +157,13 @@ const addClasses = (map: Record<string, boolean>, klass: any): any => {
   return map
 }
 
-const toClassMap = (klass: any): any =>
-  typeof klass !== 'string' && !Array.isArray(klass) ? klass : addClasses({}, klass)
+// CSS-2: an object is kept as passed (no copy) unless a key isn't one class name ('p-4 m-2': true, ''):
+// the classModule's classList.add / remove would throw on it
+const toClassMap = (klass: any): any => {
+  let keep = typeof klass !== 'string' && !Array.isArray(klass)
+  if (keep) for (const k in klass) if (!k || /\s/.test(k)) keep = false
+  return keep ? klass : addClasses({}, klass)
+}
 
 const isObject = (v: any): boolean => is.object(v) && !Array.isArray(v)
 
@@ -206,8 +211,9 @@ const add = (out: any, b: string, v: any): void => {
 }
 // P46-P: where a key goes, by key (per modules map; 0: skipped): [bucket, name, kind]. kind 1: a
 // `<module>-<name>` key (its bucket is made even for undefined); 2: a module's own object
-// (3: `class`, made a map first); else the bucket's `name` (no bucket: the data's own key; 4:
-// aria-*, a boolean stringified; 5: BOOLISH, a boolean always stringified)
+// (3: `class`, made a map first; 6: an element's `style`, a string as { cssText }); else the bucket's `name` (no bucket: the data's own key; 4:
+// aria-*, a boolean stringified; 5: BOOLISH, a boolean always stringified; 8: CSS-5, className: an
+// array or object as class= takes them, joined; a component's stays its own)
 const ATTRS = /^(for|form|list|role|tabindex|popovertarget(action)?|command(for)?|closedby|interestfor|anchor|aria-.*)$/
 // G-372: the WAI-ARIA 1.2 states and properties whose value set includes "false" (true/false,
 // tristate, and the tokens aria-current / aria-invalid / aria-haspopup), by a prefix no other
@@ -229,8 +235,8 @@ const route = (key: string, modules: Record<string, any>, c?: any): any => {
   // G-542: there, only a string form (an object is the element's own property: r[3])
   if (c != 1 && modules.attrs !== undefined && ATTRS.test(key) && !(c && key == 'list')) return ['attrs', key, prefix == 'aria' && 4, c && key == 'form']
   if (c != 1 && modules.attrs !== undefined && BOOLISH.test(key)) return ['attrs', key.toLowerCase(), 5]
-  if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
-  return [modules.props !== undefined && 'props', key]
+  if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' ? 3 : key == 'style' && c != 1 ? 6 : 2]
+  return [modules.props !== undefined && 'props', key, key == 'className' && c != 1 && 8]
 }
 const own = Object.prototype.hasOwnProperty
 // one key into `out` by its route (also compiled views' data, CV-2: __cv.d)
@@ -240,8 +246,10 @@ const put = (out: any, r: any, key: string, val: any): void => {
     const o = bucket(out, b)
     if (val !== undefined) o[name] = val
   } else if (val === undefined) return
-  else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : val)
-  else if (b) bucket(out, r[3] && typeof val != 'string' ? 'props' : b)[name] = kind ? val === !!val ? (val || kind == 5 || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
+  // CSS-1: style="color: red" is the module's own form of a string (see styleModule); not on a
+  // component placeholder (route: kind 6 is an element's), whose prop is its own to forward
+  else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : kind == 6 && typeof val == 'string' ? {cssText: val} : val)
+  else if (b) bucket(out, r[3] && typeof val != 'string' ? 'props' : b)[name] = kind == 8 ? val && typeof val == 'object' ? Object.keys(addClasses({}, val)).join(' ') : val : kind ? val === !!val ? (val || kind == 5 || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
   else out[key] = val
 }
 const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<string, any>, c?: any): any => {

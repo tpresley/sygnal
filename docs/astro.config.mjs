@@ -158,6 +158,7 @@ export default defineConfig({
             { label: 'Imperative Islands', slug: 'guide/islands' },
             { label: 'Web Components', slug: 'guide/web-components' },
             { label: 'Adapters', slug: 'guide/adapters' },
+            { label: 'Styling', slug: 'guide/styling' },
             { label: 'Accessibility', slug: 'guide/accessibility' },
             { label: 'Drag and Drop', slug: 'guide/drag-and-drop' },
             { label: 'View Transitions', slug: 'guide/view-transitions' },

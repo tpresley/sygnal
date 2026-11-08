@@ -22,6 +22,10 @@ export const CODES = {
   SYG105: { severity: 'warn', title: 'EVENTS type selected but never emitted, or emitted but never selected' },
   // 7.2, Sift preview.5 (rules/syg107-dom-prop-case.js; the dev entry reports it at run time too)
   SYG107: { severity: 'warn', title: 'DOM property name in the wrong case' },
+  // rules/syg108-invalid-selector.js (static only)
+  SYG108: { severity: 'error', title: 'Intent selector is not valid CSS' },
+  // rules/syg109-numeric-style.js; the dev entry reports dynamic values at run time
+  SYG109: { severity: 'warn', title: 'Numeric style value without a unit' },
   SYG110: { severity: 'warn', title: 'Intent selector not present in the component view' },
   SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
   SYG112: { severity: 'error', title: 'Reply action has no model entry' },

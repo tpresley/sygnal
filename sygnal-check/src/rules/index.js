@@ -41,6 +41,8 @@ import behaviorBagState from './syg459-behavior-bag-state.js'
 import emptyStateKey from './syg410-empty-state-key.js'
 import selectorInView from './syg110-selector-in-view.js'
 import domPropCase from './syg107-dom-prop-case.js'
+import invalidSelector from './syg108-invalid-selector.js'
+import numericStyle from './syg109-numeric-style.js'
 import eventsCounterpart from './syg105-events-counterpart.js'
 import collectionFrom from './syg401-collection-from.js'
 import missingExport from './syg427-missing-export.js'
@@ -88,6 +90,8 @@ export const coreRules = [
   bagContextField, // SYG458 (7.2): a declaration static reads a context field off its bag (with --fix)
   domPropCase, // SYG107 (7.2, Sift preview.5): a DOM property name in the wrong case on an HTML element (with --fix)
   behaviorBagState, // SYG459 (7.2, N6): a wizard / form option reads a host-state field off its bag (with --fix)
+  invalidSelector, // SYG108: an intent selector that is not valid CSS (throws at run time)
+  numericStyle, // SYG109: a number for a style property that needs a unit (with --fix)
   selectorInView, // also reports SYG104 (selector only found in a child component)
   eventsCounterpart,
   collectionFrom,
