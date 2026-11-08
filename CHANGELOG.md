@@ -2,7 +2,9 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.3.1 — 2026-11-07
+
+With `sygnal-check` 0.15.0 (SYG108, SYG109, SYG110 for CSS Modules).
 
 Fixes for `style` and `class` values:
 
@@ -48,6 +50,9 @@ Docs: a new [Styling](https://sygnal.js.org/guide/styling/) guide and an `llms/s
 
 - Size budget 43,525 → 43,630 B (user-approved: +96 B for the `style` and `class` forms, +9 B for
   `innerHTML` adoption).
+
+**Measured impact.** Size: the kanban gate is (a) 43,630 B with `nativeGlobalThis: false` (7.3.0: 43,516 B;
+budget 43,630 B) and (b) 39,630 B by default. No exports, types or dependencies change.
 
 ## 7.3.0 — 2026-11-05
 
