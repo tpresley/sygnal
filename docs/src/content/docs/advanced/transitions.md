@@ -31,7 +31,7 @@ AnimatedList.model = {
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `name` | `string` | `'v'` | Base name for generated CSS classes |
-| `duration` | `number` | — | Explicit timeout in ms. If omitted, listens for `transitionend` event |
+| `duration` | `number` | — | Explicit timeout in ms. If omitted, the element's own CSS transition or animation decides when it ends, and with neither it ends at once |
 
 ## CSS Class Lifecycle
 
@@ -109,10 +109,10 @@ Two cases behave differently:
 
 ## Explicit Duration
 
-If your animation doesn't use CSS transitions (or you want a fixed timeout), pass `duration`:
+To end at a fixed time whatever the CSS does, pass `duration`:
 
 ```jsx
 <Transition name="fade" duration={500}>
-  {state.visible && <div>Uses setTimeout instead of transitionend</div>}
+  {state.visible && <div>Ends after 500 ms</div>}
 </Transition>
 ```

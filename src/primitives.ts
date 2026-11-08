@@ -22,6 +22,7 @@ const UNITLESS = /^(flex|flexGrow|flexShrink|opacity|zIndex|fontWeight|aspectRat
 
 /** a React Native style (an object, or nested arrays with falsy holes) as a web style object */
 export function webStyle(style: any): Record<string, any> | undefined {
+  if (typeof style == 'string') return {cssText: style} // CSS-1
   if (!style) return undefined
   if (Array.isArray(style)) return style.reduce((out, s) => Object.assign(out, webStyle(s)), {})
   const out: Record<string, any> = {}

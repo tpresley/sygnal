@@ -16,7 +16,7 @@
  *     `className={className}` renders .pick), once per call.
  */
 import { walk, unwrap, isFunction, jsxName, jsxAttr, jsxAttrExpr, propName, stringValue, loc, fileOfNode } from '../ast.js'
-import { evalStrings, tokenize, classTokens, tokenSites, DYN, UNDEFINED } from '../strings.js'
+import { evalStrings, tokenize, classTokens, tokenSites, cssModuleClasses, DYN, UNDEFINED } from '../strings.js'
 import { hyperscriptSel, selectorTokens } from '../selectors.js'
 import { findBinding } from '../scope.js'
 import { resolveExpr, bindingValue } from './resolve.js'
@@ -31,7 +31,9 @@ const SWITCHABLE = new Set(['Switchable', 'switchable', 'Outlet'])
 
 export function newSink() {
   return {
-    classes: { names: new Set(), patterns: [] },
+    // classes: `patterns` entries with `module: true` come only from CSS Module reads; `modules`
+    // the members read (name → { node, file }), for SYG110
+    classes: { names: new Set(), patterns: [], modules: new Map() },
     ids: { names: new Set(), patterns: [] },
     // child component usages rendered from this scope: { kind, name, ref, node, file, injected,
     // state? (a literal `state` lens), external? (the package specifier of a tag imported from one) }
@@ -78,7 +80,9 @@ function primitiveTag(file, nameNode) {
 }
 
 function addDynamic(set) {
-  if (!set.patterns.some(p => p.source === '*')) set.patterns.push({ source: '*', re: /^.*$/ })
+  const hit = set.patterns.find(p => p.source === '*')
+  if (hit) hit.module = false
+  else set.patterns.push({ source: '*', re: /^.*$/ })
 }
 
 function addClassExpr(project, file, expr, sink, bind = null) {
@@ -90,6 +94,9 @@ function addClassExpr(project, file, expr, sink, bind = null) {
   } else {
     tokenize(evalStrings(e, { fileInfo: file, bind }), into)
   }
+  const mods = cssModuleClasses(e, { fileInfo: file, bind })
+  if (mods?.moduleOnly) for (const p of into.patterns) p.module = true
+  if (mods) for (const [m, at] of mods.members) if (!sink.classes.modules.has(m)) sink.classes.modules.set(m, at)
   mergeClasses(sink, into.names, into.patterns)
   addSites(file, e, 'class', into.names, sink, bind)
 }
@@ -123,7 +130,11 @@ function mergeClasses(sink, names, patterns = []) {
     sink.classes.names.add(n)
     sink.classCounts.set(n, (sink.classCounts.get(n) || 0) + 1)
   }
-  for (const p of patterns) if (!sink.classes.patterns.some(x => x.source === p.source)) sink.classes.patterns.push(p)
+  for (const p of patterns) {
+    const hit = sink.classes.patterns.find(x => x.source === p.source)
+    if (hit) hit.module = !!(hit.module && p.module)
+    else sink.classes.patterns.push(p)
+  }
 }
 
 function addIdExpr(file, expr, sink, bind = null) {
@@ -260,6 +271,7 @@ function mergeNames(sink, extra) {
     sink.classCounts.set(n, (sink.classCounts.get(n) || 0) + c)
   }
   for (const n of extra.classes.names) sink.classes.names.add(n)
+  for (const [m, at] of extra.classes.modules) if (!sink.classes.modules.has(m)) sink.classes.modules.set(m, at)
   for (const n of extra.ids.names) sink.ids.names.add(n)
   for (const p of extra.ids.patterns) if (!sink.ids.patterns.some(x => x.source === p.source)) sink.ids.patterns.push(p)
   for (const t of extra.tokens) {

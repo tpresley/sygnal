@@ -10,8 +10,13 @@
  *   warn  the name appears nowhere the component can see
  *   info  a dynamic className/id in the view might produce it, or the
  *         selector itself is dynamic
+ *   warn  (a class only) the dynamic className is a CSS Module's: `<b className={s.save}>` renders
+ *         a hashed name, so `.save` can't match: the selector names the member, or the view's
+ *         only dynamic classes are module reads
+ *
+ * An invalid selector is SYG108 (rules/syg108-invalid-selector.js), not reported here.
  */
-import { selectorRequirements } from '../selectors.js'
+import { selectorRequirements, selectorProblem } from '../selectors.js'
 import { editDistance } from '../names.js'
 import { renderedAt } from '../model/view.js'
 import { renameFix, stringEdit } from '../edits.js'
@@ -101,6 +106,7 @@ export default {
           })
           continue
         }
+        if (selectorProblem(sel.selector)) continue // SYG108: what it "requires" means nothing
         for (const { kind, name } of selectorRequirements(sel.selector)) {
           if (viewHas(view, kind, name)) continue
           // JSX a parent passes in as children/slots renders in this component's scope
@@ -126,6 +132,11 @@ export default {
           }
           const pattern = patternMatch(view, kind, name) || injected.map(sink => patternMatch(sink, kind, name)).find(Boolean)
           if (pattern) {
+            const hashed = kind === 'class' && cssModuleHook([view, ...injected], name)
+            if (hashed) {
+              report(cssModuleReport(comp, file, sel, name, hashed))
+              continue
+            }
             report({
               code: 'SYG110',
               severity: 'info',
@@ -154,6 +165,40 @@ export default {
       }
     }
   },
+}
+
+// a stylesheet's .save-btn is usually read as s.saveBtn (Vite's localsConvention)
+const camel = (name) => name.replace(/-+(.)/g, (_, c) => c.toUpperCase())
+
+/**
+ * .name when it can't come from a CSS Module read of the view: the member it names (even beside
+ * other dynamic classes), or, when every dynamic class that might produce it is a module read,
+ * the first read. { node, file, named } or null.
+ */
+function cssModuleHook(sinks, name) {
+  for (const s of sinks) {
+    const at = s.classes.modules.get(name) || s.classes.modules.get(camel(name))
+    if (at) return { ...at, named: true }
+  }
+  const matching = sinks.flatMap(s => s.classes.patterns.filter(p => p.re.test(name)))
+  if (!matching.length || !matching.every(p => p.module)) return null
+  const first = sinks.map(s => s.classes.modules.values().next().value).find(Boolean)
+  return first ? { ...first, named: false } : null
+}
+
+function cssModuleReport(comp, file, sel, name, at) {
+  const read = at.file.source.slice(at.node.start, at.node.end)
+  const member = at.named ? read : `s.${camel(name)}`
+  return {
+    code: 'SYG110',
+    component: comp.name,
+    file,
+    node: sel.node,
+    related: [{ node: at.node, file: at.file, message: `${read} is a CSS Module class, hashed at build time` }],
+    message: `${via(sel)}selector '${sel.selector}' targets .${name}, but ${at.named ? `the view's class ${read} comes from a CSS Module` : `the view's only dynamic classes come from a CSS Module (${read})`}: the rendered name is hashed (like _${name}_1old6_1), so this action never fires`,
+    fix: `keep a stable hook class beside it (className={\`${name} \${${member}}\`}), listen to a control, or select the hashed name (DOM.${sel.method}(\`.\${${member}}\`))`,
+    data: { selector: sel.selector, class: name, cssModule: read },
+  }
 }
 
 /** SYG110 / SYG104 by identifier: a control the intent listens to. */

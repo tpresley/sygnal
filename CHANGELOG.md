@@ -2,6 +2,53 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+Fixes for `style` and `class` values:
+
+- **`style="color: red"` no longer stops the app.** A string, which the types always allowed, threw in
+  the first patch and left the page blank; SSR dropped it. It now applies on the client, in SSR and
+  on `sygnal/host` trees.
+- **`class={{ 'p-4 m-2': on }}` no longer stops the app.** An object key can hold several names.
+- **A boolean style value clears the property** (`style={{ color: on && 'red' }}`). `false` left the
+  old colour in place, and SSR wrote `color: false`.
+- **`className` takes arrays and objects**, as `class` does (it rendered `a,b` or `[object Object]`).
+- **`classes()` takes any name without whitespace**, such as `hover:bg-red-500` or `w-1/2` (it threw).
+- **SSR style names:** `--myVar` keeps its case, `cssFloat` is `float`, `msTransform` is `-ms-transform`.
+
+SSR and hydration of `<style>` and `<script>`:
+
+- **Their text is no longer entity-escaped by `renderToString`.** `:scope > p` came out as `&gt;`,
+  which the HTML parser doesn't decode in these elements, so the rule silently meant something else.
+  Text that could close the element is escaped in the element's own language.
+  Don't put user data in an inline `<script>` or `<style>`: the text is now as written on the server too,
+  so a value can break out of a JavaScript or CSS string (a server-rendered script with quotes used to
+  be a syntax error and never ran).
+- **Adopting server markup keeps an `innerHTML` element's content.** Firefox emptied a
+  `<style innerHTML={css}>` on hydration.
+
+`<Transition>`:
+
+- **A leaving element no longer stays forever** when nothing fires `transitionend`: a `name` with no
+  CSS, reduced motion, a value that doesn't change. Without `duration`, the element's computed
+  transition or animation now decides (as Vue), a CSS animation counts, and a child's `transitionend`
+  no longer ends the parent's. With neither, it ends at once.
+
+`sygnal-check` and dev diagnostics:
+
+- **SYG108 (new):** an intent selector that isn't valid CSS, such as `DOM.click('.hover:bg-red-500')`,
+  which throws on every event and stops the component's other listeners.
+- **SYG109 (new):** a number for a style property that needs a unit (`{ width: 10 }` does nothing).
+  Static with `--fix`, and at run time in development for dynamic values.
+  A `dom: 'real'` test with `expectNoDiagnostics` now fails on such a style.
+- **SYG110** is now a warning when the class comes from a CSS Module: `className={s.save}` with
+  `DOM.click('.save')` never fires, because the rendered name is hashed.
+
+Docs: a new [Styling](https://sygnal.js.org/guide/styling/) guide and an `llms/styling.md` topic file.
+
+- Size budget 43,525 → 43,630 B (user-approved: +96 B for the `style` and `class` forms, +9 B for
+  `innerHTML` adoption).
+
 ## 7.3.0 — 2026-11-05
 
 With `sygnal-check` 0.14.0 (SYG259), `create-sygnal-app` 2.12.0 (templates on `sygnal` ^7.3.0, `sygnal-check` ^0.14.0), the VS Code extension 0.11.0 and the Claude Code plugin 0.2.3.

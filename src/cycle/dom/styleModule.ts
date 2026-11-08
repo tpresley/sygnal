@@ -45,6 +45,13 @@ function updateStyle(oldVnode: VNode, vnode: VNode) {
   if (oldStyle === style) return;
   oldStyle = oldStyle || {};
   style = style || {};
+  // CSS-1: style="color: red" arrives as { cssText } (the pragma; the browser parses it, !important
+  // and all). Written first; the object's own keys (a Collection item's view-transition name) go on
+  // top, and again after a new text has reset the element's inline style
+  if (style.cssText !== oldStyle.cssText) {
+    elm.style.cssText = style.cssText || '';
+    oldStyle = {cssText: style.cssText};
+  }
   const oldHasDel = 'delayed' in oldStyle;
   for (name in oldStyle) {
     if (!(name in style)) {
@@ -65,6 +72,9 @@ function updateStyle(oldVnode: VNode, vnode: VNode) {
         }
       }
     } else if (name !== 'remove' && cur !== (oldStyle as any)[name]) {
+      // CSS-3: a boolean (color: cond && 'red') clears, as React's does (the DOM ignores a write
+      // of false, so the old value stayed)
+      if (cur === !!cur) cur = '';
       if (name[0] === '-' && name[1] === '-') {
         elm.style.setProperty(name, cur);
       } else {

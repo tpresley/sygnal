@@ -12,6 +12,7 @@ Read the one you need before writing that feature. They sit next to this file (`
 - [llms/renderers.md](llms/renderers.md): terminal, LLM agent over MCP, React Native, primitives, your own target, a whole app in a Web Worker
 - [llms/sandbox.md](llms/sandbox.md): untrusted or model-written components (`sygnal/sandbox`)
 - [llms/replay.md](llms/replay.md): record a session, replay it as a test (`sygnal/replay`)
+- [llms/styling.md](llms/styling.md): CSS Modules, Tailwind, `style` and `class` values, CSP
 
 ## 1. Mental model
 - A component is a pure view function plus static properties: `.intent` (WHEN: sources → named action streams), `.model` (WHAT: action → one reducer per sink), `.initialState`.
@@ -289,6 +290,7 @@ TaskPage.model = {   // a page shares the parent's state: no initialState (SYG40
 - **Collection `from` must name an array field of the state** (SYG401). Over a calculated field it is read-only (item writes and removal are discarded): use `from="items"` with `sort=`/`filter=`.
 - **A controlled input needs an input listener**: `value={state.x}` plus `DOM.input('.x').value()`, otherwise a re-render resets the text (SYG111). `value={null}` clears the field; leaving `value` out makes it uncontrolled.
 - Also: reducers return the complete new state (`{ ...state, ... }`); never mutate (a mutated `state` returned as-is is ignored: SYG222); no side effects in views or STATE reducers (use EFFECT or a driver).
+- **A class is styling and the event hook.** `className={s.save}` (CSS Modules) renders a hashed name, so `DOM.click('.save')` never fires: add a plain hook class beside it. `DOM.click('.hover:x')` (a Tailwind variant) is an invalid selector that stops the component's listeners. `style` values are CSS: `{ width: 10 }` does nothing, write `'10px'`. `llms/styling.md`.
 
 ## 6. Diagnostics
 - Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components (Collection, Switchable, context), 5xx strict, 6xx drivers and setup, 7xx accessibility (static, in `sygnal-check` and the Vite dev checker: a clicked `div`, a form field without a label, `<img>` without `alt`, a button with no name; warn, also under `--strict`; `--a11y=error` makes them errors), 9xx internal.
@@ -463,3 +465,21 @@ it('composes the pending orders', async () => {
 > A topic file of Sygnal's agent context. It assumes the core (`llms.txt`, or the sygnal-dev skill's `SKILL.md`: mental model, component anatomy, canonical forms, wiring rules, testing): read that first. Canonical forms only.
 
 - Record and replay (experimental, `sygnal/replay`): `const rec = startRecording()` before `run(App)` records the session's input actions (redaction of typed text and server data on by default; `{ redact: { keep: ['SET_FILTER'] } }` / `false`); `rec.stop()` gives JSON. In a test, `const r = await replay(App, log)` (also from `'sygnal'`) replays it in renderComponent: `r.divergence` (first action whose state differs, with `diff`), `r.view` (view-only change), `r.effects`, `r.unhandled`, `r.warnings`, `r.final`, `r.t.dispose()`. `replayTest(log)` writes the test file, `bugReport(log, r)` Markdown; DevTools' Copy as test has `{ mode: 'replay' }`. Guide: https://sygnal.js.org/guide/record-replay/
+
+# Sygnal: Styling (CSS files, CSS Modules, Tailwind, `style`, `class`)
+
+> A topic file of Sygnal's agent context. It assumes the core (`llms.txt`, or the sygnal-dev skill's `SKILL.md`: mental model, component anatomy, canonical forms, wiring rules, testing): read that first. Guide: https://sygnal.js.org/guide/styling/
+
+## In short
+- Sygnal has no styling system: import CSS (`import './styles.css'`), or use CSS Modules or Tailwind. No integration, no `.styles` static, no CSS-in-JS.
+- A class is also the event hook. Keep a plain hook class next to generated ones: `` className={`save ${s.button} hover:underline`} `` + `DOM.click('.save')`.
+
+## Details
+- Classes: `className` and `class` take a string, array (nested, falsy skipped) or object (truthy keys; a key may hold several names): `class={['task', state.done && 'done', { urgent: state.urgent }]}`. `classes(...)` returns the same as a string.
+- CSS Modules: `import s from './x.module.css'`; `className={s.save}` renders a hashed name, so `DOM.click('.save')` never fires (`sygnal-check` warns). Use a hook class beside it, `` DOM.click(`.${s.save}`) ``, or a control. For bare-element rules: `@scope (.card) to (.inner) { p { … } }` inside the module (root is a class; no automatic stop at child components).
+- Tailwind v4: `plugins: [tailwindcss(), sygnal()]` in vite.config, `@import "tailwindcss"` in the CSS. Whole class names only (`state.on && 'bg-red-500'`, never `` `bg-${c}-500` ``). Never select a variant (`.hover:x` is an invalid selector: it throws on every event and stops the component's other listeners). `[hidden]` is `display: none !important`, so a `flex` utility won't show a `hidden` panel. cva and tailwind-merge need nothing.
+- `style`: an object or a string. Values are CSS: a length needs its unit (`{ width: `${w}px` }`; `{ width: 10 }` does nothing, unlike React; `0` and unitless properties are fine). `null`, `undefined`, `''` and booleans clear the property. Pass dynamic values as custom properties: `style={{ '--hue': state.hue }}`, the rule stays in CSS.
+- Named states: `data-state={state.open ? 'open' : 'closed'}`, `.panel[data-state='open']`, Tailwind `data-[state=open]:…`; `sygnal/ui` parts set `data-state`.
+- `<Transition name="fade">` classes need CSS: `.fade-enter-active, .fade-leave-active { transition: opacity .3s }`, `.fade-enter-from, .fade-leave-to { opacity: 0 }` (`@apply` under Tailwind; or arbitrary variants on the element: `[&.fade-leave-to]:opacity-0`). It ends with the element's own CSS transition or animation, or `duration`; with none, at once.
+- `<style>` in a view works, but not per row of a Collection (WebKit gets very slow), and needs a nonce under CSP. Server-rendered `style` attributes need `style-src-attr 'unsafe-inline'`; `style` on the client doesn't.
+- Not DOM: the terminal and React Native take `[selector, style]` rules and numbers are cells / points; `sygnal/primitives` numbers become px.

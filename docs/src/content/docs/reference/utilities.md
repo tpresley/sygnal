@@ -15,15 +15,14 @@ function classes(...args: (string | string[] | Record<string, boolean>)[]): stri
 
 | Type | Behavior |
 |------|----------|
-| `string` | Split by spaces, validated, and appended |
-| `string[]` | Each string validated and appended |
-| `object` | Keys with truthy values are validated and appended. Values can be booleans or functions returning booleans. |
+| `string` | Split on whitespace and appended |
+| `string[]` | Each string split on whitespace and appended |
+| `object` | Keys with truthy values are split on whitespace and appended. Values can be booleans or functions returning booleans. |
 
 ### Features
 
-- Validates CSS class names (alphanumeric, hyphens, underscores)
+- Takes any class name without whitespace, including Tailwind's (`hover:bg-red-500`, `w-1/2`)
 - Deduplicates class names
-- Throws on invalid class names
 
 ### Examples
 

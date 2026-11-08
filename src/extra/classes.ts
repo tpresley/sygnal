@@ -19,22 +19,11 @@ export default function classes(...args: ClassArg[]): string {
     .join(' ');
 }
 
-function isValidClassName(className: string): boolean {
-  return /^[a-zA-Z0-9-_]+$/.test(className);
-}
-
+// CSS-6: a class name is any token without whitespace (hover:bg-red-500, w-1/2, [&>a]:underline,
+// w-1.5): the DOM's rule; a string or an object key may hold several, as class= takes them
 function classes_processString(str: string): string[] {
   if (typeof str !== 'string') throw new Error('Class name must be a string');
-  return str
-    .trim()
-    .split(' ')
-    .reduce<string[]>((acc, item) => {
-      if (item.trim().length === 0) return acc;
-      if (!isValidClassName(item))
-        throw new Error(`${item} is not a valid CSS class name`);
-      acc.push(item);
-      return acc;
-    }, []);
+  return str.split(/\s+/).filter(Boolean);
 }
 
 function classes_processArray(arr: string[]): string[] {
@@ -48,10 +37,5 @@ function classes_processObject(
     .filter(([_key, predicate]) =>
       typeof predicate === 'function' ? predicate() : !!predicate
     )
-    .map(([key, _]) => {
-      const trimmed = key.trim();
-      if (!isValidClassName(trimmed))
-        throw new Error(`${trimmed} is not a valid CSS class name`);
-      return trimmed;
-    });
+    .flatMap(([key, _]) => classes_processString(key));
 }

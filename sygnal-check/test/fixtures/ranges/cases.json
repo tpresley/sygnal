@@ -290,5 +290,11 @@
   },
   "SYG107": {
     "App.jsx": "import { run } from 'sygnal'\nfunction App() {\n  return <input\n    autoComplete=\"off\" />\n}\nApp.initialState = {}\nrun(App)\n"
+  },
+  "SYG108": {
+    "App.jsx": "function App() { return <button className=\"a\">x</button> }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.a:p-1') })\nApp.model = { GO: s => s }\nexport default App\n"
+  },
+  "SYG109": {
+    "App.jsx": "function App() {\n  return <div style={{ width: 10 }} />\n}\nexport default App\n"
   }
 }

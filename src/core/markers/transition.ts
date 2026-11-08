@@ -4,17 +4,33 @@
  * child (walked on, at the marker's path), with snabbdom hooks that add the classes as today
  * (the 5.x core's applyTransitionHooks):
  * `${name}-enter|leave-from` + `-active`, two frames later `-from` becomes `-to`, and at the end
- * (transitionend, or `duration` ms) `-active` and `-to` go. A user's insert/remove hooks on the
+ * (the element's CSS transition or animation, or `duration` ms) `-active` and `-to` go. A user's insert/remove hooks on the
  * child still run. G-279: a leaving element pokes the DOM driver once it is gone. Around a
  * Collection (4-I G-559): on each item.
  */
 import {pres} from '../registry'
 import {pokeDOM} from '../../cycle/dom/utils'
 
+// a computed `<type>-duration` list's longest time with its delay (ms), and the list's length
+const longest = (s: any, type: string): number[] => {
+  const of = (k: string) => String(s?.[type + k] || '0').split(',').map(v => parseFloat(v) * 1000 || 0), d = of('Duration'), l = of('Delay')
+  return [Math.max(...d.map((v, i) => v + l[i % l.length])), d.length]
+}
+
+// CSS-9 (Vue's rule): `transitionend` alone never came with no CSS transition on the element (an
+// unstyled name, reduced motion), a property that doesn't change or a CSS animation, so a leaving
+// element stayed. The computed style says what to wait for (none: done now), only the element's own
+// end events count (not a child's, which bubble), and a timer ends what never fires one
 function onEnd(el: any, duration: number | undefined, cb: () => void): void {
   if (typeof duration === 'number') return void setTimeout(cb, duration)
-  const h = () => { el.removeEventListener('transitionend', h); cb() }
-  el.addEventListener('transitionend', h)
+  const s = el.ownerDocument?.defaultView?.getComputedStyle?.(el), t = longest(s, 'transition'), a = longest(s, 'animation')
+  const anim = a[0] > t[0], [ms, count] = anim ? a : t, type = (anim ? 'animation' : 'transition') + 'end'
+  if (!(ms > 0)) return cb()
+  let n = 0
+  const done = () => { clearTimeout(timer); el.removeEventListener(type, h); cb() }
+  const h = (e: any) => { if (e.target == el && ++n >= count) done() }
+  const timer = setTimeout(done, ms + 50)
+  el.addEventListener(type, h)
 }
 
 /** a copy of the vnode with the hooks (4-I: a copy, so an item's own vnode keeps its hooks) */

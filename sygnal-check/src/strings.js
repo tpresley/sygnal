@@ -67,7 +67,46 @@ function boundMember(node, ctx) {
 /** a synthetic `undefined` (a destructured key the argument doesn't pass) */
 export const UNDEFINED = { type: 'Identifier', name: 'undefined' }
 
-const argCtx = (a) => ({ fileInfo: a.file, bind: a.bind })
+const argCtx = (a, ctx) => ({ fileInfo: a.file, bind: a.bind, modules: ctx?.modules })
+
+// SYG110: a stylesheet Vite (or any bundler) treats as a CSS Module: its classes are hashed
+const CSS_MODULE = /\.module\.(css|scss|sass|less|styl)(\?.*)?$/
+const isCssModuleImport = (b) => b?.kind === 'import' && CSS_MODULE.test(b.source)
+
+/**
+ * With `ctx.modules` (cssModuleClasses()): a read of a CSS Module's class: `s.save`, `s['save']`,
+ * `import { save }`. Records the member and returns '' for it (nothing fixed the view could
+ * show), else null. A computed member (`s[kind]`) is a read with no name.
+ */
+function moduleRead(node, ctx) {
+  if (!ctx?.modules || !ctx.fileInfo) return null
+  let member
+  if (node.type === 'Identifier') {
+    const b = findBinding(ctx.fileInfo, node.name, node)
+    if (!isCssModuleImport(b) || b.imported === 'default' || b.imported === '*') return null
+    member = b.imported
+  } else {
+    const obj = unwrap(node.object)
+    if (obj?.type !== 'Identifier') return null
+    const b = findBinding(ctx.fileInfo, obj.name, obj)
+    if (!isCssModuleImport(b) || (b.imported !== 'default' && b.imported !== '*')) return null
+    member = memberName(node)
+  }
+  ctx.modules.any = true
+  if (member != null && !ctx.modules.members.has(member)) ctx.modules.members.set(member, { node, file: ctx.fileInfo })
+  return ''
+}
+
+/**
+ * A call evalStrings can't see through (`twMerge('px-2', s.save)`): its arguments' module reads
+ * still count, except one its own text also spells (`twMerge('save', s.save)` may render .save).
+ */
+function moduleCall(call, ctx, depth) {
+  const inner = { ...ctx, modules: { members: new Map(), any: false } }
+  const words = new Set(classTokens(call.arguments, inner, depth + 1).flatMap(w => w.split(/\s+/)))
+  if (inner.modules.any) ctx.modules.any = true
+  for (const [m, at] of inner.modules.members) if (!words.has(m) && !ctx.modules.members.has(m)) ctx.modules.members.set(m, at)
+}
 
 /**
  * @param node   expression
@@ -99,15 +138,17 @@ export function evalStrings(node, ctx, depth = 0) {
       return union(evalStrings(node.left, ctx, depth + 1), evalStrings(node.right, ctx, depth + 1))
     case 'Identifier': {
       if (node.name === 'undefined') return ['']
+      if (moduleRead(node, ctx) != null) return ['']
       const b = ctx?.fileInfo && findBinding(ctx.fileInfo, node.name, node)
       if (b && b.kind === 'var' && b.init) return evalStrings(b.init, ctx, depth + 1)
       const a = b?.kind === 'param' && boundParam(ctx.bind, b.node, node.name)
-      if (a) return evalStrings(a.node, argCtx(a), depth + 1)
+      if (a) return evalStrings(a.node, argCtx(a, ctx), depth + 1)
       return [DYN]
     }
     case 'MemberExpression': {
       const a = boundMember(node, ctx)
-      return a ? evalStrings(a.node, argCtx(a), depth + 1) : [DYN]
+      if (a) return evalStrings(a.node, argCtx(a, ctx), depth + 1)
+      return moduleRead(node, ctx) != null ? [''] : [DYN]
     }
     case 'ArrayExpression':
       return [classTokens(node.elements, ctx, depth + 1).join(' ')]
@@ -134,6 +175,7 @@ export function evalStrings(node, ctx, depth = 0) {
         }
         if (m === 'trim' || m === 'toString') return evalStrings(callee.object, ctx, depth + 1).map(s => s.trim())
       }
+      if (ctx?.modules) moduleCall(node, ctx, depth)
       return [DYN]
     }
     default:
@@ -175,11 +217,28 @@ export function classTokens(args, ctx, depth = 0) {
         continue
       }
       const p = b?.kind === 'param' && depth < MAX_DEPTH && boundParam(ctx.bind, b.node, a.name)
-      if (p) { out.push(...classTokens([p.node], argCtx(p), depth + 1)); continue }
+      if (p) { out.push(...classTokens([p.node], argCtx(p, ctx), depth + 1)); continue }
     }
     out.push(...evalStrings(a, ctx, depth + 1))
   }
   return out
+}
+
+/**
+ * SYG110: what an expression takes from CSS Modules (a stylesheet's `*.module.css` import, whose
+ * classes are hashed): the same walk as evalStrings() / classTokens(), each module read recorded
+ * and evaluated as nothing.
+ *   → { members: Map<name, { node, file }>, moduleOnly } or null when it reads no module
+ *     moduleOnly: every dynamic part of the expression is a module read
+ */
+export function cssModuleClasses(expr, ctx) {
+  const modules = { members: new Map(), any: false }
+  const c = { ...ctx, modules }
+  const e = unwrap(expr)
+  const alts = e.type === 'ObjectExpression' || e.type === 'ArrayExpression'
+    ? [classTokens([e], c).join(' ')]
+    : evalStrings(e, c)
+  return modules.any ? { members: modules.members, moduleOnly: !alts.some(a => a.includes(DYN)) } : null
 }
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

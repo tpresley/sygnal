@@ -145,6 +145,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG106: 'Parent prop is overwritten by a reserved view argument',
   // Sift preview.5 #2/#3 (checks/domProps.ts, sygnal-check rules/syg107-dom-prop-case.js)
   SYG107: 'DOM property name in the wrong case',
+  SYG108: 'Intent selector is not valid CSS',
+  SYG109: 'Numeric style value without a unit',
   SYG110: 'Intent selector not present in the component view',
   SYG111: 'Controlled input has no input listener',
   SYG115: 'Unknown DOM event shorthand',
@@ -470,6 +472,8 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
 // PLAN-3 2-A: SYG611 too, though makeSocketDriver reports it (legacy error(), severity passed
 // explicitly): kept out of CODE_SEVERITY so the core bundle doesn't pay for an opt-in driver.
 export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
+  SYG108: 'error',
+  SYG109: 'warn',
   SYG112: 'error',
   SYG115: 'warn',
   SYG116: 'error',
