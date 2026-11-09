@@ -167,6 +167,10 @@
   "SYG634": {
     "App.jsx": "\nfunction Search({ state }) { return <input className=\"q\" value={state.q} /> }\nSearch.initialState = { q: '', results: [] }\nSearch.intent = ({ DOM }) => ({ TYPE: DOM.input('.q').value() })\nSearch.model = {\n  TYPE: {\n    STATE: (state, q) => ({ ...state, q }),\n    HTTP: (state, q) => ({ url: '/api/search', query: { q }, ok: 'RESULTS', key: q, latest: true }),\n  },\n  RESULTS: (state, results) => ({ ...state, results }),\n}\n"
   },
+  "SYG637": {
+    "Page.jsx": "export function Page({ state }) { return <button className=\"go\">{state.x?.status}</button> }\nPage.resources = { x: () => ({ url: '/alerts' }) }\nPage.intent = ({ DOM }) => ({ REFRESH: DOM.click('.go') })\nPage.model = { REFRESH: { HTTP: { refresh: 'x' } } }\n",
+    "App.jsx": "import { run } from 'sygnal'\nimport { Page } from './Page.jsx'\nexport function App({ state }) { return <main><Page state=\"page\" /><p>{state.x?.status}</p></main> }\nApp.initialState = { page: {} }\nApp.resources = { x: () => ({ url: '/alerts' }) }\nrun(App)\n"
+  },
   "SYG640": {
     "F.jsx": "import { controls } from 'sygnal'\nconst { Email, Go } = controls({ Email: 'input', Go: 'button' })\nexport function F() { return <div><Email /><Go>go</Go></div> }\nF.intent = ({ DOM }) => ({ GO: DOM.click(Go) })\nF.model = { GO: { ELEMENT: (s) => s.a ? { ShowModal: Email } : [{ focus: Email }, { scrollIntoview: '.x' }] } }\n"
   },

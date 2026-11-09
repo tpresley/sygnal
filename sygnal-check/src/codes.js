@@ -119,6 +119,7 @@ export const CODES = {
   // PLAN-4.6 R5 (rules/syg612-removed-forms.js): a form 6.0 removed
   SYG612: { severity: 'error', title: 'Removed in 6.0' },
   SYG634: { severity: 'info', title: 'latest: true with a computed key' },
+  SYG637: { severity: 'warn', title: 'refresh on a read another component also declares' },
   // PLAN-4 GS-2 element commands (rules/syg640-element-commands.js), GS-7 (rules/syg422-timers.js)
   SYG640: { severity: 'warn', title: 'Element command target not found' },
   SYG641: { severity: 'error', title: 'Unknown element command' },

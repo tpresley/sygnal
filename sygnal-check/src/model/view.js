@@ -382,6 +382,12 @@ function handleElement(project, file, el, sink, visited, bind) {
     } else if (ofExpr) {
       targets.push(ofExpr)
     }
+    // `of={PAGES}`: the targets of a const (or imported) object, kept apart from `targets` (rules/syg637-refresh-shared-read.js)
+    const ofConst = kind === 'switchable' && ofExpr?.type === 'Identifier' ? resolveExpr(project, file, ofExpr) : null
+    const ofObject = unwrap(ofConst?.node)
+    const constTargets = ofObject?.type === 'ObjectExpression'
+      ? ofObject.properties.filter(p => p.type === 'ObjectProperty').map(p => ({ name: exprName(p.value), ref: refFor(project, ofConst.file, p.value) }))
+      : null
     const fromAttr = jsxAttr(opening, 'from')
     const fromExpr = jsxAttrExpr(fromAttr)
     // PLAN-13 F-3: a Switchable's per-page `state={{ page: … }}` (an object literal with no `get`)
@@ -402,6 +408,7 @@ function handleElement(project, file, el, sink, visited, bind) {
       from: fromExpr && !outlet ? stringValue(fromExpr) : null,
       fromNode: fromAttr || null,
       targets: targets.map(t => ({ name: exprName(t) || (stringValue(t) ?? '?'), ref: refFor(project, file, t), node: t })),
+      constTargets,
       // wizard spike (rules/syg455-outlet.js): an <Outlet from="key">'s wizard key and its `of` keys
       // (null when `of` isn't an object literal of named keys)
       outlet: outlet ? {

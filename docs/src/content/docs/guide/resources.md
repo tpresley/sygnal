@@ -209,6 +209,7 @@ QuoteEditor.model = {
 
 - `invalidates` on any request runs after a 2xx reply only, unless the request says `invalidateOn: 'settled'` (below).
 - `{ invalidate: value }` on the `HTTP` sink invalidates right away, from any component: `HTTP: () => ({ invalidate: 'quotes' })`.
+- **`refresh` and `invalidate` differ in reach.** `{ refresh: 'quote' }` refetches the sending component's own resources; `{ invalidate }` refetches every matching mounted resource. When two components declare the same read (a page and a badge in the header), use `invalidate`, or the other one keeps its old answer ([SYG637](/reference/errors/#syg637)).
 - The value is a tag (`'quotes'`), a URL prefix of the request's `url` (a string starting with `/`: `'/api/quotes'`), an array of them, or a predicate `(request) => boolean`. Tags are explicit: nothing is derived from the URL.
 - Matching **mounted** resources refetch, keeping their data (`refreshing: true`); matching cache entries are marked stale, so the next use refetches. Invalidation works with or without the cache.
 - **Invalidation aborts older reads.** A refetch aborts the resource's read already in flight, so a reply sent before the save never lands after it: no request ids or sequence numbers. A shared cache fetch in flight for a matching entry still answers the requests waiting on it, but never writes the cache.
