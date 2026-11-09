@@ -191,6 +191,7 @@ import type { LiveEngine } from './graph'
 import { compileViews } from './compile'
 import { apiPlugin } from './api'
 import { SANDBOX_KERNEL, SANDBOX_KERNEL_ID, sandboxKernelModule } from './sandbox'
+import { shortenMessages } from './shortMessages'
 
 export type { McpPluginOptions } from './mcp'
 
@@ -291,6 +292,14 @@ export interface SygnalPluginOptions {
    * @default true
    */
   nativeGlobalThis?: boolean
+
+  /**
+   * In `vite build` client code, Sygnal's own messages are reduced to the code, the component name
+   * and the docs URL, and per-component debug logging (`Component.debug`, `SYGNAL_DEBUG`) is
+   * removed. 'full': keep the complete messages and the logging.
+   * @default 'short'
+   */
+  productionMessages?: 'short' | 'full'
 
   /**
    * Experimental (dev-plans/research/compile-wasm/compiled-views-plan.md): compile JSX views at
@@ -632,6 +641,10 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     },
 
     transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
+      if (options.productionMessages !== 'full' && !isServe && !isVitest && !opts?.ssr && /\/dist\/index\.esm\.js$/.test(cleanId(id)) && code.includes('__SYGNAL_DIAGNOSTICS__')) {
+        const short = shortenMessages(code, c => this.parse(c))
+        if (short) return { code: short, map: null }
+      }
       // SYG666 (PLAN-5 W-2): an adapter entry imported without its optional peers; every mode
       const adapters = adapterImports(this, code, id)
       const result = adapters

@@ -706,7 +706,11 @@ export function listCodes(): DiagnosticCodeInfo[] {
   return Object.keys(CODE_SEVERITY).map(c => getCodeInfo(c)!)
 }
 
+// Only the dev entry calls this, so it also hands the core this table: report() needs it only for
+// that entry's checks (every core message passes its severity), and the main bundle stays without
+// it. A global of its own because a second core replaces the bridge.
 export function registerCodes(entries: Array<[string, DiagnosticSeverity, string]>): void {
+  ;(globalThis as any).__SYGNAL_CODE_SEVERITY__ = CODE_SEVERITY
   for (const [code, severity, title] of entries) {
     CODE_SEVERITY[code] = severity
     CODE_TITLES[code] = title

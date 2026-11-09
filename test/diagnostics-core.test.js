@@ -37,6 +37,7 @@ const settle = (ms = 60) => new Promise(r => setTimeout(r, ms))
 beforeEach(() => {
   delete globalThis.__SYGNAL_DEV__
   _resetDiagnostics()
+  registerCodes([]) // what the dev entry does on load: hands the core the severity table
 })
 
 afterEach(() => {
@@ -65,6 +66,19 @@ describe('diagnostics core — code registry', () => {
     expect(listCodes().length).toBe(before + 1)
     configureDiagnostics({ mode: 'error' })
     expect(report('SYG199', { message: 'info never throws' }).severity).toBe('info')
+  })
+
+  it('report() without the dev entry defaults to warn (every core message passes its severity)', () => {
+    const table = globalThis.__SYGNAL_CODE_SEVERITY__
+    delete globalThis.__SYGNAL_CODE_SEVERITY__
+    try {
+      configureDiagnostics({ mode: 'collect' })
+      expect(report('SYG301', { message: 'x' }).severity).toBe('warn')
+      expect(report('SYG301', { message: 'x', severity: 'error' }).severity).toBe('error')
+      expect(report('SYG103', { message: "renderComponent's own report" }).severity).toBe('info')
+    } finally {
+      globalThis.__SYGNAL_CODE_SEVERITY__ = table
+    }
   })
 
   it('unknown codes return undefined from getCodeInfo', () => {
