@@ -183,7 +183,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 // @ts-ignore
 import { pathToFileURL } from 'node:url'
-import { globalThisAlias } from './globalthis'
+import { compactXstream, globalThisAlias, importsXstream } from './globalthis'
 import { attachMcp, mcpClientModule } from './mcp'
 import type { McpPluginOptions } from './mcp'
 import { GRAPH_CLIENT, createEngine, graphAvailable, graphClientModule, graphMiddleware, printGraphUrl, stampTail } from './graph'
@@ -386,6 +386,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   const wrapRun = devOn && (diagnostics.mode !== 'warn' || diagnostics.ignore.length > 0)
   let isServe = false
   let isVitest = false
+  let xstreamFile: string | undefined
   let root: string = nodeProcess.cwd()
   // Files whose `import ... from 'sygnal'` resolves to the run() wrapper
   const runtimeImporters = new Set<string>()
@@ -466,6 +467,10 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       // R2-7: not when the user's config already aliases `globalthis`.
       const alias = nativeGlobalThis ? globalThisAlias(config?.resolve?.alias) : []
       if (alias.length) result.resolve = { alias }
+      // Production client bundles get the compact xstream: a resolveId, which sees the npm
+      // extras' relative `../index` (an alias can't tell whose it is), and build-only, so nothing
+      // depends on pre-bundling. `nativeGlobalThis: false` leaves xstream and its dependencies alone.
+      xstreamFile = nativeGlobalThis && !isServe && !isVitest ? compactXstream(config?.resolve?.alias) : undefined
 
       if (!disableJsx) {
         result.oxc = {
@@ -562,6 +567,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       async handler(this: any, source: string, importer: string | undefined, opts: any) {
         // sygnal/sandbox: the guest kernel, built from the installed packages (every mode)
         if (SANDBOX_KERNEL.test(source)) return SANDBOX_KERNEL_ID
+        if (xstreamFile && !opts?.ssr && this.environment?.config?.consumer !== 'server' && importsXstream(source, importer)) return xstreamFile
         if (!isServe || isVitest) return null
         if (source === DEV_CLIENT) return DEV_CLIENT_ID
         if (source === MCP_CLIENT && mcpOn) return MCP_CLIENT_ID

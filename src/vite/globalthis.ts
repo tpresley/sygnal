@@ -17,17 +17,17 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /**
- * Absolute path of the stub in the sygnal package this code belongs to (found
- * by walking up from this file: dist/vite, dist/astro or src/vite), or
- * undefined when it is missing (e.g. sygnal not built).
+ * Absolute path of a file in dist/shims of the sygnal package this code belongs to (found by
+ * walking up from this file: dist/vite, dist/astro or src/vite), or undefined when it is missing
+ * (e.g. sygnal not built).
  */
-export function globalThisShim(): string | undefined {
+function shimFile(name: string): string | undefined {
   try {
     let dir = path.dirname(fileURLToPath(import.meta.url))
     while (dir !== path.dirname(dir)) {
       const pkgFile = path.join(dir, 'package.json')
       if (fs.existsSync(pkgFile) && JSON.parse(fs.readFileSync(pkgFile, 'utf8')).name === 'sygnal') {
-        const file = path.join(dir, 'dist', 'shims', 'globalthis.cjs')
+        const file = path.join(dir, 'dist', 'shims', name)
         return fs.existsSync(file) ? file : undefined
       }
       dir = path.dirname(dir)
@@ -36,15 +36,19 @@ export function globalThisShim(): string | undefined {
   return undefined
 }
 
+export const globalThisShim = (): string | undefined => shimFile('globalthis.cjs')
+
 /**
  * Whether a Vite `resolve.alias` value (object or array form) already maps
- * `globalthis` (R2-7): the user's alias wins and the stub is not added.
+ * `name` (R2-7): the user's alias wins and the stub is not added.
  */
-export function hasGlobalThisAlias(alias: any): boolean {
+function hasAlias(alias: any, name: string): boolean {
   if (!alias) return false
-  if (!Array.isArray(alias)) return Object.prototype.hasOwnProperty.call(alias, 'globalthis')
-  return alias.some((a: any) => a && (a.find instanceof RegExp ? a.find.test('globalthis') : a.find === 'globalthis'))
+  if (!Array.isArray(alias)) return Object.prototype.hasOwnProperty.call(alias, name)
+  return alias.some((a: any) => a && (a.find instanceof RegExp ? a.find.test(name) : a.find === name))
 }
+
+export const hasGlobalThisAlias = (alias: any): boolean => hasAlias(alias, 'globalthis')
 
 /**
  * Vite `resolve.alias` entries for the stub (empty when it is missing, or
@@ -54,3 +58,19 @@ export function globalThisAlias(userAlias?: any): Array<{ find: RegExp, replacem
   const shim = hasGlobalThisAlias(userAlias) ? undefined : globalThisShim()
   return shim ? [{ find: /^globalthis$/, replacement: shim }] : []
 }
+
+/**
+ * The compact xstream (src/xstream.ts, dist/shims/xstream.mjs) for a client production build, or
+ * undefined when it is missing or the user's `resolve.alias` maps `xstream`. It needs no
+ * `globalthis`, so the G-099 chain leaves the bundle with xstream's own code.
+ */
+export const compactXstream = (userAlias?: any): string | undefined =>
+  hasAlias(userAlias, 'xstream') ? undefined : shimFile('xstream.mjs')
+
+/**
+ * Whether an import names xstream's main module: from anywhere, or the `../index` of the npm
+ * `xstream/extra/*` files (so they build on the same Stream, and the npm one isn't bundled too).
+ */
+export const importsXstream = (source: string, importer?: string): boolean =>
+  /^xstream(\/index(\.js)?)?$/.test(source) ||
+  (source === '../index' && !!importer && /[\\/]xstream[\\/]extra[\\/][^\\/]+\.js(\?.*)?$/.test(importer))
