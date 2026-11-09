@@ -22,63 +22,19 @@ function updateArrayEntry<T>(
 
 function makeGetter<T, R>(scope: Scope<T, R>): Getter<T, R> {
   if (typeof scope === 'string' || typeof scope === 'number') {
-    return function lensGet(state: T | undefined) {
-      if (typeof state === 'undefined' || state === null) {
-        return void 0;
-      } else {
-        return (state as any)[scope];
-      }
-    };
-  } else {
-    return scope.get;
+    return (state: T | undefined) => (state as any)?.[scope];
   }
+  return scope.get;
 }
 
 function makeSetter<T, R>(scope: Scope<T, R>): Setter<T, R> {
   if (typeof scope === 'string' || typeof scope === 'number') {
-    return function lensSet(
-      state: T | undefined,
-      childState: R | undefined
-    ): T {
-      if (Array.isArray(state)) {
-        return updateArrayEntry(state, scope, childState) as any;
-      } else if (typeof state === 'undefined') {
-        return ({[scope]: childState} as any) as T;
-      } else {
-        return {...(state as any), [scope]: childState};
-      }
-    };
-  } else {
-    return scope.set;
+    return (state: T | undefined, childState: R | undefined): T =>
+      Array.isArray(state)
+        ? updateArrayEntry(state, scope, childState) as any
+        : {...(state as any), [scope]: childState};
   }
-}
-
-export function isolateSource<T, R>(
-  source: StateSource<T>,
-  scope: Scope<T, R>
-): StateSource<R> {
-  return source.select(scope);
-}
-
-export function isolateSink<T, R>(
-  innerReducer$: Stream<Reducer<R>>,
-  scope: Scope<T, R>
-): Stream<Reducer<T>> {
-  const get = makeGetter(scope);
-  const set = makeSetter(scope);
-
-  return innerReducer$.map(
-    innerReducer =>
-      function outerReducer(outer: T | undefined) {
-        const prevInner = get(outer);
-        const nextInner = innerReducer(prevInner);
-        if (prevInner === nextInner) {
-          return outer;
-        } else {
-          return set(outer, nextInner);
-        }
-      }
-  );
+  return scope.set;
 }
 
 /**
@@ -124,6 +80,21 @@ export class StateSource<S> {
     return immediate ? s$ : s$.drop(1);
   }
 
-  public isolateSource = isolateSource;
-  public isolateSink = isolateSink;
+  public isolateSource<R>(source: StateSource<S>, scope: Scope<S, R>): StateSource<R> {
+    return source.select(scope);
+  }
+
+  public isolateSink<R>(innerReducer$: Stream<Reducer<R>>, scope: Scope<S, R>): Stream<Reducer<S>> {
+    const get = makeGetter(scope);
+    const set = makeSetter(scope);
+
+    return innerReducer$.map(
+      innerReducer =>
+        function outerReducer(outer: S | undefined) {
+          const prevInner = get(outer);
+          const nextInner = innerReducer(prevInner);
+          return prevInner === nextInner ? outer : set(outer, nextInner);
+        }
+    );
+  }
 }
