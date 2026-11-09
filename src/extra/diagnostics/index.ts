@@ -232,8 +232,9 @@ const nameOf = (c: DiagnosticDetails['component']) => (c && typeof c === 'object
 const sentence = (s: string) => /[.!?]$/.test(s) ? s : s + '.'
 
 export function formatDiagnostic(code: string, details: DiagnosticDetails): string {
-  const name = nameOf(details.component)
-  return `[Sygnal ${code}] ${name ? name + ': ' : ''}${sentence(details.message)}` +
+  // (message '': a production build's short form, see sygnal/vite's productionMessages)
+  const name = nameOf(details.component), m = details.message
+  return `[Sygnal ${code}]${name ? ' ' + name + (m ? ':' : '') : ''}${m ? ' ' + sentence(m) : ''}` +
     (details.fix ? ' ' + sentence(details.fix) : '') + ' ' + docsUrlFor(code)
 }
 

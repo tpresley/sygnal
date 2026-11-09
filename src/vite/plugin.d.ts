@@ -122,6 +122,14 @@ export interface SygnalPluginOptions {
   nativeGlobalThis?: boolean
 
   /**
+   * In `vite build` client code, Sygnal's own messages are reduced to the code, the component name
+   * and the docs URL, and per-component debug logging (`Component.debug`, `SYGNAL_DEBUG`) is
+   * removed. 'full': keep the complete messages and the logging.
+   * @default 'short'
+   */
+  productionMessages?: 'short' | 'full'
+
+  /**
    * Experimental: compile JSX views at build time. Vite 8 only (a no-op with a warning below);
    * files under node_modules are never compiled. `true`: every part that has shipped; an object
    * turns parts off (each defaults to true):
