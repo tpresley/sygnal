@@ -127,13 +127,13 @@ export class IsolateModule {
         const oldNamespace: Array<Scope> = (oldData as any).isolate;
         const namespace: Array<Scope> = (data as any).isolate;
 
-        if (!isEqualNamespace(oldNamespace, namespace)) {
-          if (Array.isArray(oldNamespace)) {
+        if (oldNamespace !== namespace) {
+          if (Array.isArray(oldNamespace) && !isEqualNamespace(oldNamespace, namespace)) {
             self.removeElement(oldElm as Element);
           }
-        }
-        if (Array.isArray(namespace)) {
-          self.insertElement(namespace, elm as Element);
+          if (Array.isArray(namespace)) {
+            self.insertElement(namespace, elm as Element);
+          }
         }
         // (oldVNode !== vNode here: snabbdom returns early for the same vnode; the Set only when a
         // child isn't at its old index)

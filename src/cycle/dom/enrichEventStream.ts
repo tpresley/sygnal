@@ -21,9 +21,12 @@ export interface EnrichedEventStream<T = Event> extends Stream<T> {
   detail<R, D = any>(fn: (detail: D) => R): EnrichedEventStream<R>;
 }
 
-// one enricher: a method that maps each event through `get`, then `fn` when given
-const pick = (s$: any, get: (e: any) => any) => (fn?: (v: any) => any): any =>
+// an enriched map through `get`, then `fn` when given
+const pick = (s$: any, get: (e: any) => any, fn?: (v: any) => any): any =>
   enrichEventStream(s$.map((e: any) => (e = get(e), fn ? fn(e) : e)))
+
+// (methods every enriched stream shares: an event stream is made for each instance's intent)
+const reader = (get: (e: any) => any) => function (this: any, fn?: any) { return pick(this, get, fn) }
 
 /**
  * Adds chainable convenience methods to a DOM event stream.
@@ -40,11 +43,10 @@ export function enrichEventStream(stream$: any): any {
   return Object.assign(stream$, METHODS)
 }
 
-// (methods every enriched stream shares: an event stream is made for each instance's intent)
 const METHODS = {
   // .value(fn?) — e.target.value; .checked(fn?) — e.target.checked as a boolean
-  value(this: any, fn?: any) { return pick(this, (e: any) => e?.target?.value)(fn) },
-  checked(this: any, fn?: any) { return pick(this, (e: any) => !!e?.target?.checked)(fn) },
+  value: reader((e: any) => e?.target?.value),
+  checked: reader((e: any) => !!e?.target?.checked),
   // .data(name, fn?) — dataset[name] from e.target or its nearest ancestor that has it.
   // dataset keys are camelCase but attributes are kebab-case (`taskId` is `data-task-id`), so the
   // closest() selector converts (B-028). The name may be given either way: `.data('taskId')` and
@@ -56,11 +58,11 @@ const METHODS = {
       const t = e?.target
       const el = typeof t?.closest == 'function' ? t.closest(attr) || t : t
       return el?.dataset?.[key]
-    })(fn)
+    }, fn)
   },
   // .target(fn?) — e.target; .key(fn?) — e.key (keyboard events)
-  target(this: any, fn?: any) { return pick(this, (e: any) => e?.target)(fn) },
-  key(this: any, fn?: any) { return pick(this, (e: any) => e?.key)(fn) },
+  target: reader((e: any) => e?.target),
+  key: reader((e: any) => e?.key),
   // .detail(fn?) — e.detail (CustomEvents: widgets' emit(), web components) (PLAN-5 W-3)
-  detail(this: any, fn?: any) { return pick(this, (e: any) => e?.detail)(fn) },
+  detail: reader((e: any) => e?.detail),
 }

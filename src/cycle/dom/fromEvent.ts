@@ -5,12 +5,17 @@ export type Predicate = (ev: Event) => boolean;
 export type Comparator = Record<string, unknown>;
 export type PreventDefaultOpt = boolean | Predicate | Comparator;
 
+/** a source's stream, named for the devtools graph */
+export const named = (stream: any, name: string): any => {
+  stream._isCycleSource = name;
+  return stream;
+};
+
 export function fromEvent(
   element: Element | Document,
   eventName: string,
   useCapture = false,
-  preventDefault: PreventDefaultOpt = false,
-  passive = false
+  preventDefault: PreventDefaultOpt = false
 ): Stream<Event> {
   let next: ((e: Event) => void) | null = null;
   return Stream.create<Event>({
@@ -20,10 +25,8 @@ export function fromEvent(
         preventDefaultConditional(event, preventDefault);
         deliver(event, () => listener.next(event));
       };
-      element.addEventListener(eventName, next, {
-        capture: useCapture,
-        passive,
-      });
+      // (passive false: a document's touch and wheel listeners are passive unless told otherwise)
+      element.addEventListener(eventName, next, {capture: useCapture, passive: false});
     },
     stop: function stop() {
       element.removeEventListener(eventName, next as EventListener, useCapture);
@@ -32,45 +35,28 @@ export function fromEvent(
   } as Producer<Event>);
 }
 
-function matchObject(matcher: Record<string, unknown>, obj: Record<string, unknown>): boolean {
-  const keys = Object.keys(matcher);
-  const n = keys.length;
-  for (let i = 0; i < n; i++) {
-    const k = keys[i];
-    if (typeof matcher[k] === 'object' && matcher[k] !== null && typeof obj[k] === 'object' && obj[k] !== null) {
-      if (!matchObject(matcher[k] as Record<string, unknown>, obj[k] as Record<string, unknown>)) {
-        return false;
-      }
-    } else if (matcher[k] !== obj[k]) {
-      return false;
-    }
-  }
-  return true;
+const isObj = (x: unknown) => typeof x === 'object' && x !== null;
+
+function matchObject(matcher: Record<string, any>, obj: Record<string, any>): boolean {
+  return Object.keys(matcher).every(k =>
+    isObj(matcher[k]) && isObj(obj[k]) ? matchObject(matcher[k], obj[k]) : matcher[k] === obj[k]
+  );
 }
 
 export function preventDefaultConditional(
   event: Event,
   preventDefault: PreventDefaultOpt
 ): void {
-  if (preventDefault) {
-    if (typeof preventDefault === 'boolean') {
-      event.preventDefault();
-    } else if (isPredicate(preventDefault)) {
-      if (preventDefault(event)) {
-        event.preventDefault();
-      }
-    } else if (typeof preventDefault === 'object') {
-      if (matchObject(preventDefault as Record<string, unknown>, event as unknown as Record<string, unknown>)) {
-        event.preventDefault();
-      }
-    } else {
-      throw new Error(
-        'preventDefault has to be either a boolean, predicate function or object'
-      );
-    }
-  }
+  if (
+    preventDefault && (
+      preventDefault === true ||
+      (typeof preventDefault === 'function' ? preventDefault(event)
+      : typeof preventDefault === 'object' ? matchObject(preventDefault, event)
+      : fail())
+    )
+  ) event.preventDefault();
 }
 
-function isPredicate(fn: PreventDefaultOpt): fn is Predicate {
-  return typeof fn === 'function';
-}
+const fail = () => {
+  throw new Error('preventDefault has to be either a boolean, predicate function or object');
+};
