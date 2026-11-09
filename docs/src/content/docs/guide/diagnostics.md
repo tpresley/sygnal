@@ -13,6 +13,8 @@ There are three layers:
 | Dev checks | The `sygnal/diagnostics` entry: wiring, selector, state-shape and EVENTS checks, strict mode, `inspect()` | Vite dev server, Vitest, or wherever you import it |
 | Static checker | `sygnal-check`, a separate package that reads your source without running it | CLI, the Vite dev server, CI, MCP |
 
+In a `vite build` of client code, `sygnal/vite` shortens the runtime messages to the code, the component name and a link to the [error reference](/reference/errors/), for example `[Sygnal SYG406] Thrower https://sygnal.js.org/reference/errors#syg406`. A caught error is still passed to the console, and a `Diagnostic`'s `message` and `fix` are empty. `sygnal({ productionMessages: 'full' })` keeps the full text. The dev server, Vitest, SSR and bundlers without the plugin always have it.
+
 ## Message format
 
 Every runtime diagnostic is printed as one line:

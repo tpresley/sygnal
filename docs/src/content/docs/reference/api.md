@@ -97,7 +97,8 @@ export default defineConfig({
 | `diagnostics` | `DiagnosticsMode \| { mode, strict, timingAudit, ignore }` | `'warn'` | Runtime diagnostics in the dev server (`'off'` injects nothing); `timingAudit: true` turns on the 7.0 timing audit ([SYG257](/reference/errors/#syg257)) |
 | `check` | `boolean \| { strict, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server, when installed |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
-| `nativeGlobalThis` | `boolean` | `true` | Alias xstream's `globalthis` polyfill to the native `globalThis`, in dev, build and Vitest |
+| `nativeGlobalThis` | `boolean` | `true` | Alias xstream's `globalthis` polyfill to the native `globalThis`, in dev, build and Vitest. `false` also keeps the npm xstream in production builds, which otherwise get a compact build |
+| `productionMessages` | `'short' \| 'full'` | `'short'` | In `vite build` client code, reduce Sygnal's messages to the code, the component name and the docs link, and remove per-component debug logging. `'full'` keeps both |
 | `devtools` | `boolean \| { redux }` | `true` | Install the [DevTools](/integration/debugging/#devtools-extension) bridge (`sygnal/devtools`) in the dev server; `{ redux: true }` also connects the [Redux DevTools](/integration/debugging/#redux-devtools) extension |
 
 The HMR transform and the diagnostics setup run only in dev mode (`vite` / `vite dev`); production builds get none of it. Files that already contain `import.meta.hot` are left untouched.

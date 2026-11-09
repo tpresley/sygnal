@@ -48,7 +48,8 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 | `check.overlay` | `'error' \| false` | `'error'` | Whether error-severity findings open Vite's error overlay |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
 | `compile` | `boolean` or `{ views, ssr, blocks, test }` | `false` | Experimental, Vite 8: compile JSX views at build time (same DOM, less work per render; see [Compiled Views](/integration/compiled-views/)) |
-| `nativeGlobalThis` | `boolean` | `true` | Resolve xstream's `globalthis` polyfill to the native `globalThis` (see [below](#native-globalthis)) |
+| `nativeGlobalThis` | `boolean` | `true` | Resolve xstream's `globalthis` polyfill to the native `globalThis` (see [below](#native-globalthis)). `false` also keeps the npm [xstream](#compact-xstream) in production builds |
+| `productionMessages` | `'short' \| 'full'` | `'short'` | In `vite build` client code, reduce Sygnal's messages to the code, the component name and the docs link, and remove `Component.debug` / `SYGNAL_DEBUG` logging. `'full'` keeps both ([Diagnostics](/guide/diagnostics/)) |
 | `devtools` | `boolean` | `true` | Install the [DevTools](/integration/debugging/#devtools-extension) bridge in the dev server. `false` leaves it out |
 | `mcp` | `boolean` or `{ timeout, confirm }` | `false` | Serve the [dev MCP endpoint](/integration/agents/#dev-server-mcp-endpoint) at `/__sygnal/mcp`, so a coding agent can read and drive the open page. Also installs the DevTools bridge |
 | `mcp.timeout` | `number` | `10000` | Milliseconds to wait for the page's answer |
@@ -90,6 +91,10 @@ Under Vitest, the plugin configures JSX and adds `sygnal/diagnostics` to `test.s
 ### Native globalThis
 
 xstream loads the `globalthis` npm polyfill, which brings a chain of small packages (about 4 KB gzipped) into every app. Every browser and Node version Sygnal supports has a native `globalThis`, so the plugin adds a `resolve.alias` from `globalthis` to a stub in the Sygnal package (`sygnal/shims/globalthis`) that returns it. The alias applies in the dev server (including dependency pre-bundling), `vite build` and Vitest; the [Astro integration](/integration/astro/) adds it in `astro build` too. The alias applies to every import of `globalthis` in the app, so any other dependency that loads the polyfill gets the stub too. If your own `resolve.alias` (object or array form) already maps `globalthis`, the plugin leaves it alone and adds nothing. Set `nativeGlobalThis: false` to keep the polyfill package. Without the plugin, add the same alias yourself: `resolve: { alias: [{ find: /^globalthis$/, replacement: 'sygnal/shims/globalthis' }] }`.
+
+### Compact xstream
+
+In client production builds, the plugin resolves `xstream` to a compact build with the same behaviour (`sygnal/shims/xstream`), which saves about 800 B gzipped. A direct `import xs from 'xstream'` and the `xstream/extra/*` files get it too, so the bundle has one `Stream`. The dev server, Vitest and SSR keep the npm package, as do `sygnal({ nativeGlobalThis: false })` and your own `resolve.alias` for `xstream`.
 
 ### JSX and Vite versions
 

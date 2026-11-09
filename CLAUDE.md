@@ -5,13 +5,13 @@ Reactive component framework built on Cycle.js patterns. All source is TypeScrip
 ## Build & Test
 
 ```bash
-npm run build          # Rollup → dist/ (41 configs: core UMD + CJS/ESM, sygnal/jsx, jsx-runtime,
+npm run build          # Rollup → dist/ (42 configs: core UMD + CJS/ESM, sygnal/jsx, jsx-runtime,
                        #   jsx-dev-runtime, sygnal/diagnostics, sygnal/devtools, sygnal/element, sygnal/ui,
                        #   sygnal/zag, sygnal/ui/menu, sygnal/ui/select, sygnal/ui/combobox, sygnal/react, sygnal/ai, sygnal/api, sygnal/replay,
                        #   sygnal/host, sygnal/terminal, sygnal/agent-ui, sygnal/primitives, sygnal/react-native, sygnal/three, sygnal/canvas,
                        #   sygnal/worker, sygnal/worker/page, sygnal/yjs, sygnal/yjs/testing,
                        #   sygnal/sandbox (+ its worker, the guest kernel's entry, sygnal/sandbox/build),
-                       #   the globalthis shim, sygnal/vite,
+                       #   the globalthis and xstream shims, sygnal/vite,
                        #   Astro (3), Vike (4)) + bundled .d.ts
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
@@ -28,6 +28,7 @@ npm run test:recipes   # the docs recipes' code (dev-plans/research/p5-recipes, 
                        #   --browser[=chromium,firefox,webkit] adds the real-browser run; not in npm test (own
                        #   ~150 MB devDependencies: TEST_RECIPES_INSTALL=1 or --install runs npm ci there first)
 node scripts/perf-gate.mjs --runs=3  # the count gate alone, 3 runs with min … max per metric
+node scripts/perf-ab.mjs --base=<dir> # timing of this build against a frozen audit build, alternating rounds (~20 min, one run at a time across worktrees; not in npm test)
 node scripts/perf-report.mjs         # timing ratios to React vs the timing targets (warn-only, ~1.5 min, not in npm test);
                                      #   harness: benchmarks/audit (see benchmarks/README.md)
 npm --prefix sygnal-check test       # static checker package (1,755 tests, *.vtest.js, run twice: plain, then SYGNAL_CHECK_PERFILE=1
@@ -38,7 +39,7 @@ npm --prefix docs run build          # docs site + internal link check + file-na
 npm --prefix docs run check-live     # every live example of the built docs/dist in Playwright; must pass on BROWSER=chromium, firefox and webkit
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (680 checked, 15 skipped by marker)
-node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 43,630 B gated (D48, D185, D222, D230, 7.0 PLAN-12 M-10, 7.2 leaving-child fix, 7.2 behavior read-time normalizer, 7.2 one shape, 7.2 portal events, 7.2 root-shape fix, 7.2 autoFocus at the patch, 7.3 focusWithin from a fragment, the style and class forms, adopting innerHTML;
+node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 41,472 B gated (the core size sweep; D48, D185, D222, D230, 7.0 PLAN-12 M-10, 7.2 leaving-child fix, 7.2 behavior read-time normalizer, 7.2 one shape, 7.2 portal events, 7.2 root-shape fix, 7.2 autoFocus at the patch, 7.3 focusWithin from a fragment, the style and class forms, adopting innerHTML;
                                      #   needs build + examples/kanban install); also prints the default (globalthis-aliased)
                                      #   size and src/core/** alone. `--budget <bytes>` overrides
 ```
@@ -120,7 +121,8 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `src/extra/testing.ts` — `renderComponent()`: mock DOM by default or `dom: 'real'` (real DOM driver in `document.body`; `t.container`/`t.query`/`t.queryAll`), `simulateEvent`/`simulateAction` (both awaitable), `ready`/`next`/`waitForState`/`settle` (not counting frame-timer activity)/`frames(n)`, `t.state`, `html`, `sinkValues`/`emitted`, fakes for driverless sinks (`t.respond`/`t.fail`/`t.requests`, e.g. for `makeFetchDriver`), works under fake timers (`vi.useFakeTimers()`: the waits drive the clock), `expectNoDiagnostics`, `inspect`
 - `src/extra/diagnostics/` — Diagnostics core: `codes.ts` (SYG code registry: severity, title; `docsUrlFor()` → `https://sygnal.js.org/reference/errors#sygnnn`), `index.ts` (modes, `report()`, hooks, `getDiagnostics`/`onDiagnostic`), `legacy.ts` (coded console messages that print even when off)
 - `src/extra/diagnostics/checks/` — The `sygnal/diagnostics` dev entry (separate bundle, never in apps): wiring, dom (SYG103/104), events, props, state, collections, rxjsHints (SYG301), strict (`configureStrict`; SYG508 at run time), inspect (`inspect()` app graph), `next.ts` (the core's hook layer: a facade per instance for the checks, plus SYG423/424/425 and SYG612 for forms 6.0 removed); types in `public.d.ts`. Reaches the core through `globalThis.__SYGNAL_DIAGNOSTICS__`
-- `src/vite/plugin.ts` — `sygnal/vite`: JSX (oxc + esbuild below Vite 8), HMR wiring, dev-only diagnostics injection, `sygnal-check` in dev, Vitest setupFiles, Vike/Astro dev wrappers
+- `src/vite/plugin.ts` — `sygnal/vite`: JSX (oxc + esbuild below Vite 8), HMR wiring, dev-only diagnostics injection, `sygnal-check` in dev, Vitest setupFiles, Vike/Astro dev wrappers; `src/vite/shortMessages.ts` (`productionMessages`: in `vite build` client code, messages reduced to code + component + docs URL and `dbg` logging removed); `src/vite/globalthis.ts` also resolves `xstream` to the compact build
+- `src/xstream.ts` — the compact xstream (`dist/shims/xstream.*`, `sygnal/shims/xstream`): same behaviour as the npm package, used only in client production builds through `sygnal/vite` (`xstream` stays a dependency; dev, Vitest, SSR, other bundlers and `nativeGlobalThis: false` keep it). `test/xstream-compact.test.js` runs every scenario against both
 - `src/pragma/` — JSX createElement implementation (passes `onError` through)
 - `src/vike/ClientOnly.ts` — ClientOnly component (`preventInstantiation` pattern, renders fallback during SSR)
 - `src/astro/` — Astro framework integration (client hydration + SSR)

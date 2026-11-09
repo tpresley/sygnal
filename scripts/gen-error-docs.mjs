@@ -414,7 +414,7 @@ Every diagnostic Sygnal reports has a stable code. The runtime prints it as \`[S
 \`sygnal-check\` prints the same code as \`file:line:col SYG101 Form: …\`. The link at the end of every message points to the entry on this page.
 
 - **Severity**: \`error\` (something is broken; thrown or logged with \`console.error\`), \`warn\` (almost certainly a bug), \`info\` (a hint that needs a judgment call; collected but not printed).
-- **Reported by**: *the Sygnal runtime* (always on, production included), *the dev checks* (the \`sygnal/diagnostics\` entry, loaded by the Vite plugin in dev and in Vitest), or *\`sygnal-check\`* (the static checker). See [Diagnostics](/guide/diagnostics/).
+- **Reported by**: *the Sygnal runtime* (always on, production included; in a \`vite build\` the message is shortened to the code, the component name and the link to this page), *the dev checks* (the \`sygnal/diagnostics\` entry, loaded by the Vite plugin in dev and in Vitest), or *\`sygnal-check\`* (the static checker). See [Diagnostics](/guide/diagnostics/).
 - **Strict mode only**: reported only with strict mode on. See [Strict Mode](/guide/strict-mode/).
 
 From a terminal, \`npx --no-install sygnal-check explain SYG104\` prints the same entry.
