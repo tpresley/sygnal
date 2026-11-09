@@ -27,7 +27,7 @@ const FIELD = /^(input|textarea|select)|-/i
 // selectors (`li#row-${id}`) don't grow it. A selector with an id or class keeps only bit 1, as
 // P46-P's full-selector tests did (the host and SVG tags match the whole selector)
 const tags: Record<string, number> = Object.create(null)
-const bits = (tag: string): number => tags[tag] = +FIELD.test(tag) | (/^(collection|switchable)$/i.test(tag) ? 4 : 0) | (tag in svgTags ? 2 : 0) | (/-/.test(tag) ? 8 : 0)
+const bits = (tag: string): number => tags[tag] = +FIELD.test(tag) | (/^(collection|switchable)$/i.test(tag) ? 4 : 0) | (SVG.test(tag) ? 2 : 0) | (/-/.test(tag) ? 8 : 0)
 const tagBits = (sel: string): number => {
   const t = tags[sel]
   if (t !== undefined) return t
@@ -58,33 +58,9 @@ const applySvg = (vnode: any): void => {
   if (Array.isArray(vnode.children) && vnode.sel !== 'foreignObject') vnode.children.forEach(applySvg)
 }
 
-const svgTags: Record<string, number> = {
-  // Container / structural
-  svg: 1, g: 1, defs: 1, symbol: 1, use: 1,
-  // Shape
-  circle: 1, ellipse: 1, line: 1, path: 1, polygon: 1, polyline: 1, rect: 1,
-  // Text  (no HTML collision: HTML has no <text>, <tspan>, or <textPath>)
-  text: 1, tspan: 1, textPath: 1,
-  // Gradient / paint
-  linearGradient: 1, radialGradient: 1, stop: 1, pattern: 1,
-  // Clipping / masking
-  clipPath: 1, mask: 1,
-  // Marker
-  marker: 1,
-  // Filter primitives
-  filter: 1, feBlend: 1, feColorMatrix: 1, feComponentTransfer: 1,
-  feComposite: 1, feConvolveMatrix: 1, feDiffuseLighting: 1,
-  feDisplacementMap: 1, feDropShadow: 1, feFlood: 1, feGaussianBlur: 1,
-  feImage: 1, feMerge: 1, feMergeNode: 1, feMorphology: 1, feOffset: 1,
-  fePointLight: 1, feSpecularLighting: 1, feSpotLight: 1, feTile: 1,
-  feTurbulence: 1, feFuncR: 1, feFuncG: 1, feFuncB: 1, feFuncA: 1,
-  // Descriptive  (excluding 'title' — collides with HTML <title>)
-  desc: 1, metadata: 1,
-  // Other  (excluding 'a', 'image', 'style', 'script' — collide with HTML)
-  foreignObject: 1, switch: 1,
-  // Animation
-  animate: 1, animateMotion: 1, animateTransform: 1, set: 1, mpath: 1,
-}
+// The SVG tags (not 'title', 'a', 'image', 'style', 'script': they collide with HTML; HTML has no
+// <text>, <tspan> or <textPath>): the cost is once per tag, its bits are cached in `tags`
+const SVG = /^(svg|g|defs|symbol|use|circle|ellipse|line|path|polygon|polyline|rect|text|tspan|textPath|linearGradient|radialGradient|stop|pattern|clipPath|mask|marker|filter|fe(Blend|ColorMatrix|ComponentTransfer|Composite|ConvolveMatrix|DiffuseLighting|DisplacementMap|DropShadow|Flood|GaussianBlur|Image|Merge(Node)?|Morphology|Offset|PointLight|SpecularLighting|SpotLight|Tile|Turbulence|Func[RGBA])|desc|metadata|foreignObject|switch|animate(Motion|Transform)?|set|mpath)$/
 
 // Adds snabbdom hooks to data.hook (a copy); a hook already there runs first (also PLAN-5
 // widget hosts: extra/widget.ts)
@@ -241,7 +217,7 @@ const route = (key: string, modules: Record<string, any>, c?: any): any => {
 const own = Object.prototype.hasOwnProperty
 // one key into `out` by its route (also compiled views' data, CV-2: __cv.d)
 const put = (out: any, r: any, key: string, val: any): void => {
-  const [b, name, kind] = r
+  const b = r[0], name = r[1], kind = r[2]
   if (kind == 1) {
     const o = bucket(out, b)
     if (val !== undefined) o[name] = val
@@ -304,12 +280,9 @@ export const createElementWithModules = (modules: Record<string, any>) => {
   const ca = (sel: any, data: any, children: any[], k?: any): any => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
-      // Through the diagnostics bridge (G-044: collected like the other codes), or, with
-      // diagnostics not loaded, the same pre-formatted text.
-      const msg = 'A JSX tag is undefined, so <UNDEFINED> is rendered instead', fix = 'Import or define the component in this file'
-      const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__
-      if (core && core.error) core.error('SYG420', 'JSX', msg, fix)
-      else console.error(`[Sygnal SYG420] JSX: ${msg}. ${fix}. https://sygnal.js.org/reference/errors#syg420`)
+      // Through the diagnostics bridge (G-044: collected like the other codes; legacy.ts, in this
+      // same bundle, publishes it and prints the coded text when diagnostics are off)
+      ;(globalThis as any).__SYGNAL_DIAGNOSTICS__?.error?.('SYG420', 'JSX', 'A JSX tag is undefined, so <UNDEFINED> is rendered instead', 'Import or define the component in this file')
     }
     // CT-1: a control (src/extra/controls.ts) renders its element itself and stamps its marker.
     // It gets this createElement (the JSX runtime entries use the core's, D188).

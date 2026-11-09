@@ -132,39 +132,28 @@ export function makeDragDriver(): (sink$: Stream<any>) => DragSource {
       draggingCategory = null;
     });
 
-    on('dragover', (e: Event) => {
-      const de = e as DragEvent;
-      for (const [, config] of categories) {
-        if (!config.dropZone) continue;
-        if (draggingCategory && config.accepts && config.accepts !== draggingCategory) continue;
-        if ((de.target as Element).closest(config.dropZone)) {
-          de.preventDefault();
-          return;
-        }
-      }
-    });
-
-    on('drop', (e: Event) => {
-      const de = e as DragEvent;
+    // the first category whose drop zone contains the event's target and accepts what is dragged
+    const overZone = (e: Event, found: (category: string, zone: Element) => void) => {
       for (const [category, config] of categories) {
         if (!config.dropZone) continue;
         if (draggingCategory && config.accepts && config.accepts !== draggingCategory) continue;
-        const zone = (de.target as Element).closest(config.dropZone);
-        if (!zone) continue;
-        de.preventDefault();
-
-        let insertBefore: Element | null = null;
-        const draggingConfig = draggingCategory ? categories.get(draggingCategory) : null;
-        if (draggingConfig?.draggable) {
-          insertBefore = (de.target as Element).closest(draggingConfig.draggable) ?? null;
+        const zone = (e.target as Element).closest(config.dropZone);
+        if (zone) {
+          e.preventDefault();
+          return found(category, zone);
         }
-
-        emit(`${category}:drop`, {dropZone: zone, insertBefore});
-        return;
       }
-    });
+    };
 
-    const source: DragSource = {
+    on('dragover', (e: Event) => overZone(e, () => {}));
+
+    on('drop', (e: Event) => overZone(e, (category, zone) => {
+      const draggingConfig = draggingCategory ? categories.get(draggingCategory) : null;
+      const insertBefore = draggingConfig?.draggable ? (e.target as Element).closest(draggingConfig.draggable) : null;
+      emit(`${category}:drop`, {dropZone: zone, insertBefore});
+    }));
+
+    const source: any = {
       select(category: string): DragSourceEvents {
         return {
           events(eventType: string): EnrichedDragStream<any> {
@@ -184,15 +173,12 @@ export function makeDragDriver(): (sink$: Stream<any>) => DragSource {
         };
       },
 
-      dragstart(category: string) { return source.select(category).events('dragstart'); },
-      dragend(category: string) { return source.select(category).events('dragend'); },
-      drop(category: string) { return source.select(category).events('drop'); },
-      dragover(category: string) { return source.select(category).events('dragover'); },
-
       dispose() {
         domListeners.forEach(([type, fn]) => document.removeEventListener(type, fn));
       },
     };
+
+    for (const type of ['dragstart', 'dragend', 'drop', 'dragover']) source[type] = (category: string) => source.select(category).events(type);
 
     return source;
   };
