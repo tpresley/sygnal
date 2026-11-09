@@ -21,7 +21,7 @@ Kanban production bundle, gzip, Vite 8.3.6, against 7.4.0 on one machine.
 | `mangle` | No-go | 382 B |
 | modulepreload polyfill off | Not done: the maintainer's bar is under 1% without support in developed nations; caniuse-lite 1.0.30001814 gives about 1 to 2.6% | 287 B |
 
-The behaviour differences kept from `dom-events` are in `dom-events.md` on its branch's history, with
+The behaviour differences kept from `dom-events` are in `dom-events.md`, with
 the fifth found in review (capture at the top of the walk) restored and pinned by `test/dom-event-path.test.js`.
 Unmerged branches: `claude/sweep-vdom-3a732f`, `claude/sweep-core-932696`, `claude/sweep-xstream-native-spike`.
 
