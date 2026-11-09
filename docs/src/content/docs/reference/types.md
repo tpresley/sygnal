@@ -102,6 +102,38 @@ Derives the action map (action name → payload type) from an intent function, o
 type ActionsOf<INTENT> = { [ACTION in keyof ReturnType<INTENT>]: StreamPayload<ReturnType<INTENT>[ACTION]> }
 ```
 
+### ModelFor
+
+The type a model written apart from its component satisfies: `const model = { ... } satisfies ModelFor<Spec>`, with `Spec` the type `Comp<Spec>` names. See [A Model Apart from Its Component](/integration/typescript/#a-model-apart-from-its-component-modelfor).
+
+```typescript
+type ModelFor<SPEC extends ComponentSpec = {}> = /* the model of Comp<SPEC>, also allowing any other action */ object
+```
+
+### ModelActions
+
+The actions a model handles, by name, with the data its reducers declare; the built-ins are left out. `Comp<Spec & { actions: ModelActions<typeof model> }>`.
+
+```typescript
+type ModelActions<MODEL> = { [ACTION in keyof MODEL]: /* the reducers' data */ unknown }
+```
+
+### SygnalContext
+
+Registry of the context the root provides. Empty by default; augment it and every `Comp` reads those fields. See [the registry](/integration/typescript/#app-wide-context-the-sygnalcontext-registry).
+
+```typescript
+interface SygnalContext {}
+```
+
+### ContextOf
+
+The fields a `.context` object provides: each entry's return type, by name.
+
+```typescript
+type ContextOf<ENTRIES> = { [KEY in keyof ENTRIES]: ReturnType<ENTRIES[KEY]> }
+```
+
 ### ParentPayloadOf
 
 The value type a component sends to its parent through `PARENT`: the `parent` type of a `Comp<{ … }>` annotation (the `PARENT` type in a `Component<…>` annotation's `SINK_RETURNS`), or, for a component without an annotation, inferred from its model. A child annotated without `{ PARENT: T }` gives `unknown`; a component without a model (or with `PARENT: true` entries only) gives `any`. `CHILD.select(Comp)` returns `Stream<ParentPayloadOf<typeof Comp>>`.
@@ -587,7 +619,7 @@ import { h, div, span, a, button, input, form, label, ul, li, p, ... } from 'syg
 
 // Types
 import type {
-  Comp, RootComp, Component, RootComponent, IntentSources, ActionsOf, ParentPayloadOf, SygnalEvents,
+  Comp, RootComp, Component, RootComponent, IntentSources, ActionsOf, ModelFor, ModelActions, ParentPayloadOf, SygnalEvents, SygnalContext, ContextOf,
   Lens, Stream, MemoryStream, RunOptions, SygnalApp, Diagnostic, DiagnosticsMode,
   InspectGraph, RenderOptions, RenderResult, SygnalDOMSource, DragDriverSource
 } from 'sygnal'

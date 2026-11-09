@@ -109,6 +109,8 @@ describe('F-1 (PLAN-11): typed forms', () => {
     const e2: FormServerErrors = { email: ['Taken', 'Too short'] }
     const e3: FormServerErrors = { status: 422, body: { errors: { email: 'Taken' } } }
     const e4: FormServerErrors = [{ path: ['email'], message: 'Taken' }]
+    const e5: FormServerErrors = { errors: [{ path: ['email'], message: 'Taken' }] }   // the body's own shape
+    const e6: FormServerErrors = { errors: { email: ['Taken'] } }
     void [e1, e2, e3, e4]
     // @ts-expect-error a message is a string (or a list of them)
     const bad: FormServerErrors = { email: 42 }
