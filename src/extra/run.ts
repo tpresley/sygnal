@@ -35,11 +35,9 @@ interface SygnalRunResult {
 }
 
 function resolveHotModule(incoming: any): any {
-  if (!incoming) return null;
-  if (Array.isArray(incoming)) return resolveHotModule(incoming.find(Boolean));
-  if (incoming.default && typeof incoming.default === 'function') return incoming;
-  if (typeof incoming === 'function') return {default: incoming};
-  return null;
+  return Array.isArray(incoming) ? resolveHotModule(incoming.find(Boolean))
+    : typeof incoming?.default === 'function' ? incoming.default
+    : typeof incoming === 'function' ? incoming : undefined;
 }
 
 export default function run(
@@ -79,7 +77,7 @@ export default function run(
   const {uid} = options;
   // (R4) an HMR swap: the kept state is the new root's first state, and the instances made at
   // its start get no BOOTSTRAP (as the 5.x core's `__hmr` source); no 0/20 ms re-sends
-  const started = start(app, drivers, {...options, __hooks: (options as any).__hooks, __state: hmrSwap?.s, __swap: !!hmrSwap} as any);
+  const started = start(app, drivers, {...options, __state: hmrSwap?.s, __swap: !!hmrSwap} as any);
   liveApps++;
   let off = false;
   const exposed: SygnalRunResult = {
@@ -103,12 +101,11 @@ export default function run(
   // no STATE.stream._v), then the new component started with it
   let current = app;
   exposed.hmr = (newComponent: any, explicitState?: any) => {
-    const mod = resolveHotModule(newComponent) || {default: current};
     const state = explicitState !== undefined ? explicitState : (exposed as any).__runtime.getState();
     if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
     const wasRegistered = typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed;
     exposed.dispose();
-    current = mod.default;
+    current = resolveHotModule(newComponent) || current;
     const updated: any = run(current, drivers, options, state === undefined ? undefined : {u: true, s: state});
     exposed.sources = updated.sources;
     exposed.sinks = updated.sinks;
