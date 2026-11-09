@@ -493,6 +493,13 @@ export default [
 		]
   })),
 
+  // sygnal/vite resolves `xstream` to this compact build in client production builds.
+  {
+    input: 'src/xstream.ts',
+    output: { file: 'dist/shims/xstream.mjs', format: 'es' },
+    plugins: [typescript({ tsconfig: './tsconfig.json' })],
+  },
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {
