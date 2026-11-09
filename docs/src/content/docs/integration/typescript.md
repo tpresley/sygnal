@@ -129,6 +129,33 @@ App.context = {
 
 A component that reads one context and provides another names what it provides as `provided`: `Comp<{ state: SectionState; context: AppContext & SectionContext; provided: SectionContext }>`. Its view sees both.
 
+### App-wide context: the `SygnalContext` registry
+
+When the root provides the same fields to the whole app, register them once instead of repeating them in each component. Augment `SygnalContext`, usually from the root's own `.context` object with `ContextOf`, which reads each entry's return type:
+
+```tsx
+import type { ContextOf, RootComp, Route } from 'sygnal'
+
+type AppState = { route: Route; csrf: string | null }
+
+export const context = {
+  route: (state: AppState) => state.route,
+  csrf:  (state: AppState) => state.csrf,
+}
+
+declare module 'sygnal' {
+  interface SygnalContext extends ContextOf<typeof context> {}
+}
+
+const App: RootComp<{ state: AppState }> = ({ context }) => <h1>{context.route.name}</h1>
+
+App.context = context
+```
+
+Now every `Comp` and `RootComp` reads `context.route` and `context.csrf` with no `context` key. A `context` key on a component adds to the registry's fields, for what a subtree's provider adds. Like the `SygnalEvents` registry, it stays empty and changes nothing until you augment it, and the file that augments it must be a module.
+
+The registry says what a component may read, not that an ancestor provides it. To require the root to provide all of it, name it as `provided`: `RootComp<{ state: AppState; provided: ContextOf<typeof context> }>`.
+
 ## Actions from the Intent: `ActionsOf`
 
 `ActionsOf<typeof intent>` turns an intent function into an action map: each key's `Stream<T>` becomes `T`. Declare the intent as a constant first, typing its sources with `IntentSources<State>`, then name the derived actions as `actions`:
@@ -203,6 +230,45 @@ STATE runs first, so `HTTP` gets the state after it: `state.status` is already `
 `ok` and `error` are typed as plain strings, so a request can be built in a helper without `as const`; a name with no model entry is caught by `sygnal-check` and the dev entry ([SYG112](/reference/errors/#syg112)), not by `tsc`. `then` / `catch` keys are type errors on these requests ([SYG610](/reference/errors/#syg610) at runtime). `{ abort: 'LOADED' }` cancels by action or key name.
 
 The actions of a [`connections`](/guide/sockets/) static are added the same way: `{ RECEIVED: Message; CONNECTED: SocketOpen; DROPPED: SocketClose }` (`SocketOpen`, `SocketClose`, `SocketError` and the `Connections` return type are exported from `sygnal`).
+
+### A Model Apart from Its Component: `ModelFor`
+
+Write the model as `Component.model = { ... }` next to the component whenever you can: reducers are typed from the `Comp` annotation, and a key that isn't in `actions` is an error. That is the canonical form.
+
+When the model has to be its own constant, because its keys and payloads are what declares the actions, or it sits above a long view, a plain object has no type to take reducer parameters from. Use `satisfies ModelFor<Spec>`, with `Spec` being what `Comp` names:
+
+```tsx
+import type { Comp, IntentSources, ActionsOf, FetchFailure, ModelFor, ModelActions } from 'sygnal'
+
+type Quote = { text: string }
+type QuoteState = { id: number; status: string; quote?: Quote }
+
+const intent = ({ DOM }: IntentSources<QuoteState>) => ({ LOAD: DOM.click('.load') })
+
+type Spec = { state: QuoteState; actions: ActionsOf<typeof intent> }
+
+const model = {
+  LOAD: {
+    STATE: (state) => ({ ...state, status: 'loading' }),                            // state: QuoteState
+    HTTP:  (state) => ({ url: `/api/quotes/${state.id}`, ok: 'LOADED', error: 'FAILED' }),
+  },
+  LOADED: (state, quote: Quote) => ({ ...state, status: 'done', quote }),
+  FAILED: (state, { status }: FetchFailure) => ({ ...state, status: status === 404 ? 'missing' : 'error' }),
+} satisfies ModelFor<Spec>
+
+const QuoteCard: Comp<Spec & { actions: ModelActions<typeof model> }> = ({ state }) => (
+  <div><button className="load">Load</button> {state.quote?.text ?? state.status}</div>
+)
+QuoteCard.intent = intent
+QuoteCard.model = model
+```
+
+- `state`, `next` and the fourth argument need no annotation. Nor does the data of an action `Spec` names (`LOAD` here).
+- An action `Spec` doesn't name, such as a reply action or one sent by `next()`, is allowed. Annotate its data once on the reducer; unannotated it is `unknown`.
+- `ModelActions<typeof model>` adds those actions to the component, so there is no separate action map. `timers` and `viewTransitions` are checked against the result.
+- `next('LOAD', data)` is checked for an action `Spec` names. Any other name is accepted by `tsc`.
+
+Because any key is allowed, a misnamed model key or `next()` name is not a type error in this form. `sygnal-check` reports them ([SYG101](/reference/errors/#syg101), [SYG102](/reference/errors/#syg102), [SYG117](/reference/errors/#syg117)), as it does for any `C.model = model`. `satisfies` needs TypeScript 4.9 or later, and `ModelFor` is types only.
 
 `IntentSources<STATE, DRIVERS>` is the type of the object an intent receives: `DOM`, `STATE`, `EVENTS`, `CHILD`, `dispose$` and your custom drivers.
 

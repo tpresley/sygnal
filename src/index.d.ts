@@ -192,6 +192,24 @@ export type Event<DATA = any> = { type: string; data: DATA }
  */
 export interface SygnalEvents {}
 
+/**
+ * Registry of the context an app provides from its root. Empty by default, which changes nothing.
+ * Augment it and every `Comp` and `RootComp` reads those fields without a `context` key in its spec,
+ * and `ModelFor` gives them to its reducers:
+ *
+ *   declare module 'sygnal' {
+ *     interface SygnalContext extends ContextOf<typeof context> {}   // the root's `.context` object
+ *   }
+ *
+ * A component's own `context` is added to the registry's fields (what a subtree's provider adds).
+ * The registry says what a component may read, not that an ancestor provides it: name the root's
+ * `provided` to require the whole of it there. The augmenting file must be a module.
+ */
+export interface SygnalContext {}
+
+/** The fields a `.context` object provides, by name: each entry's return type (`ContextOf<typeof context>`) */
+export type ContextOf<ENTRIES> = { [KEY in keyof ENTRIES]: ENTRIES[KEY] extends (...args: any[]) => infer RETURN ? Exclude<RETURN, ABORT> : never }
+
 /** Valid event names: `string` while the registry is empty, otherwise the registered names. */
 export type EventName = keyof SygnalEvents extends never ? string : keyof SygnalEvents & string
 
@@ -309,9 +327,9 @@ type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends 
 }
 
 /** Keys a type declares by name (index signatures left out). */
-type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT = {}> = keyof DRIVERS extends never
+type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT = {}, UNDECLARED_DATA = any> = keyof DRIVERS extends never
   ? {
-      [driver: string]: NonStateSinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED, CONTEXT>
+      [driver: string]: NonStateSinkValue<STATE, PROPS, ACTIONS, UNDECLARED_DATA, any, CALCULATED, CONTEXT>
     }
   : {
       [DRIVER_KEY in keyof DRIVERS]: NonStateSinkValue<
@@ -325,11 +343,11 @@ type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED,
       >
     }
 
-type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> =
+type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}, UNDECLARED_DATA = any> =
   | SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, STATE, CALCULATED, CONTEXT>
   | Partial<
       DefaultSinks<STATE, PROPS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS, CONTEXT> &
-      CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT>
+      CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT, UNDECLARED_DATA>
     >
 
 type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
@@ -1234,6 +1252,7 @@ export interface FormOptions<V = any, OUT = any> {
 export type FormServerErrors =
   | Record<string, string | ReadonlyArray<string>>
   | ReadonlyArray<{ message: string; path?: ReadonlyArray<any> }>
+  | { errors: Record<string, string | ReadonlyArray<string>> | ReadonlyArray<{ message: string; path?: ReadonlyArray<any> }> }
   | { status?: number; body?: any; error?: any; request?: any }
 
 export interface FormActions<V = any> {
@@ -1396,14 +1415,14 @@ type StepState<OWN, D> = [D] extends [undefined] ? OWN : OWN & D
 type StepSpecOf<A, T> = IsStepSpec<A> extends true ? A : T
 type StepDraftOf<A> = IsStepSpec<A> extends true ? undefined : A
 export type WizardStepComp<OWN = {}, DRAFT_OR_SPEC extends Record<string, any> | undefined = undefined, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}> =
-  ComponentProps<StepState<OWN, StepDraftOf<DRAFT_OR_SPEC>> & SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'calculated', {}>, SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'props', { [prop: string]: any }>, SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>>
+  ComponentProps<StepState<OWN, StepDraftOf<DRAFT_OR_SPEC>> & SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'calculated', {}>, SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'props', { [prop: string]: any }>, SpecContext<StepSpecOf<DRAFT_OR_SPEC, T>>>
   & Omit<Component<
     StepState<OWN, StepDraftOf<DRAFT_OR_SPEC>>,
     SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'props', { [prop: string]: any }>,
     SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'drivers', {}>,
     SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'actions', {}>,
     SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'calculated', {}>,
-    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>,
+    SpecContext<StepSpecOf<DRAFT_OR_SPEC, T>>,
     SpecSinks<StepSpecOf<DRAFT_OR_SPEC, T>>,
     SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'provided', SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>>
   >, 'initialState'> & { initialState?: OWN }
@@ -2083,6 +2102,8 @@ export type RootComponentSpec = Omit<ComponentSpec, 'props' | 'parent'>
 type OnlyKeys<T, SPEC> = { [K in Exclude<keyof T, keyof SPEC>]: never }
 type SpecOf<T, K extends keyof ComponentSpec, DEFAULT> = K extends keyof T ? Exclude<T[K], undefined> : DEFAULT
 type SpecSinks<T> = SpecOf<T, 'sinks', {}> & ('parent' extends keyof T ? { PARENT: T['parent' & keyof T] } : {})
+/** The context a Comp reads: the SygnalContext registry's fields and its own `context` */
+type SpecContext<T> = keyof SygnalContext extends never ? SpecOf<T, 'context', {}> : SygnalContext & SpecOf<T, 'context', {}>
 
 /**
  * Sygnal Component, typed by name: `Comp<{ state: State; props: Props; actions: Actions }>` is
@@ -2102,7 +2123,7 @@ export type Comp<T extends ComponentSpec & OnlyKeys<T, ComponentSpec> = {}> = Co
   SpecOf<T, 'drivers', {}>,
   SpecOf<T, 'actions', {}>,
   SpecOf<T, 'calculated', {}>,
-  SpecOf<T, 'context', {}>,
+  SpecContext<T>,
   SpecSinks<T>,
   SpecOf<T, 'provided', SpecOf<T, 'context', {}>>
 >
@@ -2117,10 +2138,81 @@ export type RootComp<T extends RootComponentSpec & OnlyKeys<T, RootComponentSpec
   SpecOf<T, 'drivers', {}>,
   SpecOf<T, 'actions', {}>,
   SpecOf<T, 'calculated', {}>,
-  SpecOf<T, 'context', {}>,
+  SpecContext<T>,
   SpecOf<T, 'sinks', {}>,
   SpecOf<T, 'provided', SpecOf<T, 'context', {}>>
 >
+
+/**
+ * The type a model written apart from its component satisfies. Spec is what `Comp<Spec>` names:
+ *
+ *   type Spec = { state: State; context: Ctx; actions: ActionsOf<typeof intent> }
+ *   const model = {
+ *     SAVE:   (state, id, next) => ...,                          // typed from Spec (id: the intent's data)
+ *     FAILED: (state, failure: FetchFailure) => ...,             // not in Spec: annotate the data once
+ *   } satisfies ModelFor<Spec>
+ *   const C: Comp<Spec & { actions: ModelActions<typeof model> }> = ...
+ *   C.model = model
+ *
+ * Each reducer gets `state`, `next` and the 4th argument from Spec, and the data of an action Spec
+ * names. Any other key is allowed (a reply action, one sent by `next()`), its data `unknown` until
+ * annotated. A misnamed key is therefore not a type error here: sygnal-check reports it (SYG101,
+ * SYG102, SYG117). A model written next to its component stays `C.model = { ... }`, which checks
+ * its keys against `actions`. Types only: no runtime code.
+ */
+export type ModelFor<T extends ComponentSpec & OnlyKeys<T, ComponentSpec> = {}> = ModelKnown<
+  SpecOf<T, 'state', any>,
+  SpecOf<T, 'props', { [prop: string]: any }>,
+  FixDrivers<SpecOf<T, 'drivers', {}>>,
+  SpecOf<T, 'actions', {}>,
+  SpecOf<T, 'calculated', {}>,
+  SpecSinks<T>,
+  SpecContext<T>
+> & { [action: string]: ModelOpenEntry<SpecOf<T, 'state', any> & SpecOf<T, 'calculated', {}>, SpecOf<T, 'state', any>, SpecOf<T, 'props', { [prop: string]: any }>, ModelNames<SpecOf<T, 'state', any>, SpecOf<T, 'actions', {}>>, SpecContext<T>> }
+
+/** next() under ModelFor: a name Spec knows is checked with its data; any other name passes (SYG117 reports one with no model entry) */
+type ModelNames<STATE, ACTIONS> = WithDefaultActions<STATE, ACTIONS> & { [action: string]: unknown }
+
+type ModelKnown<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS extends NonStateSinkReturns, CONTEXT> = {
+  [ACTION_KEY in keyof WithDefaultActions<STATE, ACTIONS>]?: ModelEntry<
+    STATE,
+    PROPS,
+    DRIVERS,
+    ModelNames<STATE, ACTIONS>,
+    WithDefaultActions<STATE, ACTIONS>[ACTION_KEY],
+    CALCULATED,
+    SINK_RETURNS,
+    CONTEXT,
+    WithDefaultActions<STATE, ACTIONS>[ACTION_KEY]
+  >
+}
+
+/** a reducer of an action Spec doesn't name: data `unknown`, and a method, so the data may be annotated */
+type ModelOpenReducer<FULL_STATE, RETURN, PROPS, NAMES, CONTEXT> = {
+  reducer(state: FULL_STATE, data: unknown, next: NextFunction<NAMES>, props: ReducerExtras<PROPS, CONTEXT, FULL_STATE> & { signal?: AbortSignal }): RETURN | ABORT | undefined | void
+}['reducer']
+
+type ModelOpenEntry<FULL_STATE, STATE, PROPS, NAMES, CONTEXT> =
+  | true
+  | ModelOpenReducer<FULL_STATE, STATE, PROPS, NAMES, CONTEXT>
+  | { STATE?: true | ModelOpenReducer<FULL_STATE, STATE, PROPS, NAMES, CONTEXT>; [sink: string]: true | ModelOpenReducer<FULL_STATE, any, PROPS, NAMES, CONTEXT> | AnySinkConstant }
+
+type EntryData<ENTRY> = ENTRY extends (state: any, data: infer DATA, ...rest: any[]) => any ? DATA : unknown
+// one per sink, boxed so a union data type isn't distributed; contra-inferred, the sinks' data intersect
+type EntryDataBoxes<SINK> = SINK extends (...args: any[]) => any ? (box: [EntryData<SINK>]) => void : (box: [unknown]) => void
+type IntersectBoxes<SINK> = [EntryDataBoxes<SINK>] extends [(box: infer BOX) => void] ? BOX extends unknown[] ? BOX[0] : unknown : unknown
+
+/**
+ * The actions a model handles, by name, with the data its reducers declare (the sinks of one action
+ * intersected; a reducer that doesn't declare it: `unknown`). The built-ins are left out. Adds what a
+ * `ModelFor` model names to the component: `Comp<Spec & { actions: ModelActions<typeof model> }>`.
+ */
+export type ModelActions<MODEL> = {
+  [KEY in keyof MODEL as KEY extends 'BOOTSTRAP' | 'INITIALIZE' | 'DISPOSE' ? never : KEY]:
+    MODEL[KEY] extends (...args: any[]) => any ? EntryData<MODEL[KEY]>
+    : MODEL[KEY] extends object ? IntersectBoxes<MODEL[KEY][keyof MODEL[KEY]]>
+    : unknown
+}
 
 /**
  * A component function that can be used in Collection/Switchable.
