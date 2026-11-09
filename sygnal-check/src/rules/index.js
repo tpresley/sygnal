@@ -48,6 +48,7 @@ import collectionFrom from './syg401-collection-from.js'
 import missingExport from './syg427-missing-export.js'
 import controlledInput from './syg111-controlled-input.js'
 import latestComputedKey from './syg634-latest-computed-key.js'
+import refreshSharedRead from './syg637-refresh-shared-read.js'
 import controls from './syg124-controls.js'
 import behaviors from './syg127-behaviors.js'
 import triggerReplaced from './syg118-trigger-replaced.js'
@@ -97,6 +98,7 @@ export const coreRules = [
   collectionFrom,
   controlledInput,
   latestComputedKey,
+  refreshSharedRead,
   controls, // SYG124, SYG125, SYG126, SYG128 (PLAN-4 CT-1)
   behaviors, // SYG127, SYG226 (PLAN-4 GS-1, GS-8)
   triggerReplaced, // SYG118 (ui-sweep R1)

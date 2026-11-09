@@ -1303,6 +1303,13 @@ export const EXPLANATIONS = {
     explanation: "A request sets `progress` (a reply action such as `progress: 'UPLOADING'`, or `true` for `HTTP.progress()`), but the driver can't report it as written. A request with `progress` goes over XMLHttpRequest, the only transport that reports upload progress in every browser, and XMLHttpRequest has no equivalent for some fetch options: `init.keepalive`, `priority`, `cache`, `redirect`, `integrity`, `mode`, `referrer`, `referrerPolicy`, `window` and `duplex` are ignored for that request. `progress` on a resource or on a `batch` request is ignored altogether: those report no progress.",
     fix: "Remove the fetch-only `init` options from the progress request, or drop `progress` if the request needs them. For a resource, send the download as a request with `progress` and reply actions (`{ url, progress: 'DOWNLOADING', ok: 'LOADED', error: 'FAILED' }`); for a batch, send the parts as separate requests.",
   },
+  SYG637: {
+    title: "refresh on a read another component also declares",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "An action sends `{ refresh: name }` for a resource whose read another component also declares. `refresh` refetches only the sending component's own resources, so the other component keeps showing the old answer until something else refetches it: a header badge stays stale after the page below it refreshes. Nothing fails: the request is sent, the sender updates, and a test of the sender passes. Two reads count as the same when they ask for one literal URL by GET; with a `query`, only when they come from one helper called without arguments. It is reported only when both components are known to sit under a common ancestor and aren't different targets of one Switchable or Outlet, since those are never mounted together.",
+    fix: "Send `{ invalidate: value }` on the HTTP sink instead, with a tag both reads carry or their URL: it refetches every mounted copy. A URL is a prefix, so `'/alerts'` also matches `'/alerts/1'`. If only this component's copy should update, add `// sygnal-ignore SYG637`.",
+  },
   SYG640: {
     title: "Element command target not found",
     severity: "warn",

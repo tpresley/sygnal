@@ -126,6 +126,7 @@ const RANGES = [
   ['SYG609', 'src/Chat.jsx', 3, 'WS'],            // the sink key, not the sink function
   ['SYG612', 'App.jsx', 3, 'App.stateSourceName'],
   ['SYG634', 'App.jsx', 8, 'q'],
+  ['SYG637', 'Page.jsx', 4, "'x'"],
   ['SYG640', 'F.jsx', 5, "'.x'"],
   ['SYG641', 'F.jsx', 5, 'fokus'],
   ['SYG643', 'src/Feed.jsx', 2, 'Feed.connections'],

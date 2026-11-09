@@ -336,6 +336,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG635: 'Caching asked for without a queryCache',
   // PLAN-11 U-1: progress requests (dev entry, fetch.ts)
   SYG636: "progress that can't be reported as asked",
+  // static only (sygnal-check rules/syg637-refresh-shared-read.js)
+  SYG637: 'refresh on a read another component also declares',
   // PLAN-4 GS-2: element commands (reported by the dev entry, checks/elementCommands.ts)
   SYG640: 'Element command target not found',
   SYG641: 'Unknown element command',
@@ -550,6 +552,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG635: 'warn',
   // PLAN-11 U-1 (fetch.ts)
   SYG636: 'warn',
+  SYG637: 'warn',
   // PLAN-4 GS-2 (checks/elementCommands.ts, through the core bridge; renderComponent too)
   SYG640: 'warn',
   SYG641: 'error',
