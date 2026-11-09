@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0
+
+Bundles sygnal-check 0.16.0 (Sygnal 7.4.0). The extension's own code doesn't change.
+
+- New finding: SYG637 (`{ refresh }` on a read another mounted component also declares, which keeps its old answer).
+
 ## 0.12.0
 
 Bundles sygnal-check 0.15.0 (Sygnal 7.3.1). The extension's own code doesn't change.
