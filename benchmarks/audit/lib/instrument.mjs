@@ -24,7 +24,7 @@ const HOOKS = {
     add: 'globalThis.__perf && globalThis.__perf.patches++;',
   },
   streams: {
-    file: /node_modules\/xstream\/index\.js$/,
+    file: /(node_modules\/xstream\/index\.js|dist\/shims\/xstream\.mjs)$/,
     find: 'function Stream(producer) {',
     add: 'globalThis.__perf && globalThis.__perf.streams++;',
   },

@@ -1,8 +1,6 @@
 import xs, {Stream, MemoryStream} from 'xstream';
-import {adapt} from '../run/adapt';
-import {DevToolEnabledSource} from '../run/types';
 import {EventsFnOptions} from './DOMSource';
-import {fromEvent} from './fromEvent';
+import {fromEvent, named} from './fromEvent';
 
 export class BodyDOMSource {
   constructor(private _name: string) {}
@@ -12,18 +10,11 @@ export class BodyDOMSource {
   }
 
   public elements(): MemoryStream<Array<HTMLBodyElement>> {
-    const out: DevToolEnabledSource &
-      MemoryStream<Array<HTMLBodyElement>> = adapt(xs.of([document.body]));
-    out._isCycleSource = this._name;
-    return out;
+    return named(xs.of([document.body]), this._name);
   }
 
   public element(): MemoryStream<HTMLBodyElement> {
-    const out: DevToolEnabledSource & MemoryStream<HTMLBodyElement> = adapt(
-      xs.of(document.body)
-    );
-    out._isCycleSource = this._name;
-    return out;
+    return named(xs.of(document.body), this._name);
   }
 
   public events<K extends keyof HTMLBodyElementEventMap>(
@@ -36,17 +27,6 @@ export class BodyDOMSource {
     options: EventsFnOptions = {},
     bubbles?: boolean
   ): Stream<Event> {
-    let stream: Stream<Event>;
-
-    stream = fromEvent(
-      document.body,
-      eventType,
-      options.useCapture,
-      options.preventDefault
-    );
-
-    const out: DevToolEnabledSource & Stream<Event> = adapt(stream);
-    out._isCycleSource = this._name;
-    return out;
+    return named(fromEvent(document.body, eventType, options.useCapture, options.preventDefault), this._name);
   }
 }

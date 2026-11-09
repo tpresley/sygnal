@@ -6,7 +6,7 @@
 // headless Chromium and compares counts to the limits in benchmarks/audit/gate.json:
 //   DOM patches (select row and update every 10th in a 1k Collection; leaf click 30 deep),
 //   streams per Collection item, setTimeout calls to unmount 1k components, retained
-//   ScopeCheckers after 5x1k mount/unmount (heap snapshot), and the settled heap growth after
+//   streams after 5x1k mount/unmount (heap snapshot), and the settled heap growth after
 //   5x1k Collection create/clear.
 // Counts, not timings: they don't depend on the machine. Exits 1 when a value is above its
 // limit, 2 when the gate can't run (missing dependencies, build or page errors).
@@ -74,12 +74,13 @@ async function measure(s) {
   v['patches.update10thCollection'] = (await counted('table-coll', rows1k, `h.click('#update')`, `h.text('.row .lbl').endsWith('!!!')`)).patches
   v['patches.leaf30deep'] = (await counted('deep', `await h.waitFor(() => h.q('.leaf'))`, `h.click('.leaf .inc')`, `h.text('.leaf .val') === '1'`)).patches
 
-  // One counters page: ScopeCheckers before; mount 1k (streams) and unmount (timers) counted
-  // as cycle 1; four more cycles; ScopeCheckers after.
+  // One counters page: streams before; mount 1k (streams) and unmount (timers) counted
+  // as cycle 1; four more cycles; streams after.
   {
     const { ctx, cdp, run } = await open('counters')
     await run('await h.settle(300)')
-    const before = (await lib.countObjects(cdp, ['ScopeChecker'])).ScopeChecker
+    const streams = async () => { const c = await lib.countObjects(cdp, ['Stream', 'MemoryStream']); return c.Stream + c.MemoryStream }
+    const before = await streams()
     await run(lib.RESET)
     const mount = await run(`h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000); await h.settle(1000); ${lib.READ}`)
     await run(lib.RESET)
@@ -90,7 +91,7 @@ async function measure(s) {
     v['timeouts.unmount1k'] = unmount.timeouts
     for (let i = 1; i < 5; i++) await run(`h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000); h.click('#destroy'); await h.waitFor(() => h.n('.counter') === 0)`)
     await run('await h.settle(1500)')
-    v['retained.scopeCheckers'] = (await lib.countObjects(cdp, ['ScopeChecker'])).ScopeChecker - before
+    v['retained.streams'] = await streams() - before
     await ctx.close()
   }
 

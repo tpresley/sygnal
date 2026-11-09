@@ -36,7 +36,7 @@ It builds `audit/apps/sygnal/{table-coll,counters,deep}` unminified into `audit/
 | DOM patches: leaf click, 30 deep | `deep`: click the leaf's `.inc` |
 | Streams per Collection item | `counters`: xstream streams created while mounting 1,000 counters (+ 1 s), ÷ 1,000, to 0.1 |
 | `setTimeout` calls, unmount 1k | `counters`: calls while unmounting 1,000 counters (+ 1.5 s) |
-| Retained `ScopeChecker`s | `counters`: heap-snapshot count after 5 mount/unmount cycles of 1,000 (+ 1.5 s) minus before |
+| Retained streams | `counters`: heap-snapshot count of `Stream` and `MemoryStream` after 5 mount/unmount cycles of 1,000 (+ 1.5 s) minus before |
 | Heap after 5×1k Collection cycles minus ready | `table-coll`: JS heap after GC, sampled every 750 ms after 5 back-to-back create/clear cycles until two samples agree within 0.1 MB, minus the heap before |
 
 The counts repeat exactly from run to run, except the select-row patch count, which can drop to 1,000 under CPU load (two 1 ms render debounces coalesce; it can't go above 1,001); the heap varies by about 0.01 MB. **Limits only go down**: a PLAN-4.5 workstream that lowers a count lowers its `limit` and `baseline` in `gate.json` in the same merge.

@@ -1,31 +1,14 @@
 import {Scope} from './isolate';
 
-function isValidNode(obj: any): obj is Element {
-  const ELEM_TYPE = 1;
-  const FRAG_TYPE = 11;
-  return typeof HTMLElement === 'object'
-    ? obj instanceof HTMLElement || obj instanceof DocumentFragment
-    : obj &&
-        typeof obj === 'object' &&
-        obj !== null &&
-        (obj.nodeType === ELEM_TYPE || obj.nodeType === FRAG_TYPE) &&
-        typeof obj.nodeName === 'string';
-}
-
 export function isClassOrId(str: string): boolean {
   return str.length > 1 && (str[0] === '.' || str[0] === '#');
 }
 
-export function isDocFrag(
-  el: Element | DocumentFragment
-): el is DocumentFragment {
-  return el.nodeType === 11;
-}
-
+// 1: an element; 11: a DocumentFragment
 export function checkValidContainer(
-  container: Element | DocumentFragment | string
+  container: any
 ): void {
-  if (typeof container !== 'string' && !isValidNode(container)) {
+  if (typeof container !== 'string' && !(container && (container.nodeType === 1 || container.nodeType === 11) && typeof container.nodeName === 'string')) {
     throw new Error(
       'Given container is not a DOM element neither a selector string.'
     );
@@ -35,12 +18,9 @@ export function checkValidContainer(
 export function getValidNode(
   selectors: Element | DocumentFragment | string
 ): Element | DocumentFragment | null {
-  const domElement =
-    typeof selectors === 'string'
-      ? document.querySelector(selectors)
-      : selectors;
-
-  if (typeof selectors === 'string' && domElement === null) {
+  if (typeof selectors !== 'string') return selectors;
+  const domElement = document.querySelector(selectors);
+  if (domElement === null) {
     throw new Error(`Cannot render into unknown element \`${selectors}\``);
   }
   return domElement;
@@ -57,34 +37,30 @@ export function getSelectors(namespace: Array<Scope>): string {
   return res.trim();
 }
 
-export function isEqualNamespace(
-  a: Array<Scope> | undefined,
-  b: Array<Scope> | undefined
-): boolean {
-  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
-    return false;
+/** an element with namespace `ns` is directly in `scopes`: it starts with them, no total scope follows */
+export function inScope(scopes: Array<Scope>, ns: Array<Scope>): boolean {
+  let i = 0;
+  for (; i < scopes.length; i++) {
+    if (!ns[i] || ns[i].type !== scopes[i].type || ns[i].scope !== scopes[i].scope) return false;
   }
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].type !== b[i].type || a[i].scope !== b[i].scope) {
-      return false;
-    }
+  for (; i < ns.length; i++) {
+    if (ns[i].type === 'total') return false;
   }
   return true;
 }
 
-export function makeInsert(
-  map: Map<string, Map<Element, any>>
-): (type: string, elm: Element, value: any) => void {
-  return (type, elm, value) => {
-    if (map.has(type)) {
-      const innerMap = map.get(type)!;
-      innerMap.set(elm, value);
-    } else {
-      const innerMap = new Map<Element, any>();
-      innerMap.set(elm, value);
-      map.set(type, innerMap);
-    }
-  };
+export function isEqualNamespace(
+  a: Array<Scope> | undefined,
+  b: Array<Scope> | undefined
+): boolean {
+  return Array.isArray(a) && Array.isArray(b) && a.length === b.length && inScope(a, b);
+}
+
+/** a scope path's first `max` scopes as a Map key */
+export function scopeKey(ns: Array<Scope>, max = ns.length): string {
+  let key = '';
+  for (let i = 0; i < max; i++) key += '\0' + ns[i].scope;
+  return key;
 }
 
 // G-261: a DOM change Sygnal makes outside a patch (a Transition's leave, a Portal mounted late)

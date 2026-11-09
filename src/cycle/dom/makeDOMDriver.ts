@@ -2,32 +2,11 @@ import {Driver} from '../run/types';
 import {init, Module, Options as SnabbdomOptions, VNode} from './snabbdom';
 import xs, {Stream, Listener} from 'xstream';
 import {MainDOMSource} from './MainDOMSource';
-import {VNodeWrapper} from './VNodeWrapper';
+import {wrapVNode} from './VNodeWrapper';
 import {getValidNode, checkValidContainer, POKE, flat} from './utils';
 import defaultModules from './modules';
 import {IsolateModule} from './IsolateModule';
-import {EventDelegator} from './EventDelegator';
-
-function makeDOMDriverInputGuard(modules: Array<Partial<Module>> | unknown) {
-  if (!Array.isArray(modules)) {
-    throw new Error(
-      `Optional modules option must be an array for snabbdom modules`
-    );
-  }
-}
-
-function domDriverInputGuard(view$: Stream<VNode>): void {
-  if (
-    !view$ ||
-    typeof view$.addListener !== `function` ||
-    typeof view$.fold !== `function`
-  ) {
-    throw new Error(
-      `The DOM driver function expects as input a Stream of ` +
-        `virtual DOM elements`
-    );
-  }
-}
+import {makeEventDelegator} from './EventDelegator';
 
 export interface DOMDriverOptions {
   modules?: Array<Partial<Module>>;
@@ -35,27 +14,18 @@ export interface DOMDriverOptions {
   snabbdomOptions?: SnabbdomOptions;
 }
 
-function unwrapElementFromVNode(vnode: VNode): Element {
-  return vnode.elm as Element;
-}
-
 const ERR = 'data-sygnal-error';
 
 function makeDOMReady$(): Stream<null> {
   return xs.create<null>({
     start(lis: Listener<null>) {
-      if (document.readyState === 'loading') {
-        document.addEventListener('readystatechange', () => {
-          const state = document.readyState;
-          if (state === 'interactive' || state === 'complete') {
-            lis.next(null);
-            lis.complete();
-          }
-        });
-      } else {
+      const ready = () => {
         lis.next(null);
         lis.complete();
-      }
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('readystatechange', () => document.readyState !== 'loading' && ready());
+      } else ready();
     },
     stop() {},
   });
@@ -132,21 +102,22 @@ function makeDOMDriver(
 ): Driver<Stream<VNode>, MainDOMSource> {
   checkValidContainer(container);
   const modules = options.modules || defaultModules;
-  makeDOMDriverInputGuard(modules);
+  if (!Array.isArray(modules)) {
+    throw new Error(`Optional modules option must be an array for snabbdom modules`);
+  }
   const isolateModule = new IsolateModule();
-  const snabbdomOptions = options && options.snabbdomOptions || undefined;
-  const patch = init([isolateModule.createModule() as Partial<Module>].concat(modules), undefined, snabbdomOptions);
+  const patch = init([isolateModule.createModule() as Partial<Module>].concat(modules), undefined, options.snabbdomOptions);
   const domReady$ = makeDOMReady$();
-  let vnodeWrapper: VNodeWrapper;
 
   function DOMDriver(vnode$: Stream<VNode>, name = 'DOM'): MainDOMSource {
-    domDriverInputGuard(vnode$);
+    if (!vnode$ || typeof vnode$.addListener !== `function` || typeof vnode$.fold !== `function`) {
+      throw new Error(`The DOM driver function expects as input a Stream of virtual DOM elements`);
+    }
     const sanitation$ = xs.create<null>();
 
     let r: any;
     const firstRoot$ = domReady$.map(() => {
       const firstRoot = getValidNode(container) || document.body;
-      vnodeWrapper = new VNodeWrapper(firstRoot);
       r = {sel: '', data: {isolate: []}, elm: firstRoot};
       return firstRoot;
     });
@@ -174,7 +145,7 @@ function makeDOMDriver(
           xs.merge(
             xs
               .merge(rememberedVNode$.endWhen(sanitation$), sanitation$.map(() => (end = 1, null)))
-              .map(vnode => vnodeWrapper.call(vnode))
+              .map(vnode => wrapVNode(firstRoot, vnode))
               // the first step gives the root its scope; the second, the app's first patch,
               // adopts the markup in it (G-456). The root keeps its own attributes (G-466)
               .startWith(r)
@@ -198,7 +169,7 @@ function makeDOMDriver(
                 return o
               }, {...r, data: {}})
               .drop(1)
-              .map(unwrapElementFromVNode)
+              .map((v: VNode) => v.elm as Element)
               .startWith(firstRoot as any)
               .map((el: any) => (off(), el.addEventListener(POKE, poke), cur = el)),
             // never completes (nor does the root element). G-285: the listener moves with the
@@ -212,7 +183,7 @@ function makeDOMDriver(
 
     rootElement$.addListener({error: rep});
 
-    const delegator = new EventDelegator(rootElement$, isolateModule);
+    const delegator = makeEventDelegator(rootElement$, isolateModule);
 
     return new MainDOMSource(
       rootElement$,

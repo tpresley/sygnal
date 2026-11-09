@@ -15,38 +15,15 @@ export const upOf = (e: any, c: any): any => {
 export class IsolateModule {
   // G-144: a scope can own several root elements (a fragment-rooted component)
   private namespaceTree = new SymbolTree<Set<Element>, Scope>(x => x.scope);
-  private namespaceByElement: WeakMap<Element, Array<Scope>>;
+  private namespaceByElement = new WeakMap<Element, Array<Scope>>();
   private eventDelegator: EventDelegator | undefined;
 
-  private vnodesBeingRemoved: Array<Element>;
   // Sift #4: the anchors of the Portals mounted from this app (their content is outside its root):
   // the delegator listens on them too, and ElementFinder looks in them
   public portals = new Set<Element>();
 
-  constructor() {
-    this.namespaceByElement = new WeakMap<Element, Array<Scope>>();
-    this.vnodesBeingRemoved = [];
-  }
-
-  public setEventDelegator(del: EventDelegator): void {
+  public setEventDelegator(del: EventDelegator | any): void {
     this.eventDelegator = del;
-  }
-
-  private insertElement(namespace: Array<Scope>, el: Element): void {
-    this.namespaceByElement.set(el, namespace);
-    this.namespaceTree.get(namespace, () => new Set())!.add(el);
-  }
-
-  // the element keeps its scope (a leaving element under a Transition still is the
-  // child's); only the scope's set of root elements forgets it
-  private removeElement(elm: Element): void {
-    const namespace = this.namespaceByElement.get(elm);
-    const els = namespace && this.namespaceTree.get(namespace);
-    if (els) {
-      els.delete(elm);
-      // P45-A: an unmounted scope leaves no node behind
-      if (!els.size) this.namespaceTree.delete(namespace!);
-    }
   }
 
   /** a Portal's anchor mounted (`on`) or removed: the delegator's listeners move with it */
@@ -89,7 +66,22 @@ export class IsolateModule {
   }
 
   public createModule() {
-    const self = this;
+    const insert = (namespace: Array<Scope>, el: Element) => {
+      this.namespaceByElement.set(el, namespace);
+      this.namespaceTree.get(namespace, () => new Set())!.add(el);
+    };
+    // the element keeps its scope (a leaving element under a Transition still is the
+    // child's); only the scope's set of root elements forgets it
+    const forget = (elm: Element) => {
+      const namespace = this.namespaceByElement.get(elm);
+      const els = namespace && this.namespaceTree.get(namespace);
+      if (els) {
+        els.delete(elm);
+        // P45-A: an unmounted scope leaves no node behind
+        if (!els.size) this.namespaceTree.delete(namespace!);
+      }
+    };
+    const removed: Array<Element> = [];
     // G-564, G-750, G-753: a vnode can be in the old tree and the new one (a component's cached
     // vnode, a Collection item's copy, a hoisted vnode). Under another parent element (a recreated
     // ancestor: `alt ? <ol>{c}</ol> : <ul>{c}</ul>`; a keyed instance moved to another column, or
@@ -112,28 +104,20 @@ export class IsolateModule {
       },
 
       create(emptyVNode: VNode, vNode: VNode) {
-        const {elm, data = {}, children} = vNode;
-        const namespace: Array<Scope> = (data as any).isolate;
+        const {elm, data, children} = vNode;
+        const namespace: Array<Scope> = (data as any)?.isolate;
 
-        if (Array.isArray(namespace)) {
-          self.insertElement(namespace, elm as Element);
-        }
+        if (Array.isArray(namespace)) insert(namespace, elm as Element);
         children?.forEach((c: any, i: number) => c?.elm && copy(children, i));
       },
 
       update(oldVNode: VNode, vNode: VNode) {
-        const {elm: oldElm, data: oldData = {}} = oldVNode;
-        const {elm, data = {}} = vNode;
-        const oldNamespace: Array<Scope> = (oldData as any).isolate;
-        const namespace: Array<Scope> = (data as any).isolate;
+        const oldNamespace: Array<Scope> = (oldVNode.data as any)?.isolate;
+        const namespace: Array<Scope> = (vNode.data as any)?.isolate;
 
-        if (!isEqualNamespace(oldNamespace, namespace)) {
-          if (Array.isArray(oldNamespace)) {
-            self.removeElement(oldElm as Element);
-          }
-        }
-        if (Array.isArray(namespace)) {
-          self.insertElement(namespace, elm as Element);
+        if (oldNamespace !== namespace) {
+          if (Array.isArray(oldNamespace) && !isEqualNamespace(oldNamespace, namespace)) forget(oldVNode.elm as Element);
+          if (Array.isArray(namespace)) insert(namespace, vNode.elm as Element);
         }
         // (oldVNode !== vNode here: snabbdom returns early for the same vnode; the Set only when a
         // child isn't at its old index)
@@ -143,24 +127,24 @@ export class IsolateModule {
       },
 
       destroy(vNode: VNode) {
-        self.vnodesBeingRemoved.push(vNode.elm as Element);
+        removed.push(vNode.elm as Element);
       },
 
       remove(vNode: VNode, cb: Function) {
-        self.vnodesBeingRemoved.push(vNode.elm as Element);
+        removed.push(vNode.elm as Element);
         cb();
       },
 
-      post() {
+      post: () => {
         for (let i = 0; i < R.length; i += 3) R[i][R[i + 1]] = Object.assign(R[i + 2], R[i][R[i + 1]]);
         R.length = 0;
         // G-144: a removed root element is no longer one of its scope's roots (an element no
         // scope has as a root isn't in any set: removing it does nothing)
-        for (const elm of self.vnodesBeingRemoved) {
-          self.removeElement(elm);
-          (self.eventDelegator as EventDelegator).removeElement(elm);
+        for (const elm of removed) {
+          forget(elm);
+          this.eventDelegator!.removeElement(elm);
         }
-        self.vnodesBeingRemoved = [];
+        removed.length = 0;
       },
     };
   }

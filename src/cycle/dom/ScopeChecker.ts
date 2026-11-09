@@ -1,7 +1,8 @@
 import {IsolateModule} from './IsolateModule';
 import {Scope} from './isolate';
-import {isEqualNamespace} from './utils';
+import {inScope} from './utils';
 
+// (the dev diagnostics' scope test: SYG104; the delegator has the scopes of the element it walks)
 export class ScopeChecker {
   public readonly _namespace: Array<Scope>;
   constructor(
@@ -13,24 +14,6 @@ export class ScopeChecker {
 
   public isDirectlyInScope(leaf: Element): boolean {
     const namespace = this.isolateModule.getNamespace(leaf);
-    if (!namespace) {
-      return false;
-    }
-
-    if (
-      this._namespace.length > namespace.length ||
-      !isEqualNamespace(
-        this._namespace,
-        namespace.slice(0, this._namespace.length)
-      )
-    ) {
-      return false;
-    }
-    for (let i = this._namespace.length; i < namespace.length; i++) {
-      if (namespace[i].type === 'total') {
-        return false;
-      }
-    }
-    return true;
+    return !!namespace && inScope(this._namespace, namespace);
   }
 }

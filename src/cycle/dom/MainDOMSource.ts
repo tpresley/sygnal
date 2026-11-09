@@ -1,16 +1,14 @@
-import xs from 'xstream';
 import {Stream, MemoryStream} from 'xstream';
-import {DevToolEnabledSource} from '../run/types';
-import {adapt} from '../run/adapt';
 import {DOMSource, EventsFnOptions} from './DOMSource';
 import {DocumentDOMSource} from './DocumentDOMSource';
 import {BodyDOMSource} from './BodyDOMSource';
 import {VNode} from './snabbdom';
 import {enrichEventStream, EnrichedEventStream} from './enrichEventStream';
-import {ElementFinder} from './ElementFinder';
+import {findElements} from './ElementFinder';
 import {makeIsolateSink, makeIsolateValue, getScopeObj, Scope, IsolateSink} from './isolate';
 import {IsolateModule} from './IsolateModule';
 import {EventDelegator} from './EventDelegator';
+import {named} from './fromEvent';
 // [diagnostics hook] no-op when diagnostics are off
 import {onSelector} from '../../extra/diagnostics/index';
 
@@ -32,13 +30,16 @@ export class MainDOMSource {
 
   // (methods and lazily made functions, not closures per source: one source per instance)
   public isolateSource(source: MainDOMSource, scope: string): MainDOMSource {
+    return source._at(source._namespace.concat(getScopeObj(scope)));
+  }
+  private _at(namespace: Array<Scope>): MainDOMSource {
     return new MainDOMSource(
-      source._rootElement$,
-      source._sanitation$,
-      source._namespace.concat(getScopeObj(scope)),
-      source._isolateModule,
-      source._eventDelegator,
-      source._name
+      this._rootElement$,
+      this._sanitation$,
+      namespace,
+      this._isolateModule,
+      this._eventDelegator,
+      this._name
     );
   }
   private _is?: IsolateSink<VNode>;
@@ -47,34 +48,17 @@ export class MainDOMSource {
   get isolateValue(): (node: any, scope: string, memo?: any) => any { return this._iv ||= makeIsolateValue(this._namespace) }
 
   private _elements(): Stream<Array<Element>> {
-    if (this._namespace.length === 0) {
-      return this._rootElement$.map(x => [x]);
-    } else {
-      const elementFinder = new ElementFinder(
-        this._namespace,
-        this._isolateModule
-      );
-      return this._rootElement$.map(() => elementFinder.call());
-    }
+    return this._namespace.length === 0
+      ? this._rootElement$.map(x => [x])
+      : this._rootElement$.map(() => findElements(this._namespace, this._isolateModule));
   }
 
   public elements(): MemoryStream<Array<Element>> {
-    const out: DevToolEnabledSource & MemoryStream<Array<Element>> = adapt(
-      this._elements().remember()
-    );
-    out._isCycleSource = this._name;
-    return out;
+    return named(this._elements().remember(), this._name);
   }
 
   public element(): MemoryStream<Element> {
-    const out: DevToolEnabledSource & MemoryStream<Element> = adapt(
-      this._elements()
-        .filter(arr => arr.length > 0)
-        .map(arr => arr[0])
-        .remember()
-    );
-    out._isCycleSource = this._name;
-    return out;
+    return named(this._elements().filter(arr => arr.length > 0).map(arr => arr[0]).remember(), this._name);
   }
 
   get namespace(): Array<Scope> {
@@ -103,19 +87,7 @@ export class MainDOMSource {
 
     if (selector !== ':root') onSelector(this, selector.trim());
 
-    const namespace =
-      selector === ':root'
-        ? []
-        : this._namespace.concat({type: 'selector', scope: selector.trim()});
-
-    return new MainDOMSource(
-      this._rootElement$,
-      this._sanitation$,
-      namespace,
-      this._isolateModule,
-      this._eventDelegator,
-      this._name
-    ) as DOMSource;
+    return this._at(selector === ':root' ? [] : this._namespace.concat({type: 'selector', scope: selector.trim()})) as DOMSource;
   }
 
   public events<K extends keyof HTMLElementEventMap>(
@@ -137,16 +109,7 @@ export class MainDOMSource {
           `string representing the event type to listen for.`
       );
     }
-    const event$: Stream<Event> = this._eventDelegator.addEventListener(
-      eventType,
-      this._namespace,
-      options,
-      bubbles
-    );
-
-    const out: DevToolEnabledSource & EnrichedEventStream<Event> = enrichEventStream(adapt(event$));
-    out._isCycleSource = this._name;
-    return out as EnrichedEventStream<Event>;
+    return named(enrichEventStream(this._eventDelegator.addEventListener(eventType, this._namespace, options, bubbles)), this._name);
   }
 
   public dispose(): void {

@@ -46,7 +46,7 @@ describe('G-290: SymbolTree.delete', () => {
     expect(nodes(t)).toBe(1)
   })
 
-  it('deleting a path that does not exist, twice, or with max changes nothing else', () => {
+  it('deleting a path that does not exist, or twice, changes nothing else', () => {
     const t = tree()
     t.get(['x', 'y'], () => 1)
     t.get(['x', 'z'], () => 2)
@@ -56,7 +56,7 @@ describe('G-290: SymbolTree.delete', () => {
     t.delete(['x', 'y'])
     t.delete(['x', 'y'])
     expect(t.get(['x', 'z'])).toBe(2)
-    t.delete(['x', 'z', 'deeper'], 2) // max: only the first two segments
+    t.delete(['x', 'z'])
     expect(t.get(['x', 'z'])).toBe(undefined)
     expect(nodes(t)).toBe(1)
     // re-adding after a prune works and the count starts over
@@ -66,9 +66,9 @@ describe('G-290: SymbolTree.delete', () => {
     expect(nodes(t)).toBe(1)
   })
 
-  it('get with max creates intermediate nodes that later deletes prune', () => {
+  it('get creates intermediate nodes that later deletes prune', () => {
     const t = tree()
-    t.get(['a', 'b', 'c'], () => 'AB', 2)
+    t.get(['a', 'b'], () => 'AB')
     expect(t.get(['a', 'b'])).toBe('AB')
     t.delete(['a', 'b'])
     expect(nodes(t)).toBe(1)

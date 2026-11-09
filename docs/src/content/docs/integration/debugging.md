@@ -64,6 +64,8 @@ In the browser, set `window.SYGNAL_DEBUG = 'true'` (the DevTools extension can t
 SYGNAL_DEBUG=true node server.js
 ```
 
+In a `vite build` of client code, `sygnal/vite` removes this logging, for `Component.debug` too. `sygnal({ productionMessages: 'full' })` keeps it in a production build.
+
 ## Debug Output
 
 When enabled, Sygnal logs:

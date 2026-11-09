@@ -13,11 +13,10 @@ export default class SymbolTree<Payload, T> {
 
   public get(
     path: Array<T>,
-    mkDefaultElement?: () => Payload,
-    max = path.length
+    mkDefaultElement?: () => Payload
   ): Payload | undefined {
     let curr = this.tree;
-    for (let i = 0; i < max; i++) {
+    for (let i = 0; i < path.length; i++) {
       const n = this.mapper(path[i]);
       if (!curr[1][n]) {
         if (!mkDefaultElement) return undefined;
@@ -33,10 +32,10 @@ export default class SymbolTree<Payload, T> {
   }
 
   // P45-A: drop the payload at path and prune the nodes left empty; true when node is empty
-  public delete(path: Array<T>, max = path.length, node = this.tree, i = 0): boolean {
-    if (i < max) {
+  public delete(path: Array<T>, node = this.tree, i = 0): boolean {
+    if (i < path.length) {
       const k = this.mapper(path[i]), child = node[1][k];
-      if (child && this.delete(path, max, child, i + 1)) delete node[1][k], node[2]--;
+      if (child && this.delete(path, child, i + 1)) delete node[1][k], node[2]--;
     } else node[0] = undefined;
     return !node[0] && !node[2];
   }

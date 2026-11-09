@@ -172,6 +172,7 @@
       "import": "./dist/sandbox-kernel.esm.js"
     },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
+    "./shims/xstream": "./dist/shims/xstream.mjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
       "import": "./dist/vite/plugin.mjs",

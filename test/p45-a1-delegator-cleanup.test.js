@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // PLAN-4.5 P45-A item 1 (audit finding 4, rec 3): the EventDelegator forgets a listener when its
 // stream stops. Before, `DOM.select(x).events(type)` put a destination (with its ScopeChecker) in
-// the delegator's per-scope priority queue and nothing ever took it out, so every unmounted
+// the delegator's per-scope queue and nothing ever took it out, so every unmounted
 // component left its listeners behind (5,000 ScopeCheckers after 5×1k mount/unmount cycles).
 // Streams on the same scope, selector and type are independent (each has its own destination;
 // xstream counts a stream's own listeners), and the non-bubbling listeners (G-204 list), which
@@ -19,20 +19,13 @@ afterEach(() => { if (t) t.dispose(); t = null; _resetDiagnostics(); document.bo
 // xstream stops a stream on a timer after its last listener leaves; Sygnal disposes on the next tick
 const stopped = () => new Promise(r => setTimeout(r, 30))
 
-// what the delegator holds: its scope tree (nodes), the destinations in it and their distinct
-// ScopeCheckers, and the non-bubbling bookkeeping
+// what the delegator holds: its queues, the destinations in them, and the non-bubbling bookkeeping
 function held(del) {
-  const checkers = new Set()
-  let nodes = 0, queues = 0, dests = 0
-  const walk = ([payload, kids]) => {
-    nodes++
-    if (payload) payload.forEach(q => { queues++; q.forEach(d => { dests++; checkers.add(d.scopeChecker) }) })
-    for (const k in kids) walk(kids[k])
-  }
-  walk(del.virtualListeners.tree)
+  let dests = 0
+  del.queues.forEach(q => { dests += q.length })
   let nbElements = 0
-  del.nonBubblingListeners.forEach(m => { nbElements += m.size })
-  return { nodes, queues, dests, checkers: checkers.size, nbRecords: del.nonBubblingListenersToAdd.size, nbElements }
+  del.elementListeners.forEach(m => { nbElements += m.size })
+  return { queues: del.queues.size, dests, nbRecords: del.records.size, nbElements }
 }
 
 // the isolate module's scope tree (the root elements of each scope)
@@ -87,7 +80,7 @@ describe('P45-A: the delegator forgets listeners of stopped streams', () => {
       t.simulateAction('FILL'); await t.settle()
       expect(t.queryAll('.row').length).toBe(20)
       // 20 rows × 4 streams are live
-      expect(held(del).checkers).toBeGreaterThanOrEqual(empty.checkers + 80)
+      expect(held(del).dests).toBeGreaterThanOrEqual(empty.dests + 80)
       // events still arrive while the rows live
       t.query('.pick').click(); await t.settle()
       expect(t.state.rows[0].picks).toBe(1)

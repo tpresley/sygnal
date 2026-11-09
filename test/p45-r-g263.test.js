@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-// P45-R G-263 (supersedes G-253): non-bubbling event records (one per type + scope, shared by the
-// streams on it).
+// P45-R G-263 (supersedes G-253): non-bubbling event records (one per started stream).
 // - A record was added when the stream was made, so `events('focus')` never subscribed kept its
-//   record (and its ElementFinder) forever. It is added when the first stream starts now.
-// - A stream that restarted after its record was removed re-added that stale record although a
-//   newer one existed for the same type and scope, so the streams of one of them got no events.
-//   A start looks the live record up again.
+//   record forever. It is added when the stream starts now.
+// - A stream that restarted after its record was removed got no events while another stream had
+//   a record for the same type and scope.
 import { describe, it, expect, afterEach } from 'vitest'
 import xs from 'xstream'
 import { makeDOMDriver } from '../src/cycle/dom/index.js'
@@ -31,10 +29,10 @@ describe('P45-R G-263: non-bubbling records', () => {
     const { DOM, del } = setup()
     await tick()
     for (let i = 0; i < 5; i++) DOM.select('.inp').events('focus')
-    expect(del.nonBubblingListenersToAdd.size).toBe(0)
+    expect(del.records.size).toBe(0)
   })
 
-  it('a stream restarted after its record was removed shares the live record and gets events', async () => {
+  it('a stream restarted after its record was removed gets events', async () => {
     const { DOM, del } = setup()
     await tick()
     const a$ = DOM.select('.inp').events('focus')
@@ -44,14 +42,14 @@ describe('P45-R G-263: non-bubbling records', () => {
     offA()
     await tick() // a$ stopped: its record is removed
     const b$ = DOM.select('.inp').events('focus')
-    const offB = on(b$, b) // a new record for the same type and scope
+    const offB = on(b$, b) // a record for the same type and scope
     offA = on(a$, a) // a$ restarts
     await tick()
-    expect(del.nonBubblingListenersToAdd.size).toBe(1)
+    expect(del.records.size).toBe(2) // one per started stream
     focus()
     expect([a.length, b.length]).toEqual([1, 1])
     offA(); offB()
     await tick()
-    expect(del.nonBubblingListenersToAdd.size).toBe(0)
+    expect(del.records.size).toBe(0)
   })
 })
