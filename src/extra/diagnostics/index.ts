@@ -137,7 +137,7 @@
  * emit drops it — keeps it out of the published bundle and the size gate.)
  */
 import type { DiagnosticSeverity } from './codes'
-import { CODE_SEVERITY, docsUrlFor } from './codes'
+import { docsUrlFor } from './codes'
 
 
 export type DiagnosticsMode = 'off' | 'collect' | 'warn' | 'error'
@@ -239,7 +239,8 @@ export function formatDiagnostic(code: string, details: DiagnosticDetails): stri
 
 export function report(code: string, details: DiagnosticDetails): Diagnostic | undefined {
   if (!enabled || ignored.has(code)) return
-  const severity = details.severity || CODE_SEVERITY[code] || 'warn'
+  // (the table comes from the dev entry, see registerCodes; SYG103: renderComponent's own report)
+  const severity: DiagnosticSeverity = details.severity || (globalThis as any).__SYGNAL_CODE_SEVERITY__?.[code] || (code === 'SYG103' ? 'info' : 'warn')
   const d: Diagnostic = {
     code,
     severity,
