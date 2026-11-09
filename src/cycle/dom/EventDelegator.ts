@@ -56,7 +56,12 @@ const listen = (el: Element, type: string, passive: boolean, f: (e: any) => void
 };
 
 const setCurrentTarget = (event: CycleDOMEvent, el: Element) => {
-  Object.defineProperty(event, `currentTarget`, {value: el, configurable: true});
+  try {
+    Object.defineProperty(event, `currentTarget`, {value: el, configurable: true});
+  } catch (err) {
+    // Some browsers don't allow redefining currentTarget.
+    // event.ownerTarget is always set as a reliable alternative.
+  }
   event.ownerTarget = el;
 };
 
