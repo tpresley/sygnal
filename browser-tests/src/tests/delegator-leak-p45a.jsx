@@ -7,15 +7,9 @@ import { mount, assert, runTest, wait, waitFor } from '../harness.js'
 const CAT = 'Delegator cleanup (P45-A)'
 
 function held(del) {
-  const checkers = new Set()
-  let nodes = 0
-  const walk = ([payload, kids]) => {
-    nodes++
-    if (payload) payload.forEach(q => q.forEach(d => checkers.add(d.scopeChecker)))
-    for (const k in kids) walk(kids[k])
-  }
-  walk(del.virtualListeners.tree)
-  return { nodes, checkers: checkers.size, nb: del.nonBubblingListenersToAdd.size }
+  let dests = 0
+  del.queues.forEach(q => { dests += q.length })
+  return { queues: del.queues.size, dests, nb: del.records.size }
 }
 
 let dom
@@ -64,7 +58,7 @@ export async function delegatorLeakTestsP45A() {
       for (let i = 0; i < 5; i++) {
         el.querySelector('.fill').click()
         await waitFor(() => el.querySelectorAll('.row').length === 200)
-        assert(held(del).checkers >= empty.checkers + 400, `rows listen: ${JSON.stringify(held(del))}`)
+        assert(held(del).dests >= empty.dests + 400, `rows listen: ${JSON.stringify(held(del))}`)
         el.querySelector('.clear').click()
         await waitFor(() => el.querySelectorAll('.row').length === 0)
         await wait(50)

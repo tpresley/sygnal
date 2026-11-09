@@ -1,82 +1,38 @@
 import {h, VNode, vnode as vnodeFn} from './snabbdom';
-import {isDocFrag} from './utils';
 
-function selectorParser(node: VNode) {
-  if (!node.sel) {
-    return { tagName: '', id: '', className: '' };
-  }
-  const sel = node.sel as string;
+function selectorParser(sel: string) {
   const hashIdx = sel.indexOf('#');
   const dotIdx = sel.indexOf('.', hashIdx);
   const hash = hashIdx > 0 ? hashIdx : sel.length;
   const dot = dotIdx > 0 ? dotIdx : sel.length;
-  const tagName = hashIdx !== -1 || dotIdx !== -1
-    ? sel.slice(0, Math.min(hash, dot))
-    : sel;
-  const id = hash < dot ? sel.slice(hash + 1, dot) : void 0;
-  const className = dotIdx > 0 ? sel.slice(dot + 1).replace(/\./g, ' ') : void 0;
-  return { tagName, id, className };
+  return {
+    tagName: hashIdx !== -1 || dotIdx !== -1 ? sel.slice(0, Math.min(hash, dot)) : sel,
+    id: hash < dot ? sel.slice(hash + 1, dot) : void 0,
+    className: dotIdx > 0 ? sel.slice(dot + 1).replace(/\./g, ' ') : '',
+  };
 }
 
-function classNameFromVNode(vNode: VNode): string {
-  let { className: cn = '' } = selectorParser(vNode);
-  if (!vNode.data) return cn;
-  const { class: dataClass, props } = vNode.data;
-  if (dataClass) {
-    const c = Object.keys(dataClass).filter((cl: string) => dataClass[cl]);
-    cn += ` ${c.join(` `)}`;
+/** the root vnode of a patch: the view's own when it is the mount point, else the mount point around it */
+export function wrapVNode(root: any, vnode: VNode | null): VNode {
+  const children = vnode === null ? [] : [vnode];
+  if (root.nodeType === 11) return vnodeFn('', {isolate: []}, children, undefined, root);
+  if (vnode !== null) {
+    const {tagName, id, className} = selectorParser(vnode.sel || ''), data = vnode.data || {}, props = data.props || {};
+    let c = className;
+    if (data.class) c += ' ' + Object.keys(data.class).filter(k => data.class![k]).join(' ');
+    if (props.className) c += ' ' + props.className;
+    const {id: vnodeId = id} = props;
+    if (
+      typeof vnodeId === 'string' &&
+      vnodeId.toUpperCase() === root.id.toUpperCase() &&
+      tagName.toUpperCase() === root.tagName.toUpperCase() &&
+      c.trim().toUpperCase() === root.className.toUpperCase()
+    ) return vnode;
   }
-  if (props && props.className) {
-    cn += ` ${props.className}`;
-  }
-  return cn && cn.trim();
-}
-
-export class VNodeWrapper {
-  constructor(public rootElement: Element | DocumentFragment) {}
-
-  public call(vnode: VNode | null): VNode {
-    if (isDocFrag(this.rootElement)) {
-      return this.wrapDocFrag(vnode === null ? [] : [vnode]);
-    }
-    if (vnode === null) {
-      return this.wrap([]);
-    }
-    const {tagName: selTagName, id: selId} = selectorParser(vnode);
-    const vNodeClassName = classNameFromVNode(vnode);
-    const vNodeData = vnode.data || {};
-    const vNodeDataProps = vNodeData.props || {};
-    const {id: vNodeId = selId} = vNodeDataProps;
-
-    const isVNodeAndRootElementIdentical =
-      typeof vNodeId === 'string' &&
-      vNodeId.toUpperCase() === this.rootElement.id.toUpperCase() &&
-      selTagName.toUpperCase() === this.rootElement.tagName.toUpperCase() &&
-      vNodeClassName.toUpperCase() === this.rootElement.className.toUpperCase();
-
-    if (isVNodeAndRootElementIdentical) {
-      return vnode;
-    }
-
-    return this.wrap([vnode]);
-  }
-
-  private wrapDocFrag(children: Array<VNode>) {
-    return vnodeFn('', {isolate: []}, children, undefined, this
-      .rootElement as any);
-  }
-
-  private wrap(children: Array<VNode>) {
-    const {tagName, id, className} = this.rootElement as Element;
-    const selId = id ? `#${id}` : '';
-    const selClass = className ? `.${className.split(` `).join(`.`)}` : '';
-    const vnode = h(
-      `${tagName.toLowerCase()}${selId}${selClass}`,
-      {},
-      children
-    );
-    vnode.data = vnode.data || {};
-    (vnode.data as any).isolate = (vnode.data as any).isolate || [];
-    return vnode;
-  }
+  const {id, className} = root;
+  return h(
+    root.tagName.toLowerCase() + (id ? '#' + id : '') + (className ? '.' + className.split(' ').join('.') : ''),
+    {isolate: []} as any,
+    children
+  );
 }
