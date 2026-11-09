@@ -280,12 +280,9 @@ export const createElementWithModules = (modules: Record<string, any>) => {
   const ca = (sel: any, data: any, children: any[], k?: any): any => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
-      // Through the diagnostics bridge (G-044: collected like the other codes), or, with
-      // diagnostics not loaded, the same pre-formatted text.
-      const msg = 'A JSX tag is undefined, so <UNDEFINED> is rendered instead', fix = 'Import or define the component in this file'
-      const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__
-      if (core && core.error) core.error('SYG420', 'JSX', msg, fix)
-      else console.error(`[Sygnal SYG420] JSX: ${msg}. ${fix}. https://sygnal.js.org/reference/errors#syg420`)
+      // Through the diagnostics bridge (G-044: collected like the other codes; legacy.ts, in this
+      // same bundle, publishes it and prints the coded text when diagnostics are off)
+      ;(globalThis as any).__SYGNAL_DIAGNOSTICS__?.error?.('SYG420', 'JSX', 'A JSX tag is undefined, so <UNDEFINED> is rendered instead', 'Import or define the component in this file')
     }
     // CT-1: a control (src/extra/controls.ts) renders its element itself and stamps its marker.
     // It gets this createElement (the JSX runtime entries use the core's, D188).
