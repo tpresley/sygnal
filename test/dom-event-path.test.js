@@ -53,6 +53,16 @@ describe('the event path', () => {
     expect(stopped[0].currentTarget.className).toBe('btn')
   })
 
+  it('the top of the walk gets the bubbling phase only', async () => {
+    const { DOM } = await setup()
+    const log = []
+    on(DOM.select(':root').events('click'), e => log.push('bubble ' + e.currentTarget.id))
+    on(DOM.select(':root').events('click', { useCapture: true }), e => log.push('capture ' + e.currentTarget.id))
+    await tick()
+    document.querySelector('.outer').click()
+    expect(log).toEqual(['bubble app'])
+  })
+
   it('a non-bubbling event is delivered at its element, in both phases, and stops there', async () => {
     const { kid } = await setup()
     const log = []

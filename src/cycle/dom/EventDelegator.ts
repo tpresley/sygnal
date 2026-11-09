@@ -168,7 +168,8 @@ export function makeEventDelegator(root$: Stream<Element>, iso: IsolateModule) {
       // element it was moved into (G-381: upOf counts the homes on the event)
       const up: Element = upOf(elm, event);
       if (elm === r) {
-        if (i < 0 || !up) break;
+        // (the top of the walk gets the bubbling phase only, as it always has)
+        if (i < 0 || !up) { (path as any).top = 1; break; }
         // the parent scope's root that contains elm (G-144: it may have several)
         r = iso.getRootElement(up);
         if (r) n = iso.getNamespace(r)!;
@@ -206,7 +207,7 @@ export function makeEventDelegator(root$: Stream<Element>, iso: IsolateModule) {
       const path = !ns ? []
         : bubbles ? pathOf(type, e, target, root!, ns)
         : [target, root, elementListeners.get(type)?.get(target)?.dests.slice() || NONE, ns];
-      for (let i = path.length - 4; i >= 0; i -= 4) run(e, path[i], path[i + 1], path[i + 3], path[i + 2], true);
+      for (let i = path.length - ((path as any).top ? 8 : 4); i >= 0; i -= 4) run(e, path[i], path[i + 1], path[i + 3], path[i + 2], true);
       for (let i = 0; i < path.length; i += 4) run(e, path[i], path[i + 1], path[i + 3], path[i + 2], false);
       // as if the event stopped at each element on its way: it reads the last one it reached
       if (path.length && !e.propagationHasBeenStopped) setCurrentTarget(e, path[path.length - 4]);
