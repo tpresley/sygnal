@@ -1,44 +1,16 @@
 # Sygnal
 
-A reactive component framework with pure functions, zero side effects, and automatic state management.
+**A reactive JSX framework where every change in your app has a name, a cause, and one place to read it.**
 
 [![npm version](https://img.shields.io/npm/v/sygnal.svg?style=flat-square)](https://www.npmjs.com/package/sygnal)
 [![npm downloads](https://img.shields.io/npm/dm/sygnal.svg?style=flat-square)](https://www.npmjs.com/package/sygnal)
 [![license](https://img.shields.io/npm/l/sygnal.svg?style=flat-square)](https://github.com/tpresley/sygnal/blob/main/LICENSE)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/sygnal?style=flat-square&label=bundle%20size)](https://pkg-size.dev/sygnal)
 
----
+Sygnal components are plain functions. There are no hooks, no handlers in your markup and no store to wire up. What happens, and when, is declared right beside the view as data.
 
-> **Upgrading from 6.x?** Sygnal 7.0 changes reducer timing: output sinks (EFFECT, EVENTS, PARENT, HTTP, ...) now see the state after the action's STATE update. See [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/).
+It's a small, slightly unusual way to write front-end code, with a payoff that keeps growing: your app stays readable, by you, by your tools and by your coding agents, however big it gets and whoever wrote it.
 
-## Why Sygnal?
-
-- **Pure components** — Views are plain functions. All side effects are handled by drivers, outside your code.
-- **Automatic state management** — Monolithic state tree with no store setup, no providers, no hooks. Trivial undo/redo and time-travel debugging.
-- **Model-View-Intent** — Cleanly separate *what* happens (Model), *when* it happens (Intent), and *how* it looks (View).
-- **Tiny footprint** — Two runtime dependencies: [snabbdom](https://github.com/snabbdom/snabbdom) and [xstream](https://github.com/staltz/xstream).
-
-## Quick Start
-
-**Scaffold a new project:**
-
-```bash
-npm create sygnal-app my-app
-cd my-app
-npm run dev
-```
-
-Choose from Vite (SPA), Vite + PWA, Vike (SSR), or Astro templates in JavaScript or TypeScript. Without prompts (scripts, CI, coding agents): `npm create sygnal-app@latest my-app -- --template vite --js --install`.
-
-**Or add to an existing project:**
-
-```bash
-npm install sygnal
-```
-
-## A Sygnal Component
-
-A component is a function (the **view**) with static properties that define **when** things happen (`.intent`) and **what** happens (`.model`):
+## A whole component
 
 ```jsx
 function Counter({ state }) {
@@ -46,7 +18,7 @@ function Counter({ state }) {
     <div>
       <h1>Count: {state.count}</h1>
       <button className="increment">+</button>
-      <button className="decrement">-</button>
+      <button className="reset">Reset</button>
     </div>
   )
 }
@@ -54,480 +26,212 @@ function Counter({ state }) {
 Counter.initialState = { count: 0 }
 
 Counter.intent = ({ DOM }) => ({
-  INCREMENT: DOM.select('.increment').events('click'),
-  DECREMENT: DOM.select('.decrement').events('click'),
+  INCREMENT: DOM.click('.increment'),
+  RESET: DOM.click('.reset'),
 })
 
 Counter.model = {
   INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
-  DECREMENT: (state) => ({ ...state, count: state.count - 1 }),
+  RESET: (state) => ({ ...state, count: 0 }),
 }
 ```
 
-Start it:
+That's all of it. Call `run(Counter)` and it's live.
 
-```javascript
-import { run } from 'sygnal'
-import Counter from './Counter.jsx'
+Look at what the view doesn't have: there isn't a single click handler in it. Each part of the component does one job.
 
-run(Counter)
+- **The view** says what the screen looks like, as a function of state.
+- **`intent`** says *when* things happen, turning raw events into named actions.
+- **`model`** says *what changes* when they do, one plain function per action.
+
+This is Model-View-Intent, the pattern Sygnal inherits from [Cycle.js](https://cycle.js.org/). It can feel odd for the first few minutes. Then you notice that you always know where to look.
+
+Side effects follow the same idea. An action describes what should happen, and a driver does it:
+
+```jsx
+Quote.model = {
+  LOAD:   { HTTP: (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }) },
+  LOADED: (state, quote) => ({ ...state, quote }),
+  FAILED: (state, { status }) => ({ ...state, error: status }),
+}
 ```
 
-No store setup, no providers, no hooks — just a function and some properties.
+There's no `fetch` in the component, no flag to guard against stale responses, and no cleanup function. The reply simply arrives as another named action.
 
-## Built for Agents
+**Try it:**
 
-Sygnal includes tooling so that coding agents (and people) can write and debug Sygnal code without guessing:
+```bash
+npm create sygnal-app my-app
+```
 
-- **[`llms.txt`](https://sygnal.js.org/llms.txt)**: one compact reference of the API in its canonical forms, written for language models.
-- **Diagnostics**: silent wiring mistakes (a selector that matches nothing, an action with no model entry, an EVENTS type nobody selects) are reported as coded messages, such as `[Sygnal SYG104]`, with a fix and a link to the [error reference](https://sygnal.js.org/reference/errors/). They're on automatically in the Vite dev server and in tests, and add nothing to production bundles.
-- **[`sygnal-check`](./sygnal-check)**: a static checker for the same mistakes, with a strict mode for the canonical forms, `--fix`, an app graph (`--graph`) and `explain <code>`.
-- **MCP server**: `sygnal-check mcp` exposes `check`, `graph` and `explain` as tools (`claude mcp add sygnal-check -- npx --no-install sygnal-check mcp`).
-- **`inspect()`**: a machine-readable graph of the running app, in the browser or from `renderComponent()` in a test.
+Or [play with it in your browser](https://sygnal.js.org/try-it/), no install needed.
 
-The repository also contains an evaluation harness ([`evals/agent-ergonomics`](./evals/agent-ergonomics)) that runs coding agents on the same tasks in a Sygnal app and an equivalent React app, scores each run with hidden acceptance tests, and records time and iteration counts. The baseline results, from before this tooling existed, are in [`results/BASELINE.md`](./evals/agent-ergonomics/results/BASELINE.md).
+## Why this matters now
 
-See [Building with AI Agents](https://sygnal.js.org/integration/agents/).
+More of the code in our apps is being written by agents, and that changes what we need from a framework. Producing code keeps getting easier. Knowing what it does is still the job, and if you love this craft, it's the part worth holding on to.
 
-## Features
+In most front-end code, the answers live inside closures: what this click does, who reads this state, when this effect runs. You find out by reading everything or by running it. In Sygnal, those answers are declarations, which means you can read them directly, and so can a machine.
 
-### Collections
+## See your whole app at once
 
-Render dynamic lists with built-in filtering and sorting:
+`sygnal-check` reads your source, without running it, and maps what every component does:
+
+```text
+$ npx sygnal-check --graph
+
+LaneComponent  src/LaneComponent.jsx:4  collection-item
+  actions   ADD_TASK (intent → STATE writes isAddingTask, tasks), DELETE_LANE (intent → EVENTS), …
+  reads     id, isEditing, titleDraft, title, isFirst, isLast, isAddingTask, tasks
+  events    emits DELETE_LANE, MOVE_LANE_LEFT, MOVE_LANE_RIGHT
+  children  TaskCard (collection from 'tasks')
+  parent    from TaskCard → DELETE_TASK
+```
+
+Every action, what triggers it and which state it writes, across the whole app. On a 63,000-line console, the graph covers 110 components and 619 actions in 1.3 seconds.
+
+It's also an [interactive page](https://sygnal.js.org/guide/app-graph/) where you can click an event or a state key and light up everything involved, and it's JSON for your agent and Mermaid for your docs. This is the [kanban example](./examples/kanban):
+
+```mermaid
+flowchart TD
+  n0["LaneComponent"]
+  n1["RootComponent"]
+  n2["TaskCard"]
+  n0 -->|"[tasks]"| n2
+  n1 -->|"[lanes]"| n0
+  n0 -.->|"DELETE_LANE"| n1
+  n0 -.->|"MOVE_LANE_LEFT"| n1
+  n0 -.->|"MOVE_LANE_RIGHT"| n1
+```
+
+**Then review what a change actually did.** `--base` compares the app's behavior with any git ref. Here, a change added an Archive button to that board:
+
+```text
+$ npx sygnal-check --graph --base main
+
+~ LaneComponent: +action ARCHIVE, +emits ARCHIVE_LANE, +selector .archive-lane-btn,
+  +diagnostic SYG105 EVENTS type 'ARCHIVE_LANE' is emitted but nothing in the scanned files selects it
+EVENTS: +ARCHIVE_LANE
+0 added, 0 removed, 1 changed
+```
+
+Three lines of diff, one sentence of meaning: the button renders, and clicking it does nothing. You can catch that in code review without opening the app.
+
+## Test it, and see it, without a browser or a server
+
+Reducers and views are plain functions. Everything else runs in Node, with real events and no DOM to set up:
+
+```js
+import { test, expect } from 'vitest'
+import { renderComponent } from 'sygnal'
+import Counter from './Counter.jsx'
+
+test('reducers are plain functions', () => {
+  expect(Counter.model.INCREMENT({ count: 1 })).toEqual({ count: 2 })
+})
+
+test('clicks work', async () => {
+  const t = renderComponent(Counter)
+  await t.ready()
+
+  t.simulateEvent('.increment', 'click')
+  await t.next((s) => s.count === 1)
+
+  t.expectNoDiagnostics()
+  t.dispose()
+})
+```
+
+HTTP replies, model streams and timers are faked through the same harness. A real session can even be [recorded and replayed as a test](https://sygnal.js.org/guide/record-replay/) that names the first action whose result changed (experimental).
+
+Because the outside world comes in through drivers, the same trick works for your eyes too. Swap the drivers for fixtures and you can sweep every screen and state of the real components on mock data, or hand someone a click-through of the actual app with no server behind it.
+
+## A click and an LLM's tool call are the same thing
+
+Every input to a Sygnal app is an action, so giving a model access to your app means naming which actions it may run:
+
+```jsx
+Counter.agent = {
+  name: 'counter',
+  description: 'A counter',
+  read: (state) => ({ count: state.count }),
+  actions: {
+    INCREMENT: { description: 'Add one' },
+    RESET: { description: 'Back to zero', consequential: true },   // the user confirms first
+  },
+}
+```
+
+Those tools run through the same reducers as your buttons, show up in the same log and graph, and are tested the same way. One declaration serves an in-app assistant, a command bar, an MCP host or a coding agent.
+
+Sygnal has the rest of the AI toolkit built in, using the same drivers and actions as everything else: [streaming chat](https://sygnal.js.org/ai/chat/), [typed decisions](https://sygnal.js.org/ai/decisions/), [UI composed by a model](https://sygnal.js.org/ai/composed-ui/) from your own components, and [WebMCP and MCP Apps](https://sygnal.js.org/ai/agentic-web/) (WebMCP is experimental).
+
+The model chooses. Your app does.
+
+## Made to work with your coding agent
+
+Sygnal gives agents one canonical way to write each pattern, so what they produce looks like what you'd expect to read.
+
+- [`llms.txt`](https://sygnal.js.org/llms.txt) and a [Claude Code plugin](https://sygnal.js.org/integration/agents/#the-sygnal-dev-skill) teach the current API.
+- `sygnal-check` turns silent wiring mistakes into coded findings with fixes, from the CLI, an [MCP server](https://sygnal.js.org/integration/agents/#mcp-server) or your editor.
+- A [dev server MCP endpoint](https://sygnal.js.org/integration/agents/#dev-server-mcp-endpoint) shows an agent the running app's state, actions and diagnostics.
+
+`npm create sygnal-app` sets all of this up for you.
+
+## What else is in the box
+
+Lists with filtering and sorting, in one line:
 
 ```jsx
 <Collection of={TodoItem} from="items" filter={item => !item.done} sort="name" />
 ```
 
-### Switchable
-
-Swap between components based on state:
-
-```jsx
-<Switchable of={{ home: HomePage, settings: SettingsPage }} current={state.activeTab} />
-```
-
-### Context
-
-Top-down data propagation without prop drilling:
-
-```jsx
-App.context = {
-  theme: (state) => state.settings.theme,
-  currentUser: (state) => state.auth.user,
-}
-
-function Child({ state, context }) {
-  return <div className={context.theme}>{context.currentUser.name}</div>
-}
-```
-
-### Parent-Child Communication
-
-Structured message passing between components:
-
-```jsx
-// Child emits
-TaskCard.model = {
-  DELETE: { PARENT: (state) => ({ taskId: state.id }) }
-}
-
-// Parent receives (pass the component itself)
-Lane.intent = ({ CHILD }) => ({
-  TASK_DELETED: CHILD.select(TaskCard).map(e => e.taskId),
-})
-```
-
-### Event Bus
-
-Global broadcast for cross-component communication:
-
-```jsx
-import { event } from 'sygnal'
-
-// Any component can emit
-Publisher.model = {
-  NOTIFY: { EVENTS: event('NOTIFICATION', (state) => state.message) }
-}
-
-// Any component can subscribe
-Subscriber.intent = ({ EVENTS }) => ({
-  HANDLE: EVENTS.select('NOTIFICATION'),
-})
-```
-
-### Calculated Fields
-
-Derived state with optional dependency tracking:
+Derived state and data for the whole tree, declared rather than wired:
 
 ```jsx
 Invoice.calculated = {
   subtotal: [['items'], (state) => sum(state.items.map(i => i.price))],
-  tax:      [['subtotal'], (state) => state.subtotal * 0.08],
-  total:    [['subtotal', 'tax'], (state) => state.subtotal + state.tax],
+  total:    [['subtotal'], (state) => state.subtotal * 1.08],
+}
+
+App.context = {
+  currentUser: (state) => state.auth.user,
 }
 ```
 
-### Form Handling
+Also included: [routing](https://sygnal.js.org/guide/router/), [forms](https://sygnal.js.org/guide/forms/), [data fetching with caching](https://sygnal.js.org/guide/resources/), sockets, [accessible UI parts](https://sygnal.js.org/ui/overview/), drag and drop, [undo](https://sygnal.js.org/advanced/undo/), transitions, SSR with Vike and Astro, HMR that keeps your state, DevTools with time travel, and full TypeScript types. The same components can also target the [terminal, React Native, three.js and canvas](https://sygnal.js.org/renderers/overview/).
 
-Extract form values without the boilerplate:
+In preview or experimental: WebMCP, generated UI, `sygnal/replay`, `sygnal/canvas`, `sygnal/worker`, `sygnal/yjs`, `sygnal/api`, `sygnal/sandbox`.
 
-```jsx
-MyForm.intent = ({ DOM }) => ({
-  SUBMITTED: processForm(DOM.select('.my-form'), { events: 'submit' }),
-})
+## Is Sygnal right for your project?
+
+Sygnal is a new approach, and it pays off most when you need to understand, review and verify code you didn't write yourself. Here's what to weigh against that:
+
+- **Your agent has to learn it.** Models already know React, so Sygnal asks for some extra reading up front. When we made the same changes to the React and Sygnal versions of a production console of more than 50,000 lines, both met every acceptance check. Small edits cost about the same, and overall Sygnal took about 20% more tokens and 1.3–1.5× the time.
+- **It's a different way of thinking.** You work in actions and state rather than hooks and callbacks, so it takes a little unlearning.
+- **The ecosystem is young.** There are fewer libraries and examples than for an established framework.
+
+You don't have to commit all at once. Sygnal can [mount React components](https://sygnal.js.org/guide/adapters/) and [publish web components](https://sygnal.js.org/guide/web-components/), so a new feature or a single screen is a good place to try it. [Why Sygnal if AI already knows React?](https://sygnal.js.org/ai/why-sygnal/) goes deeper, and if you're coming from [React](https://sygnal.js.org/coming-from/react/) or [Vue](https://sygnal.js.org/coming-from/vue/), those guides map what you already know.
+
+## Start building
+
+```bash
+npm create sygnal-app my-app
 ```
 
-### Drag and Drop
-
-HTML5 drag-and-drop with a dedicated driver:
-
-```javascript
-import { makeDragDriver } from 'sygnal'
-
-run(RootComponent, { DND: makeDragDriver() })
-```
-
-### HTTP and Sockets
-
-Requests name the actions that receive their reply; connections are declared from state:
-
-```jsx
-import { run, makeFetchDriver, makeSocketDriver } from 'sygnal'
-
-Quote.model = {
-  LOAD:   { HTTP: (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }) },
-  LOADED: (state, quote) => ({ ...state, quote }),                 // the parsed body
-  FAILED: (state, { status }) => ({ ...state, error: status }),
-}
-
-Chat.connections = (state) => ({
-  room: state.room && { socket: `/ws/rooms/${state.room}`, message: 'RECEIVED' },
-})
-
-run(App, { HTTP: makeFetchDriver(), WS: makeSocketDriver() })
-```
-
-### Custom Drivers
-
-Wrap any other async operation as a driver; requests take the same reply actions (`{ value, ok: 'DONE', error: 'FAILED' }`):
-
-```javascript
-import { driverFromAsync } from 'sygnal'
-
-run(RootComponent, { GEO: driverFromAsync(geocode) })
-```
-
-### Error Boundaries
-
-Catch and recover from rendering errors:
-
-```jsx
-BrokenComponent.onError = (error, { componentName }) => (
-  <div>Something went wrong in {componentName}</div>
-)
-```
-
-### Portals
-
-Render children into a different DOM container:
-
-```jsx
-<Portal target="#modal-root">
-  <div className="modal">Modal content</div>
-</Portal>
-```
-
-### Slots
-
-Pass named content regions to child components:
-
-```jsx
-import { Slot } from 'sygnal'
-
-<Card state="card">
-  <Slot name="header"><h2>Title</h2></Slot>
-  <Slot name="actions"><button>Save</button></Slot>
-  <p>Default content</p>
-</Card>
-
-// In Card's view:
-function Card({ state, slots }) {
-  return (
-    <div>
-      <header>{...(slots.header || [])}</header>
-      <main>{...(slots.default || [])}</main>
-      <footer>{...(slots.actions || [])}</footer>
-    </div>
-  )
-}
-```
-
-### Transitions
-
-CSS-based enter/leave animations:
-
-```jsx
-<Transition name="fade" duration={300}>
-  {state.visible && <div>Animated content</div>}
-</Transition>
-```
-
-### Lazy Loading & Suspense
-
-Code-split components with loading boundaries:
-
-```jsx
-const HeavyChart = lazy(() => import('./HeavyChart.jsx'))
-
-<Suspense fallback={<div>Loading...</div>}>
-  <HeavyChart />
-</Suspense>
-```
-
-### Refs
-
-Access DOM elements declaratively:
-
-```jsx
-const inputRef = createRef()
-
-function Search({ state }) {
-  return <input ref={inputRef} />   // inputRef.current is the element once mounted
-}
-```
-
-### Commands
-
-Send imperative commands from parent to child:
-
-```jsx
-import { createCommand } from 'sygnal'
-
-const playerCmd = createCommand()
-
-// Parent passes the command as a prop and sends commands with optional data
-function App({ state }) {
-  return <VideoPlayer commands={playerCmd} />
-}
-App.model = {
-  SEEK: { EFFECT: () => playerCmd.send('seek', { time: 30 }) },
-}
-
-// Child receives via commands$ source
-VideoPlayer.intent = ({ commands$ }) => ({
-  SEEK: commands$.select('seek'),  // emits { time: 30 }
-})
-```
-
-### Effect Handlers
-
-Run side effects without state changes:
-
-```jsx
-App.model = {
-  SEND_COMMAND: {
-    EFFECT: () => playerCmd.send('play'),
-  },
-  ROUTE: {
-    EFFECT: (state, data, next) => {
-      if (state.mode === 'a') next('DO_A', data)
-      else next('DO_B', data)
-    },
-  },
-}
-```
-
-### Disposal Hooks
-
-Cleanup on unmount with the built-in `DISPOSE` action:
-
-```jsx
-MyComponent.model = {
-  DISPOSE: {
-    EFFECT: (state) => clearInterval(state.timerId),
-  },
-}
-```
-
-For advanced cases needing stream composition, the `dispose$` source is also available in intent.
-
-### PWA Helpers
-
-Built-in service worker driver, online/offline detection, and install prompt handling:
-
-```jsx
-import { run, makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from 'sygnal'
-
-const installPrompt = createInstallPrompt()
-
-run(App, { SW: makeServiceWorkerDriver('/sw.js') })
-
-App.intent = ({ DOM, SW }) => ({
-  ONLINE_CHANGED: onlineStatus$,
-  UPDATE_READY:   SW.select('waiting'),
-  APPLY_UPDATE:   DOM.click('.update-btn'),
-  INSTALL:        DOM.click('.install-btn'),
-})
-```
-
-### Testing
-
-Test components in isolation with `renderComponent`, driving them with DOM events:
-
-```jsx
-import { renderComponent } from 'sygnal'
-
-const t = renderComponent(Counter, { initialState: { count: 0 } })
-
-t.simulateEvent('.increment', 'click')
-await t.next(s => s.count === 1)
-t.expectNoDiagnostics()
-
-t.dispose()
-```
-
-### Server-Side Rendering
-
-Render components to HTML strings on the server:
-
-```jsx
-import { renderToString } from 'sygnal'
-
-const html = renderToString(App, {
-  state: { count: 0 },
-  hydrateState: true,  // embeds state for client hydration
-})
-```
-
-### Vite Plugin
-
-Auto-configures JSX, HMR with state preservation, and dev-only diagnostics:
-
-```javascript
-// vite.config.js
-import sygnal from 'sygnal/vite'
-export default defineConfig({ plugins: [sygnal()] })
-```
-
-```javascript
-// src/main.js — just run, HMR is automatic
-import { run } from 'sygnal'
-import App from './App.jsx'
-run(App)
-```
-
-### Astro Integration
-
-First-class Astro support with server rendering and client hydration:
-
-```javascript
-// astro.config.mjs
-import sygnal from 'sygnal/astro'
-export default defineConfig({ integrations: [sygnal()] })
-```
-
-```astro
----
-import Counter from '../components/Counter.jsx'
----
-<Counter client:load />
-```
-
-### Vike Integration
-
-File-based routing with SSR, client-side navigation, and automatic hydration:
-
-```javascript
-// vite.config.js
-import sygnal from 'sygnal/vite'
-import vike from 'vike/plugin'
-export default defineConfig({ plugins: [sygnal({ disableHmr: true }), vike()] })
-```
-
-```javascript
-// pages/+config.js
-import vikeSygnal from 'sygnal/config'
-export default { extends: [vikeSygnal] }
-```
-
-Pages are standard Sygnal components in `pages/*/+Page.jsx`. Supports layouts, data fetching, SPA mode, custom drivers, and `ClientOnly` for browser-only components.
-
-### TypeScript
-
-Full type definitions included:
-
-```tsx
-import type { RootComponent, IntentSources, ActionsOf } from 'sygnal'
-
-type State = { count: number }
-
-const intent = ({ DOM }: IntentSources<State>) => ({
-  INCREMENT: DOM.click('.inc'),
-})
-
-const App: RootComponent<State, {}, ActionsOf<typeof intent>> = ({ state }) => (
-  <button className="inc">{state.count}</button>
-)
-App.intent = intent
-App.model = { INCREMENT: (state) => ({ ...state, count: state.count + 1 }) }
-```
-
-Typed actions from the intent, a typed EVENTS registry, typed `CHILD.select()` payloads and type-checked Collection `from`.
-
-## Bundler Setup
-
-**Vite** (recommended): use the plugin above (`plugins: [sygnal()]`). Without it, configure the automatic JSX runtime yourself:
-
-```javascript
-// vite.config.js (Vite 8; under Vite 7 use esbuild: { jsx: 'automatic', jsxImportSource: 'sygnal' })
-export default defineConfig({
-  oxc: { jsx: { runtime: 'automatic', importSource: 'sygnal' } },
-})
-```
-
-For TypeScript projects, add to `tsconfig.json`:
-
-```json
-{
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "sygnal"
-  }
-}
-```
-
-Without JSX, use `h()` directly:
-
-```javascript
-import { h } from 'sygnal'
-h('div', [h('h1', 'Hello'), h('button.btn', 'Click')])
-```
-
-## Documentation
-
-📖 **[sygnal.js.org](https://sygnal.js.org)** — Full guide, API reference, and examples.
-
-## Examples
-
-| Example | Description |
-|---------|-------------|
-| [Getting Started](./examples/getting-started) | Interactive guide with live demos (Astro) |
-| [Kanban Board](./examples/kanban) | Drag-and-drop with Collections and cross-component communication |
-| [Vike SSR](./examples/vike) | File-based routing with SSR, layouts, and data fetching |
-| [Advanced Features](./examples/advanced-feature-tests) | Portals, slots, disposal, suspense, lazy loading |
-| [TypeScript 2048](./examples/ts-example-2048) | Full game in TypeScript |
-| [AI Discussion Panel](./examples/ai-panel-spa) | `sygnal/ai` on a local Ollama: streaming chat, structured output, a decision model picking speakers |
-| [Compose a Workspace](./examples/ai-compose) | A decision model (`decide()`, local Ollama) picks and arranges prepared components from a prompt: the json-render + Jev idea |
-| [Ask with Cards](./examples/ai-ask) | A chat assistant on a local Ollama that asks with cards built from prepared parts (`chat({ ask })`) and continues with the answer |
-| [Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc) | [Live Demo](https://tpresley.github.io/sygnal-todomvc/) |
-| [Sygnal 2048](https://github.com/tpresley/sygnal-2048) | [Live Demo](https://tpresley.github.io/sygnal-2048/) |
-| [Sygnal Mahjong](https://github.com/tpresley/mahjong-trainer) | [Live Demo](https://tpresley.github.io/mahjong-trainer/) |
-| [Sygnal Calculator](https://github.com/tpresley/sygnal-calculator) | [Live Demo](https://tpresley.github.io/sygnal-calculator/) |
+📖 **[sygnal.js.org](https://sygnal.js.org)** has the full guide and API reference.
+
+| Example | Shows |
+|---|---|
+| [Kanban](./examples/kanban) | Collections, drag and drop, cross-component events |
+| [AI Showcase](./examples/ai-showcase) | Chat, agents and composed UI together |
+| [Filter Wizard](./examples/filter-wizard) | A routed multi-step flow |
+| [Figma-lite](./examples/figma-lite) | A canvas editor |
+| [TUI Tracker](./examples/tui-tracker) | A full-screen terminal app |
+| [TodoMVC](./examples/todomvc) | The classic |
 
 ## Acknowledgments
 
-Sygnal's reactive architecture is built on patterns from [Cycle.js](https://cycle.js.org/) by [André Staltz](https://github.com/staltz). The Cycle.js runtime, DOM driver, state management, and isolation modules have been absorbed into the library — snabbdom and xstream are the only external dependencies.
+Sygnal's architecture builds on [Cycle.js](https://cycle.js.org/) by [André Staltz](https://github.com/staltz), whose runtime it has absorbed.
 
 ## License
 

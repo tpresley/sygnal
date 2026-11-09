@@ -2,6 +2,31 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.4.0 — 2026-11-09
+
+With `sygnal-check` 0.16.0 (SYG637), `create-sygnal-app` 2.14.0 (templates on
+`sygnal` ^7.4.0, `sygnal-check` ^0.16.0), the VS Code extension 0.13.0 and the Claude Code plugin 0.2.5
+(the skill's notes on `refresh` and `ModelFor`).
+
+Fewer type declarations for TypeScript apps, with no runtime change:
+
+- **`satisfies ModelFor<Spec>`** types a `const model` declared apart from its component: each
+  reducer's `state`, data, `next` and extras, with no annotations.
+- **`ModelActions<typeof model>`** reads the actions back from the model, so `Comp`'s `actions` map
+  doesn't repeat them. An inline `C.model = { ... }` stays canonical next to its component.
+- **The `SygnalContext` registry** declares app-wide context once (`ContextOf<typeof context>`), as
+  `SygnalEvents` does for events.
+- **`FormServerErrors`** accepts `{ errors }`, a shape the runtime already took.
+
+`refresh` and shared reads:
+
+- **SYG637 (`sygnal-check`):** `{ refresh: name }` refetches only the sending component's own
+  resources, so another mounted component declaring the same read keeps its old answer, and nothing
+  fails. The finding names that component, and the fix is `{ invalidate }`, which reaches every
+  mounted copy. The resources guide, `llms.txt` and the skill now explain the difference in reach.
+
+The README is rewritten around what a Sygnal component is and why that matters as agents write more of our code.
+
 ## 7.3.1 — 2026-11-07
 
 With `sygnal-check` 0.15.0 (SYG108, SYG109, SYG110 for CSS Modules), `create-sygnal-app` 2.13.0 (templates on
