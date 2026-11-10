@@ -166,6 +166,72 @@ Within-task trial spread (pooled log SD): current-skill: costUsd 0.06, billedTok
 | 48-dashboard-goals | $0.201 / 47.3k / 2/2 | $0.128 / 31.3k / 2/2 |
 | 49-session-card | $0.251 / 52.3k / 2/2 | $0.223 / 45.0k / 2/2 |
 
+## lookup-haiku
+
+| Arm | Trials | Pass | Pass 95% | Hidden tests | Total cost | costUsd mean (median, sd) | billedTokens mean (median, sd) | wallSeconds mean (median, sd) | peakContext mean (median, sd) | outputTokens mean (median, sd) | toolCalls mean (median, sd) | iterations mean (median, sd) | docBytesRead mean (median, sd) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| compact-ctl | 45 | 43 | 85%–99% | 309/312 | $2.42 | $0.054 ($0.032, $0.099) | 1143k (933k, 1107k) | 128.9 s (104.0 s, 78.9 s) | 70.8k (67.1k, 27.4k) | 25.8k (22.2k, 16k) | 21.6 (19.0, 9.6) | 5.6 (4.0, 2.9) | 55.0 KB (46.5 KB, 22.4 KB) |
+| lookup | 45 | 44 | 88%–100% | 311/312 | $1.85 | $0.041 ($0.031, $0.043) | 1012k (992k, 568k) | 117.0 s (109.0 s, 54.4 s) | 67.3k (65.2k, 20.7k) | 24.1k (21.6k, 12k) | 20.9 (20.0, 7.3) | 5.2 (5.0, 2.5) | 52.7 KB (48.6 KB, 21.7 KB) |
+| grep | 45 | 44 | 88%–100% | 311/312 | $2.12 | $0.047 ($0.033, $0.055) | 1115k (982k, 732k) | 129.4 s (117.0 s, 61.2 s) | 69.6k (65.7k, 22.9k) | 25.7k (22.7k, 13.3k) | 20.9 (21.0, 7.9) | 6.1 (5.0, 3.5) | 46.4 KB (45.6 KB, 13.8 KB) |
+
+Within-task trial spread (pooled log SD): compact-ctl: costUsd 0.21, billedTokens 0.30, wallSeconds 0.23, peakContext 0.12; lookup: costUsd 0.23, billedTokens 0.29, wallSeconds 0.21, peakContext 0.12; grep: costUsd 0.28, billedTokens 0.32, wallSeconds 0.28, peakContext 0.13
+
+### lookup / compact-ctl (paired by task)
+
+| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |
+|---|---|---|---|---|---|
+| costUsd | 0.94 | 0.84–1.04 | 0.3418 | 10/15 | 0.51–1.31 |
+| billedTokens | 0.96 | 0.84–1.11 | 0.6259 | 8/15 | 0.59–1.68 |
+| wallSeconds | 0.93 | 0.86–1.01 | 0.1208 | 10/15 | 0.73–1.31 |
+| peakContext | 0.96 | 0.92–1.01 | 0.1659 | 11/15 | 0.79–1.15 |
+| outputTokens | 0.95 | 0.88–1.03 | 0.2120 | 10/15 | 0.76–1.26 |
+| toolCalls | 0.98 | 0.89–1.10 | 0.7836 | 9/15 | 0.74–1.63 |
+| docBytesRead | 0.96 | 0.86–1.10 | 0.5425 | 11/15 | 0.72–2.00 |
+
+### grep / compact-ctl (paired by task)
+
+| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |
+|---|---|---|---|---|---|
+| costUsd | 1.01 | 0.92–1.12 | 0.8416 | 9/15 | 0.68–1.46 |
+| billedTokens | 1.04 | 0.93–1.16 | 0.5621 | 6/15 | 0.66–1.63 |
+| wallSeconds | 1.02 | 0.94–1.12 | 0.6051 | 9/15 | 0.77–1.39 |
+| peakContext | 0.99 | 0.94–1.05 | 0.6970 | 9/15 | 0.85–1.23 |
+| outputTokens | 1.01 | 0.92–1.10 | 0.8947 | 10/15 | 0.77–1.45 |
+| toolCalls | 0.98 | 0.91–1.06 | 0.6332 | 8/15 | 0.77–1.39 |
+| docBytesRead | 0.86 | 0.77–0.97 | 0.0356 | 11/15 | 0.58–1.55 |
+
+### grep / lookup (paired by task)
+
+| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |
+|---|---|---|---|---|---|
+| costUsd | 1.07 | 1.00–1.17 | 0.0999 | 5/15 | 0.84–1.66 |
+| billedTokens | 1.07 | 0.98–1.17 | 0.1454 | 5/15 | 0.74–1.45 |
+| wallSeconds | 1.10 | 1.02–1.19 | 0.0280 | 5/15 | 0.87–1.49 |
+| peakContext | 1.03 | 1.00–1.06 | 0.1459 | 6/15 | 0.92–1.18 |
+| outputTokens | 1.06 | 0.99–1.13 | 0.1213 | 5/15 | 0.88–1.42 |
+| toolCalls | 1.00 | 0.93–1.07 | 0.9014 | 7/15 | 0.76–1.25 |
+| docBytesRead | 0.90 | 0.79–1.01 | 0.1224 | 8/15 | 0.52–1.30 |
+
+### Per task: mean cost, peak context, passes
+
+| Task | compact-ctl cost / peak / pass | lookup cost / peak / pass | grep cost / peak / pass |
+|---|---|---|---|
+| 11-search-debounce | $0.015 / 39.4k / 3/3 | $0.013 / 36.3k / 3/3 | $0.014 / 36.3k / 3/3 |
+| 13-course-portal | $0.025 / 53.6k / 3/3 | $0.024 / 52.6k / 3/3 | $0.027 / 54.2k / 3/3 |
+| 22-chat-socket | $0.032 / 66.2k / 3/3 | $0.039 / 69.9k / 3/3 | $0.032 / 64.1k / 3/3 |
+| 23-quote-resource | $0.017 / 43.1k / 3/3 | $0.015 / 41.6k / 3/3 | $0.015 / 40.2k / 3/3 |
+| 24-list-detail-cache | $0.030 / 64.5k / 3/3 | $0.035 / 70.1k / 3/3 | $0.040 / 73.6k / 3/3 |
+| 25-router-spa | $0.042 / 80.2k / 3/3 | $0.038 / 71.9k / 3/3 | $0.037 / 70.7k / 3/3 |
+| 26-autosave-draft | $0.021 / 48.9k / 3/3 | $0.027 / 54.2k / 3/3 | $0.029 / 60.7k / 3/3 |
+| 27-undo-editor | $0.038 / 75.8k / 3/3 | $0.032 / 66.4k / 3/3 | $0.035 / 66.5k / 3/3 |
+| 30-checkout-form | $0.042 / 79.7k / 3/3 | $0.047 / 79.5k / 3/3 | $0.045 / 81.0k / 3/3 |
+| 31-command-menu | $0.032 / 63.1k / 3/3 | $0.026 / 57.9k / 3/3 | $0.025 / 55.2k / 3/3 |
+| 32-sales-chart | $0.033 / 65.7k / 3/3 | $0.027 / 58.8k / 3/3 | $0.031 / 66.0k / 3/3 |
+| 33-virtual-list | $0.034 / 70.1k / 2/3 | $0.034 / 67.4k / 2/3 | $0.033 / 69.3k / 2/3 |
+| 44-streaming-chat | $0.040 / 85.5k / 3/3 | $0.035 / 79.6k / 3/3 | $0.070 / 94.0k / 3/3 |
+| 45-packing-assistant | $0.372 / 152.4k / 2/3 | $0.181 / 118.9k / 3/3 | $0.232 / 127.6k / 3/3 |
+| 46-ticket-triage | $0.036 / 74.2k / 3/3 | $0.042 / 85.2k / 3/3 | $0.043 / 84.9k / 3/3 |
+
 ## Skill arms against no-skill arms (Sonnet, paired by task)
 
 ### current-skill / current
@@ -206,12 +272,82 @@ Within-task trial spread (pooled log SD): current-skill: costUsd 0.06, billedTok
 
 ## What the trials opened
 
-| Run | called the skill | llms.txt | a topic file | a guide page | dist/index.d.ts | built JS or the package src | the task's matching file (14 of the 15 tasks have one) | failed build/test runs, mean |
-|---|---|---|---|---|---|---|---|---|
-| current, sonnet | 45/45 | 45/45 | 21/45 | 19/45 | 1/45 | 1/45 | 28/42 (67%) | 1.6 |
-| compact, sonnet | 44/45 | 45/45 | 33/45 | 16/45 | 3/45 | 0/45 | 29/42 (69%) | 0.8 |
-| index, sonnet | 45/45 | 21/45 | 45/45 | 31/45 | 4/45 | 0/45 | 42/42 (100%) | 1.4 |
-| current, haiku | 15/15 | 15/15 | 1/15 | 11/15 | 8/15 | 7/15 | 10/15 (67%) | 1.9 |
-| compact, haiku | 15/15 | 15/15 | 15/15 | 7/15 | 11/15 | 6/15 | 14/15 (93%) | 1.3 |
-| current-skill, skill | 30/30 | 3/30 | 10/30 | 14/30 | 0/30 | 0/30 | 20/28 (71%) | 0.4 |
-| compact-skill, skill | 30/30 | 7/30 | 16/30 | 9/30 | 5/30 | 0/30 | 21/28 (75%) | 0.8 |
+| Run | called the skill | llms.txt | a topic file | a guide page | dist/index.d.ts | built JS or the package src | sygnal-check docs | dist/reference.md | the task's matching file (14 of the 15 tasks have one) | failed build/test runs, mean |
+|---|---|---|---|---|---|---|---|---|---|---|
+| current, sonnet | 45/45 | 45/45 | 21/45 | 19/45 | 1/45 | 1/45 | 0/45 | 0/45 | 28/42 (67%) | 1.6 |
+| compact, sonnet | 44/45 | 45/45 | 33/45 | 16/45 | 3/45 | 0/45 | 0/45 | 0/45 | 29/42 (69%) | 0.8 |
+| index, sonnet | 45/45 | 21/45 | 45/45 | 31/45 | 4/45 | 0/45 | 0/45 | 0/45 | 42/42 (100%) | 1.4 |
+| current, haiku | 15/15 | 15/15 | 1/15 | 11/15 | 8/15 | 7/15 | 0/15 | 0/15 | 10/15 (67%) | 1.9 |
+| compact, haiku | 15/15 | 15/15 | 15/15 | 7/15 | 11/15 | 6/15 | 0/15 | 0/15 | 14/15 (93%) | 1.3 |
+| current-skill, skill | 30/30 | 3/30 | 10/30 | 14/30 | 0/30 | 0/30 | 0/30 | 0/30 | 20/28 (71%) | 0.4 |
+| compact-skill, skill | 30/30 | 7/30 | 16/30 | 9/30 | 5/30 | 0/30 | 0/30 | 0/30 | 21/28 (75%) | 0.8 |
+| compact-ctl, lookup-haiku | 0/45 | 45/45 | 45/45 | 26/45 | 30/45 | 20/45 | 0/45 | 0/45 | 30/30 (100%) | 1.8 |
+| lookup, lookup-haiku | 0/45 | 45/45 | 44/45 | 24/45 | 9/45 | 15/45 | 7/45 | 0/45 | 29/30 (97%) | 1.6 |
+| grep, lookup-haiku | 0/45 | 45/45 | 45/45 | 26/45 | 12/45 | 17/45 | 0/45 | 29/45 | 29/30 (97%) | 2.3 |
+
+## The docs lookup: use, and the decision rule (Haiku, no skill)
+
+Pilot (tasks 23, 30 × 2): lookup used in 0/4; grep used in 0/4
+
+| Arm | Trials | Used it | Calls per trial (users) | Bytes returned by those calls per user | Rule: dist/ read | index.d.ts | Wider: dist/ read | Passed | Failed build/test runs | Debug s | Cost per trial |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| compact-ctl | 45 | 0 | – | – | 36 | 30 | 37 | 43 | 1.80 | 14.3 | $0.0538 |
+| lookup | 45 | 7 | 1.7 | 6144 | 22 | 9 | 26 | 44 | 1.58 | 11.8 | $0.0411 |
+| grep | 45 | 29 | 2.1 | 17703 | 22 | 12 | 24 | 44 | 2.27 | 17.7 | $0.0471 |
+
+### The rule, requirement by requirement
+
+| Requirement | Control | lookup | grep |
+|---|---|---|---|
+| 1. Used in ≥ 50% | – | 7/45: **not met** | 29/45: met |
+| 2. dist/ reads at most half the control's | 36/45 | 22/45: **not met** | 22/45: **not met** |
+| 3. Failed runs, paired difference ≤ +0.25 | – | -0.22 (-0.76 to 0.33, p 0.489): met | +0.47 (-0.11 to 1.09, p 0.200): **not met** |
+| 4. Cost ratio ≤ 1.05, upper bound ≤ 1.15 | – | 0.94 (0.84–1.04, p 0.342): met | 1.01 (0.92–1.12, p 0.842): met |
+| 5. Pass within 3 of 45 | 43/45 | 44/45: met | 44/45: met |
+| (billed tokens, ratio) | – | 0.96 (0.84–1.11) | 1.04 (0.93–1.16) |
+| (debug phase seconds, paired difference) | – | -2.4 (-7.8 to 2.7) | +3.4 (-1.7 to 8.8) |
+
+### Per task: trials (of 3) that used the form / opened index.d.ts / passed
+
+| Task | compact-ctl | lookup | grep |
+|---|---|---|---|
+| 11-search-debounce | 0 / 2 / 3 | 0 / 0 / 3 | 0 / 0 / 3 |
+| 13-course-portal | 0 / 2 / 3 | 1 / 0 / 3 | 2 / 1 / 3 |
+| 22-chat-socket | 0 / 3 / 3 | 2 / 2 / 3 | 3 / 0 / 3 |
+| 23-quote-resource | 0 / 2 / 3 | 2 / 0 / 3 | 2 / 0 / 3 |
+| 24-list-detail-cache | 0 / 3 / 3 | 0 / 2 / 3 | 1 / 1 / 3 |
+| 25-router-spa | 0 / 3 / 3 | 1 / 3 / 3 | 3 / 2 / 3 |
+| 26-autosave-draft | 0 / 2 / 3 | 0 / 0 / 3 | 1 / 3 / 3 |
+| 27-undo-editor | 0 / 3 / 3 | 0 / 0 / 3 | 3 / 0 / 3 |
+| 30-checkout-form | 0 / 2 / 3 | 0 / 0 / 3 | 1 / 2 / 3 |
+| 31-command-menu | 0 / 1 / 3 | 0 / 0 / 3 | 3 / 0 / 3 |
+| 32-sales-chart | 0 / 2 / 3 | 0 / 0 / 3 | 3 / 0 / 3 |
+| 33-virtual-list | 0 / 3 / 2 | 0 / 1 / 2 | 3 / 1 / 2 |
+| 44-streaming-chat | 0 / 0 / 3 | 0 / 0 / 3 | 1 / 1 / 3 |
+| 45-packing-assistant | 0 / 1 / 2 | 0 / 1 / 3 | 3 / 1 / 3 |
+| 46-ticket-triage | 0 / 1 / 3 | 1 / 0 / 3 | 0 / 0 / 3 |
+
+### Against the same task's control, by whether the trial used the form (mean log cost difference as a ratio, and failed runs; descriptive: agents choose to look things up when they are stuck)
+
+| Arm | Trials that… | n | Cost vs control | Failed runs vs control | index.d.ts |
+|---|---|---|---|---|---|
+| lookup | used it | 7 | 1.09 | 0.19 | 2 |
+| lookup | did not | 38 | 0.92 | -0.30 | 7 |
+| grep | used it | 29 | 0.96 | 0.03 | 5 |
+| grep | did not | 16 | 1.12 | 1.25 | 7 |
+
+Of the trials that used the form: lookup: 0 read dist/ first, 2 read dist/ after their first lookup, of 7; grep: 2 read dist/ first, 13 read dist/ after their first lookup, of 29
+
+One more failed build/test run goes with $0.0078 more cost in the same task and arm (pooled slope over 135 trials; descriptive).
+
+### What was looked up
+
+`sygnal-check docs`: 24 names, 2 unknown: `SocketReconnect` ×2, `makeFetchDriver` ×2, `makeSocketDriver` ×2, `reconnect` ×2, `DROPPED`, `ROUTER`, `STATE`, `SocketActions`, `SocketClose`, `SocketConnection`, `SocketOpen`, `answers`, `block`, `data`, `decide`, `head`, `makeChatDriver`, `stream`, `uiMessageStream`, `willReconnect`
+
+Unknown: `DROPPED`, `willReconnect`
+
+`dist/reference.md`: by heading 42, keyword grep 14, line ranges only (sed) 5.
+
+Headings asked for: `uiMessageStream` ×4, `uid` ×4, `withToolResults` ×4, `ELEMENT` ×3, `SocketReconnect` ×3, `chat` ×3, `data` ×3, `defineWidget` ×3, `keydown` ×3, `makeChatDriver` ×3, `makeSocketDriver` ×3, `messageText` ×3, `undo` ×3, `SocketClose` ×2, `SocketMessage` ×2, `Switchable` ×2, `VirtualCollection` ×2, `event` ×2, `key` ×2, `makeFetchDriver` ×2, `BOOTSTRAP`, `CHILD`, `ChatCall`, `ChatRequest`, `ChatTransport`, `DOM`, `DOM.data`, `DOM.key`, `DOMSelection.data`, `DOMSource.data`, `HEAD`, `INITIALIZE`, `PARENT`, `ROUTER`, `Route`, `RouteName`, `RouterBlocked`, `RouterBlocked.`, `STATE.watch`, `SocketConnection`, `SocketOpen`, `block`, `combobox`, `debounce`, `focus`, `makeHeadDriver`, `makeRouter`, `persist`, `preventDefault`, `previousState`, `renderComponent`, `requests`, `resources`, `respond`, `route`, `scrollToIndex`, `stream`, `submit`, `target`, `value`, `withToolResults.results`
+
+Earlier compact Haiku run (prompt names a skill it does not have) against the new control, on the 5 tasks they share: cost ratio 0.99 (0.88–1.12). Descriptive: it mixes the prompt, the date and the checker version.

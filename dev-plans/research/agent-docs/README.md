@@ -13,7 +13,7 @@
 | 1 | Replace the core `llms.txt` with the **compact core** (21.7 KB, ⅓ of today), everything removed moved verbatim to on-demand topic files. | Fact coverage: 97.4% of what the 49 reference solutions use is inline, 100% within one read (today 99% / 100%). | **Run done: ship it for the no-skill path** (section 9). A pass-rate loss under about 20 pp cannot be ruled out. |
 | 2 | **Generate the skill from the same source** (22.4 KB against 56.2 KB). | The two files carry the same facts in two wordings: only 28–34% shares exact wording, 652 of the 1,064 distinct API names are in both, and no skill trial needs both. | **Run done: generate it, and ship it together with #1** (section 9). Cost 0.78× today's skill; 30/30 passes against 29/30. Two trials per task cannot rule out a pass-rate loss under about 30 pp. |
 | 3 | Put the **trigger index in `AGENTS.md`** (7.0 KB; passive, always in context). | Vercel: 100% against 53–79% for a skill; here the llms-context core index found the right topic in 36/40 trials. | **Run done: do not adopt.** Cost ratio to #1 alone 0.97 (0.90–1.06), so it fails the section 7 rule, though it reached the right topic in 42 of 42 trials. |
-| 4 | Keep **option lists out of the core**, reachable by symbol: the types already answer them. Ship `sygnal-check docs <Symbol\|sygnal/x\|dir>`. | 88% of the API names in reference prose already sit in a JSDoc; about 23 KB of `llms.txt` is option-list sentences. `dist/index.d.ts` is 390 KB, so agents need a lookup, not more JSDoc. | **Built** (section 10); no model has used it. A run is proposed there. |
+| 4 | Keep **option lists out of the core**, reachable by symbol: the types already answer them. Ship `sygnal-check docs <Symbol\|sygnal/x\|dir>`. | 88% of the API names in reference prose already sit in a JSDoc; about 23 KB of `llms.txt` is option-list sentences. `dist/index.d.ts` is 390 KB, so agents need a lookup, not more JSDoc. | **Built, then failed its rule on Haiku** (section 10): the CLI was used in 7 of 45 trials and the grep form missed the `dist/`-read and failed-run limits. Do not ship either as built. |
 | 5 | Drop the **47 trap sentences whose diagnostic already says the fix** (6.5 KB in `llms.txt`, 4.8 KB in the skill), after raising SYG105 from info to warn. | Section 4. | None. |
 | 6 | Take the **13 traps in section 4's list** to the 8.0 backlog as throw-or-impossible candidates. | Section 4. | 8.0 work; I did not edit the backlog. |
 | 7 | Rule: **a subpath gets one line in the core**. The cost was smaller than expected, so this is hygiene: experimental subpaths are about 1.6 KB of `llms.txt`. | Section 5. | None. |
@@ -455,7 +455,7 @@ The topic files have 14 lines naming `main.js` or `run(App, {` across 12 files, 
 
 ## 10. The docs lookup
 
-The compact core removed the option lists, and in the runs above agents then went to the 390 KB `dist/index.d.ts` (8–11 of 15 Haiku trials, 5 of 30 compact-skill Sonnet trials). This section records the lookup built to replace that. **No model has used it yet**, so nothing here shows it helps; the proposed run below would.
+The compact core removed the option lists, and in the runs above agents then went to the 390 KB `dist/index.d.ts` (8–11 of 15 Haiku trials, 5 of 30 compact-skill Sonnet trials). This section records the lookup built to replace that, and the first runs of it. **Step 1 (Haiku, no skill): neither form met the decision rule**; see "Results of steps 0 and 1" at the end of this section.
 
 ### What was built
 
@@ -508,10 +508,9 @@ The line replaces the core's existing "grep the name in `dist/index.d.ts`" row, 
 | All 14 commands below | literal `--dry-run`; no trial directory created |
 
 **Not verified.**
-- No model has used either form. Whether agents reach for it instead of `dist/` is the question the run answers.
+- Sonnet and the skill arms have not run. Haiku without the skill has: see the results at the end of this section.
 - `removeAfterInstall` and the prompt option are unit-tested, but no trial was materialized.
 - The root `npm test` gate was not run, by instruction. The docs site was not rebuilt for its one added table row.
-- The eval analysis script does not yet report these arms; `tools/results.mjs` needs the new runs added when they exist.
 
 ### The harness flaw, and what it does to comparisons
 
@@ -620,6 +619,64 @@ node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-lookup-skill-sonne
 ```bash
 node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-compact-skill-ctl-sonnet --variant agent-docs-compact-skill-ctl --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-sonnet-5-5 --dry-run
 ```
+
+### Results of steps 0 and 1 (Haiku, no skill, 2026-11-10)
+
+**Under the rule fixed before the runs, neither form ships.** The CLI fails requirement 1 and the grep form fails requirements 2 and 3, and the rule needs all five on Haiku without the skill. The rule then says to keep the compact core's existing row. Steps 2–4 cannot change that outcome.
+
+Generated by `tools/results.mjs` into `data/results.md` (sections "lookup-haiku" and "The docs lookup"). The trials in each arm were 15 tasks × 3 with `prompt.skillLine: false`, and the earlier no-skill runs are not comparable (above).
+
+| Arm | Passed | Hidden tests | Total cost | Cost per trial | Billed tokens | Peak context | Failed build/test runs |
+|---|---|---|---|---|---|---|---|
+| Control (compact, no reference) | 43/45 | 309/312 | $2.42 | $0.054 | 1,143k | 70.8k | 1.80 |
+| CLI (`sygnal-check docs`) | 44/45 | 311/312 | $1.85 | $0.041 | 1,012k | 67.3k | 1.58 |
+| Grep (`dist/reference.md`) | 44/45 | 311/312 | $2.12 | $0.047 | 1,115k | 69.6k | 2.27 |
+
+| Requirement | CLI | Grep |
+|---|---|---|
+| 1. Used in at least 50% of trials | **7 of 45 (16%): not met** | 29 of 45 (64%): met |
+| 2. `dist/` reads at most half the control's 36 of 45 | **22 of 45: not met** | **22 of 45: not met** |
+| 3. Failed runs, paired difference at most +0.25 | −0.22 (−0.76 to +0.33): met | **+0.47 (−0.11 to +1.09), p 0.20: not met** |
+| 4. Cost ratio at most 1.05, upper bound at most 1.15 | 0.94 (0.84–1.04), p 0.34: met | 1.01 (0.92–1.12), p 0.84: met |
+| 5. Passes within 3 of 45 | 44 against 43: met | 44 against 43: met |
+
+Billed tokens, as a ratio to the control: CLI 0.96 (0.84–1.11), grep 1.04 (0.93–1.16). Neither interval excludes no difference.
+
+**Requirement 2 is not a matching artefact.** Taking out `ls`-only and `wc`-only commands and the third-party `chart.js/dist/chart.js` gives 35, 20 and 21 trials, still above the half line of 17.5. A wider count (globs and recursive greps over the built files, the package source after a `cd`) gives 37, 26 and 24.
+
+**Step 0's stop condition was met.** The pilot used neither form in any of its 8 trials, and the table says to stop there. Step 1 ran anyway, and it gives more information than the pilot did.
+
+**Use, per task** (trials of 3 that used the form). The CLI appeared in only 5 of 15 tasks: 13 (1), 22 (2), 23 (2), 25 (1), 46 (1). Grep appeared in 13 of 15: every task except 11 and 46, and in all three trials of 22, 25, 27, 31, 32, 33, 45.
+
+**What was looked up.** The CLI got 24 names over 12 calls (with chained commands), mostly the socket and fetch drivers: `SocketReconnect`, `makeFetchDriver`, `makeSocketDriver`, `reconnect` twice each, then `SocketClose`, `SocketOpen`, `block`, `decide`, `uiMessageStream`, `head` and others. Two came back unknown, `DROPPED` and `willReconnect`, and both are real members this reference leaves out because it drops undocumented member entries. The grep form took 61 commands: 42 by heading (mostly the row's exact pattern, for `uiMessageStream`, `uid`, `withToolResults`, `ELEMENT`, `SocketReconnect`, `chat`, `defineWidget`, `undo`), 14 keyword greps and 5 `sed` line ranges. No trial `cat` the 1.5 MB file. Calls that touched the reference returned about 17.7 KB per using trial against 6.1 KB for the CLI (whole calls, so chained commands are included).
+
+**`dist/index.d.ts` was still opened, far less often, and the drop is not the lookup's doing.**
+
+| | Control | CLI | Grep |
+|---|---|---|---|
+| `dist/index.d.ts` | 30/45 | 9/45 | 12/45 |
+| Built JS or the package `src` | 20/45 | 15/45 | 17/45 |
+| Any of those (the rule's measure) | 36/45 | 22/45 | 22/45 |
+
+Only 7 trials in the CLI arm used the CLI, and 7 of the other 38 opened `index.d.ts`, so the fall from 30 to 9 happened in trials that never ran it. The control's row says "grep the name in `dist/index.d.ts`", and both new rows replaced that with "not `dist/*`". **These runs cannot separate the tool from the changed sentence; the sentence alone would explain the CLI arm.** No arm tests the sentence on its own.
+
+Of the grep users, 13 of 29 still read `dist/` after their first lookup (CLI: 2 of 7). In the commands I read, what trials went for was mostly behaviour the signatures do not state: the source of the test helpers (`t.stream`, `t.storage`), the chat behavior, the router's `block`, invalidation in `index.esm.js`. A reference of signatures does not answer those, which also fits requirement 2 not being reached.
+
+**Cost.** The lookup arm's lower total is one task. Task 45 cost $1.12 in the control ($0.63 in one trial), against $0.55 (CLI) and $0.69 (grep). Without it, the totals are $1.30, $1.30 and $1.43, and the paired ratios 0.98 and 1.04. Since 38 of the 45 CLI trials did not use it, cost in that arm is no evidence about the tool either way (those 38 cost 0.92× the control, the 7 users 1.09×; descriptive, as agents look things up when stuck).
+
+**Failed runs.** The grep arm's +0.47 is mostly in the 16 trials that did not use the form (+1.25 against the control; the 29 users +0.03), so it may be noise. It still fails requirement 3 as written, whose test is the point estimate. Within a task and arm, one more failed run goes with about $0.008 more (135 trials, descriptive), so +0.47 is about $0.004 per Haiku trial, 8%.
+
+**Passes.** The four misses are one `33-virtual-list` failure in each of the three arms (5/6) and one `45-packing-assistant` failure in the control. Nothing about pass rate separates the arms; 45 trials cannot show a loss under about 20 points.
+
+**The prompt fix, roughly.** The earlier compact Haiku run against the new control, on the 5 tasks they share: cost ratio 0.99 (0.88–1.12). The earlier failed Skill call did not move cost measurably on Haiku, in this small and mixed comparison.
+
+**Steps 2–4 are not worth their $56 as written.** Step 3's own stop line (both forms failing requirement 1) is not triggered, because grep passed it, but the rule requires 1–5 on Haiku without the skill, and that has already failed for both. Skill and Sonnet results could not make either form ship; they would only describe it.
+
+**The 3.4 MB is not justified by this.** The two files are 3,423,901 B, 11% of the 32.2 MB unpacked package, and 807 KB gzipped of an 8.9 MB tarball; a shipped form would be one of them (1.9 MB or 1.5 MB). For that, step 1 shows no saving in cost, tokens or passes that can be credited to the file. Haiku used the CLI in 16% of trials, and with the grep form `dist/` reads stayed above the limit.
+
+**A cheaper next step, if this is wanted.** Two Haiku arms of 45 trials each, about $2 each. First, the compact core with only "not `dist/*`" and no reference file, which tests whether the sentence alone gives the `index.d.ts` drop for free. Second, a reworded CLI row, as requirement 1 asks: why the CLI got 16% against grep's 64% is not visible in a transcript, and my guess is that grep's row is a command to copy and that it fits a habit agents already have. Neither variant exists yet and I did not build them.
+
+**Not known.** Nothing here on Sonnet or with a skill, where agents read `dist/` far less. One night, the arms run one after another, 3 trials per task, and the cost interval is about ±10%.
 
 ## Appendix A: every trap the context mentions
 

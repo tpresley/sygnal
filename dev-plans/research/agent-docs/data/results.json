@@ -982,6 +982,405 @@
    }
   }
  },
+ "lookup-haiku": {
+  "arms": {
+   "compact-ctl": {
+    "trials": 45,
+    "pass": 43,
+    "wilson": [
+     0.8517222081611939,
+     0.9877261309595557
+    ],
+    "hiddenPassed": 309,
+    "hiddenTotal": 312,
+    "totalCost": 2.41944093,
+    "metrics": {
+     "costUsd": {
+      "mean": 0.053765354,
+      "median": 0.03212678000000001,
+      "sd": 0.0987734200674471,
+      "withinTaskLogSd": 0.207607286886232
+     },
+     "billedTokens": {
+      "mean": 1143352.177777778,
+      "median": 932720,
+      "sd": 1106995.3197645433,
+      "withinTaskLogSd": 0.3043671508941614
+     },
+     "wallSeconds": {
+      "mean": 128.93333333333334,
+      "median": 104,
+      "sd": 78.94687511807601,
+      "withinTaskLogSd": 0.22743380086219234
+     },
+     "peakContext": {
+      "mean": 70828.95555555556,
+      "median": 67120,
+      "sd": 27442.62328846361,
+      "withinTaskLogSd": 0.11821720772026363
+     },
+     "outputTokens": {
+      "mean": 25757.51111111111,
+      "median": 22198,
+      "sd": 16035.481077657734,
+      "withinTaskLogSd": 0.16031107801657804
+     },
+     "toolCalls": {
+      "mean": 21.57777777777778,
+      "median": 19,
+      "sd": 9.552460151683176,
+      "withinTaskLogSd": 0.22113419345575452
+     },
+     "iterations": {
+      "mean": 5.6,
+      "median": 4,
+      "sd": 2.895136988437366,
+      "withinTaskLogSd": null
+     },
+     "docBytesRead": {
+      "mean": 55040.2,
+      "median": 46509,
+      "sd": 22389.796748437973,
+      "withinTaskLogSd": 0.27922520408513435
+     }
+    }
+   },
+   "lookup": {
+    "trials": 45,
+    "pass": 44,
+    "wilson": [
+     0.8843305361128119,
+     0.9960665024772425
+    ],
+    "hiddenPassed": 311,
+    "hiddenTotal": 312,
+    "totalCost": 1.8475723600000005,
+    "metrics": {
+     "costUsd": {
+      "mean": 0.04105716355555557,
+      "median": 0.03125206,
+      "sd": 0.042912927279077896,
+      "withinTaskLogSd": 0.22888893786326223
+     },
+     "billedTokens": {
+      "mean": 1012021.5777777778,
+      "median": 992298,
+      "sd": 567830.7448014724,
+      "withinTaskLogSd": 0.2871731101141455
+     },
+     "wallSeconds": {
+      "mean": 117.02222222222223,
+      "median": 109,
+      "sd": 54.43573729591154,
+      "withinTaskLogSd": 0.21064653660749755
+     },
+     "peakContext": {
+      "mean": 67346.11111111111,
+      "median": 65163,
+      "sd": 20696.604140888583,
+      "withinTaskLogSd": 0.11889378211619311
+     },
+     "outputTokens": {
+      "mean": 24102.88888888889,
+      "median": 21574,
+      "sd": 11992.34390847727,
+      "withinTaskLogSd": 0.20591170455104338
+     },
+     "toolCalls": {
+      "mean": 20.866666666666667,
+      "median": 20,
+      "sd": 7.303797268918036,
+      "withinTaskLogSd": 0.19523084320228384
+     },
+     "iterations": {
+      "mean": 5.177777777777778,
+      "median": 5,
+      "sd": 2.4706356275340164,
+      "withinTaskLogSd": null
+     },
+     "docBytesRead": {
+      "mean": 52713.22222222222,
+      "median": 48625,
+      "sd": 21725.455092930722,
+      "withinTaskLogSd": 0.24896828490827178
+     }
+    }
+   },
+   "grep": {
+    "trials": 45,
+    "pass": 44,
+    "wilson": [
+     0.8843305361128119,
+     0.9960665024772425
+    ],
+    "hiddenPassed": 311,
+    "hiddenTotal": 312,
+    "totalCost": 2.1211542199999998,
+    "metrics": {
+     "costUsd": {
+      "mean": 0.04713676044444444,
+      "median": 0.03308914000000001,
+      "sd": 0.05516989087467675,
+      "withinTaskLogSd": 0.2818963793066397
+     },
+     "billedTokens": {
+      "mean": 1114550.0666666667,
+      "median": 982147,
+      "sd": 732306.6657392617,
+      "withinTaskLogSd": 0.3220423462259427
+     },
+     "wallSeconds": {
+      "mean": 129.4,
+      "median": 117,
+      "sd": 61.1564313127335,
+      "withinTaskLogSd": 0.27734245305618255
+     },
+     "peakContext": {
+      "mean": 69620.55555555556,
+      "median": 65673,
+      "sd": 22903.145440543907,
+      "withinTaskLogSd": 0.12985911500717667
+     },
+     "outputTokens": {
+      "mean": 25742.133333333335,
+      "median": 22671,
+      "sd": 13252.609647983229,
+      "withinTaskLogSd": 0.24831978686864065
+     },
+     "toolCalls": {
+      "mean": 20.866666666666667,
+      "median": 21,
+      "sd": 7.910292489707778,
+      "withinTaskLogSd": 0.2467191885808236
+     },
+     "iterations": {
+      "mean": 6.111111111111111,
+      "median": 5,
+      "sd": 3.452418271182088,
+      "withinTaskLogSd": null
+     },
+     "docBytesRead": {
+      "mean": 46365.42222222222,
+      "median": 45612,
+      "sd": 13795.128643653508,
+      "withinTaskLogSd": 0.27710732606911087
+     }
+    }
+   }
+  },
+  "effects": {
+   "lookup/compact-ctl/costUsd": {
+    "ratio": 0.9417383884215661,
+    "low": 0.8376204976623871,
+    "high": 1.0435786871002342,
+    "p": 0.341796875,
+    "tasks": 15,
+    "down": 10,
+    "min": 0.5137473974623081,
+    "max": 1.3092824365713882
+   },
+   "lookup/compact-ctl/billedTokens": {
+    "ratio": 0.9641877130165091,
+    "low": 0.8400675013868393,
+    "high": 1.1113688369639179,
+    "p": 0.6258544921875,
+    "tasks": 15,
+    "down": 8,
+    "min": 0.5850651667515189,
+    "max": 1.6827805929169801
+   },
+   "lookup/compact-ctl/wallSeconds": {
+    "ratio": 0.9293429716618097,
+    "low": 0.8555740816452171,
+    "high": 1.011996738713606,
+    "p": 0.120849609375,
+    "tasks": 15,
+    "down": 10,
+    "min": 0.7262455459408051,
+    "max": 1.306967060971421
+   },
+   "lookup/compact-ctl/peakContext": {
+    "ratio": 0.9632048569314346,
+    "low": 0.9176611909237768,
+    "high": 1.0116252712931395,
+    "p": 0.1658935546875,
+    "tasks": 15,
+    "down": 11,
+    "min": 0.7893525791254119,
+    "max": 1.153600674612258
+   },
+   "lookup/compact-ctl/outputTokens": {
+    "ratio": 0.9500594763981661,
+    "low": 0.882826354632913,
+    "high": 1.0254616445050941,
+    "p": 0.21197509765625,
+    "tasks": 15,
+    "down": 10,
+    "min": 0.7637339970740822,
+    "max": 1.2565783358560227
+   },
+   "lookup/compact-ctl/toolCalls": {
+    "ratio": 0.9840247995775491,
+    "low": 0.8880800126272296,
+    "high": 1.1010060973053735,
+    "p": 0.7835693359375,
+    "tasks": 15,
+    "down": 9,
+    "min": 0.736559945178134,
+    "max": 1.6271024220942951
+   },
+   "lookup/compact-ctl/docBytesRead": {
+    "ratio": 0.9570437529402332,
+    "low": 0.8575507640172753,
+    "high": 1.0975454317730609,
+    "p": 0.54248046875,
+    "tasks": 15,
+    "down": 11,
+    "min": 0.7169930241817208,
+    "max": 2.0010682414327787
+   },
+   "grep/compact-ctl/costUsd": {
+    "ratio": 1.010657402865775,
+    "low": 0.9162533820648898,
+    "high": 1.1168889822338148,
+    "p": 0.84161376953125,
+    "tasks": 15,
+    "down": 9,
+    "min": 0.6778859616713498,
+    "max": 1.4551097570457654
+   },
+   "grep/compact-ctl/billedTokens": {
+    "ratio": 1.0363077326254513,
+    "low": 0.9252957096221309,
+    "high": 1.1577622939007286,
+    "p": 0.56207275390625,
+    "tasks": 15,
+    "down": 6,
+    "min": 0.6603337048888687,
+    "max": 1.628772887611483
+   },
+   "grep/compact-ctl/wallSeconds": {
+    "ratio": 1.0239341131803446,
+    "low": 0.941525383863339,
+    "high": 1.1169800547967634,
+    "p": 0.6051025390625,
+    "tasks": 15,
+    "down": 9,
+    "min": 0.7704070903185055,
+    "max": 1.387804380282795
+   },
+   "grep/compact-ctl/peakContext": {
+    "ratio": 0.9887867545818897,
+    "low": 0.9380306603192535,
+    "high": 1.0462641642337274,
+    "p": 0.69696044921875,
+    "tasks": 15,
+    "down": 9,
+    "min": 0.849067764787654,
+    "max": 1.2325272264690137
+   },
+   "grep/compact-ctl/outputTokens": {
+    "ratio": 1.0062785888454753,
+    "low": 0.9244951236303558,
+    "high": 1.1032003531896615,
+    "p": 0.8946533203125,
+    "tasks": 15,
+    "down": 10,
+    "min": 0.7672678981791697,
+    "max": 1.4548755954545516
+   },
+   "grep/compact-ctl/toolCalls": {
+    "ratio": 0.9793892983552118,
+    "low": 0.9056428291184048,
+    "high": 1.0635064611874143,
+    "p": 0.6331787109375,
+    "tasks": 15,
+    "down": 8,
+    "min": 0.7656954116901957,
+    "max": 1.393797786217914
+   },
+   "grep/compact-ctl/docBytesRead": {
+    "ratio": 0.8608653629091966,
+    "low": 0.7663499028648615,
+    "high": 0.9741004060219751,
+    "p": 0.03558349609375,
+    "tasks": 15,
+    "down": 11,
+    "min": 0.580066111947374,
+    "max": 1.5456579530518488
+   },
+   "grep/lookup/costUsd": {
+    "ratio": 1.0731827599804262,
+    "low": 0.9998500311740544,
+    "high": 1.1682995763217532,
+    "p": 0.09991455078125,
+    "tasks": 15,
+    "down": 5,
+    "min": 0.8388943386940422,
+    "max": 1.6589164980942068
+   },
+   "grep/lookup/billedTokens": {
+    "ratio": 1.074798733312325,
+    "low": 0.982992142755096,
+    "high": 1.1715536106752975,
+    "p": 0.14544677734375,
+    "tasks": 15,
+    "down": 5,
+    "min": 0.7370164317604792,
+    "max": 1.449748562798544
+   },
+   "grep/lookup/wallSeconds": {
+    "ratio": 1.101782812592203,
+    "low": 1.022632390758979,
+    "high": 1.1883649906583318,
+    "p": 0.0279541015625,
+    "tasks": 15,
+    "down": 5,
+    "min": 0.8725674318832881,
+    "max": 1.494736334934771
+   },
+   "grep/lookup/peakContext": {
+    "ratio": 1.0265591451977865,
+    "low": 0.9955421345068103,
+    "high": 1.0610399873556333,
+    "p": 0.1458740234375,
+    "tasks": 15,
+    "down": 6,
+    "min": 0.9221400344649734,
+    "max": 1.1767776655143598
+   },
+   "grep/lookup/outputTokens": {
+    "ratio": 1.0591743083921916,
+    "low": 0.9940295007233012,
+    "high": 1.1334939481481041,
+    "p": 0.12127685546875,
+    "tasks": 15,
+    "down": 5,
+    "min": 0.8815396742604635,
+    "max": 1.4215714621224456
+   },
+   "grep/lookup/toolCalls": {
+    "ratio": 0.9952892434984085,
+    "low": 0.9251074904595379,
+    "high": 1.0680812858468955,
+    "p": 0.9013671875,
+    "tasks": 15,
+    "down": 7,
+    "min": 0.7595493337448231,
+    "max": 1.253373846659029
+   },
+   "grep/lookup/docBytesRead": {
+    "ratio": 0.8995047094392945,
+    "low": 0.7930045439726038,
+    "high": 1.0090929526077106,
+    "p": 0.1224365234375,
+    "tasks": 15,
+    "down": 8,
+    "min": 0.520739261217803,
+    "max": 1.3001464350797556
+   }
+  }
+ },
  "across": {
   "current-skill/current/costUsd": {
    "ratio": 1.2379007507994229,
@@ -1173,7 +1572,9 @@
     "a topic file": 21,
     "a guide page": 19,
     "dist/index.d.ts": 1,
-    "built JS or the package src": 1
+    "built JS or the package src": 1,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 0
    },
    "matched": 28,
    "topical": 42,
@@ -1187,7 +1588,9 @@
     "a topic file": 33,
     "a guide page": 16,
     "dist/index.d.ts": 3,
-    "built JS or the package src": 0
+    "built JS or the package src": 0,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 0
    },
    "matched": 29,
    "topical": 42,
@@ -1201,7 +1604,9 @@
     "a topic file": 45,
     "a guide page": 31,
     "dist/index.d.ts": 4,
-    "built JS or the package src": 0
+    "built JS or the package src": 0,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 0
    },
    "matched": 42,
    "topical": 42,
@@ -1215,7 +1620,9 @@
     "a topic file": 1,
     "a guide page": 11,
     "dist/index.d.ts": 8,
-    "built JS or the package src": 7
+    "built JS or the package src": 7,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 0
    },
    "matched": 10,
    "topical": 15,
@@ -1229,7 +1636,9 @@
     "a topic file": 15,
     "a guide page": 7,
     "dist/index.d.ts": 11,
-    "built JS or the package src": 6
+    "built JS or the package src": 6,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 0
    },
    "matched": 14,
    "topical": 15,
@@ -1243,7 +1652,9 @@
     "a topic file": 10,
     "a guide page": 14,
     "dist/index.d.ts": 0,
-    "built JS or the package src": 0
+    "built JS or the package src": 0,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 0
    },
    "matched": 20,
    "topical": 28,
@@ -1257,11 +1668,879 @@
     "a topic file": 16,
     "a guide page": 9,
     "dist/index.d.ts": 5,
-    "built JS or the package src": 0
+    "built JS or the package src": 0,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 0
    },
    "matched": 21,
    "topical": 28,
    "failedRuns": 0.8333333333333334
+  },
+  "compact-ctl-lookup-haiku": {
+   "trials": 45,
+   "opened": {
+    "called the skill": 0,
+    "llms.txt": 45,
+    "a topic file": 45,
+    "a guide page": 26,
+    "dist/index.d.ts": 30,
+    "built JS or the package src": 20,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 0
+   },
+   "matched": 30,
+   "topical": 30,
+   "failedRuns": 1.8
+  },
+  "lookup-lookup-haiku": {
+   "trials": 45,
+   "opened": {
+    "called the skill": 0,
+    "llms.txt": 45,
+    "a topic file": 44,
+    "a guide page": 24,
+    "dist/index.d.ts": 9,
+    "built JS or the package src": 15,
+    "sygnal-check docs": 7,
+    "dist/reference.md": 0
+   },
+   "matched": 29,
+   "topical": 30,
+   "failedRuns": 1.5777777777777777
+  },
+  "grep-lookup-haiku": {
+   "trials": 45,
+   "opened": {
+    "called the skill": 0,
+    "llms.txt": 45,
+    "a topic file": 45,
+    "a guide page": 26,
+    "dist/index.d.ts": 12,
+    "built JS or the package src": 17,
+    "sygnal-check docs": 0,
+    "dist/reference.md": 29
+   },
+   "matched": 29,
+   "topical": 30,
+   "failedRuns": 2.2666666666666666
+  }
+ },
+ "lookup": {
+  "rule": {
+   "lookup": {
+    "used": {
+     "value": 7,
+     "of": 45,
+     "ok": false
+    },
+    "dist": {
+     "value": 22,
+     "of": 45,
+     "ok": false
+    },
+    "failed": {
+     "diff": -0.2222222222222222,
+     "low": -0.7555555555555556,
+     "high": 0.3333333333333333,
+     "p": 0.48944091796875,
+     "ok": true
+    },
+    "cost": {
+     "ratio": 0.9417383884215661,
+     "low": 0.8376204976623871,
+     "high": 1.0435786871002342,
+     "p": 0.341796875,
+     "tasks": 15,
+     "down": 10,
+     "min": 0.5137473974623081,
+     "max": 1.3092824365713882,
+     "ok": true
+    },
+    "pass": {
+     "value": 44,
+     "of": 45,
+     "ok": true
+    },
+    "tokens": {
+     "ratio": 0.9641877130165091,
+     "low": 0.8400675013868393,
+     "high": 1.1113688369639179,
+     "p": 0.6258544921875,
+     "tasks": 15,
+     "down": 8,
+     "min": 0.5850651667515189,
+     "max": 1.6827805929169801
+    },
+    "debug": {
+     "diff": -2.4377777777777774,
+     "low": -7.817777777777775,
+     "high": 2.7022222222222205,
+     "p": 0.3944091796875
+    }
+   },
+   "grep": {
+    "used": {
+     "value": 29,
+     "of": 45,
+     "ok": true
+    },
+    "dist": {
+     "value": 22,
+     "of": 45,
+     "ok": false
+    },
+    "failed": {
+     "diff": 0.4666666666666667,
+     "low": -0.1111111111111111,
+     "high": 1.088888888888889,
+     "p": 0.19970703125,
+     "ok": false
+    },
+    "cost": {
+     "ratio": 1.010657402865775,
+     "low": 0.9162533820648898,
+     "high": 1.1168889822338148,
+     "p": 0.84161376953125,
+     "tasks": 15,
+     "down": 9,
+     "min": 0.6778859616713498,
+     "max": 1.4551097570457654,
+     "ok": true
+    },
+    "pass": {
+     "value": 44,
+     "of": 45,
+     "ok": true
+    },
+    "tokens": {
+     "ratio": 1.0363077326254513,
+     "low": 0.9252957096221309,
+     "high": 1.1577622939007286,
+     "p": 0.56207275390625,
+     "tasks": 15,
+     "down": 6,
+     "min": 0.6603337048888687,
+     "max": 1.628772887611483
+    },
+    "debug": {
+     "diff": 3.3866666666666676,
+     "low": -1.6511111111111096,
+     "high": 8.835555555555555,
+     "p": 0.25384521484375
+    }
+   }
+  },
+  "perTask": {
+   "11-search-debounce": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 1.6666666666666667
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 0,
+     "dist": 0,
+     "pass": 3,
+     "failed": 0.6666666666666666
+    },
+    "grep": {
+     "used": 0,
+     "dts": 0,
+     "dist": 1,
+     "pass": 3,
+     "failed": 2.3333333333333335
+    }
+   },
+   "13-course-portal": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 1.6666666666666667
+    },
+    "lookup": {
+     "used": 1,
+     "dts": 0,
+     "dist": 0,
+     "pass": 3,
+     "failed": 2.3333333333333335
+    },
+    "grep": {
+     "used": 2,
+     "dts": 1,
+     "dist": 1,
+     "pass": 3,
+     "failed": 2.3333333333333335
+    }
+   },
+   "22-chat-socket": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 3,
+     "dist": 3,
+     "pass": 3,
+     "failed": 3.3333333333333335
+    },
+    "lookup": {
+     "used": 2,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 5
+    },
+    "grep": {
+     "used": 3,
+     "dts": 0,
+     "dist": 1,
+     "pass": 3,
+     "failed": 3.6666666666666665
+    }
+   },
+   "23-quote-resource": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 1.3333333333333333
+    },
+    "lookup": {
+     "used": 2,
+     "dts": 0,
+     "dist": 0,
+     "pass": 3,
+     "failed": 0.6666666666666666
+    },
+    "grep": {
+     "used": 2,
+     "dts": 0,
+     "dist": 0,
+     "pass": 3,
+     "failed": 1
+    }
+   },
+   "24-list-detail-cache": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 3,
+     "dist": 3,
+     "pass": 3,
+     "failed": 1.3333333333333333
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 2
+    },
+    "grep": {
+     "used": 1,
+     "dts": 1,
+     "dist": 2,
+     "pass": 3,
+     "failed": 0.6666666666666666
+    }
+   },
+   "25-router-spa": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 3,
+     "dist": 3,
+     "pass": 3,
+     "failed": 2.3333333333333335
+    },
+    "lookup": {
+     "used": 1,
+     "dts": 3,
+     "dist": 3,
+     "pass": 3,
+     "failed": 0.6666666666666666
+    },
+    "grep": {
+     "used": 3,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 1
+    }
+   },
+   "26-autosave-draft": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 1
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 0,
+     "dist": 2,
+     "pass": 3,
+     "failed": 2
+    },
+    "grep": {
+     "used": 1,
+     "dts": 3,
+     "dist": 3,
+     "pass": 3,
+     "failed": 4.333333333333333
+    }
+   },
+   "27-undo-editor": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 3,
+     "dist": 3,
+     "pass": 3,
+     "failed": 3
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 0,
+     "dist": 2,
+     "pass": 3,
+     "failed": 1.3333333333333333
+    },
+    "grep": {
+     "used": 3,
+     "dts": 0,
+     "dist": 3,
+     "pass": 3,
+     "failed": 3.3333333333333335
+    }
+   },
+   "30-checkout-form": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 1.3333333333333333
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 0,
+     "dist": 2,
+     "pass": 3,
+     "failed": 2
+    },
+    "grep": {
+     "used": 1,
+     "dts": 2,
+     "dist": 2,
+     "pass": 3,
+     "failed": 2.3333333333333335
+    }
+   },
+   "31-command-menu": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 1,
+     "dist": 1,
+     "pass": 3,
+     "failed": 1.6666666666666667
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 0,
+     "dist": 0,
+     "pass": 3,
+     "failed": 2
+    },
+    "grep": {
+     "used": 3,
+     "dts": 0,
+     "dist": 0,
+     "pass": 3,
+     "failed": 1.6666666666666667
+    }
+   },
+   "32-sales-chart": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 2,
+     "dist": 3,
+     "pass": 3,
+     "failed": 1.6666666666666667
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 0,
+     "dist": 0,
+     "pass": 3,
+     "failed": 0.6666666666666666
+    },
+    "grep": {
+     "used": 3,
+     "dts": 0,
+     "dist": 2,
+     "pass": 3,
+     "failed": 3
+    }
+   },
+   "33-virtual-list": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 3,
+     "dist": 3,
+     "pass": 2,
+     "failed": 2
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 1,
+     "dist": 2,
+     "pass": 2,
+     "failed": 1
+    },
+    "grep": {
+     "used": 3,
+     "dts": 1,
+     "dist": 2,
+     "pass": 2,
+     "failed": 1
+    }
+   },
+   "44-streaming-chat": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 0,
+     "dist": 3,
+     "pass": 3,
+     "failed": 1.3333333333333333
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 0,
+     "dist": 3,
+     "pass": 3,
+     "failed": 0.3333333333333333
+    },
+    "grep": {
+     "used": 1,
+     "dts": 1,
+     "dist": 1,
+     "pass": 3,
+     "failed": 3.6666666666666665
+    }
+   },
+   "45-packing-assistant": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 1,
+     "dist": 2,
+     "pass": 2,
+     "failed": 3
+    },
+    "lookup": {
+     "used": 0,
+     "dts": 1,
+     "dist": 3,
+     "pass": 3,
+     "failed": 1.6666666666666667
+    },
+    "grep": {
+     "used": 3,
+     "dts": 1,
+     "dist": 2,
+     "pass": 3,
+     "failed": 2.3333333333333335
+    }
+   },
+   "46-ticket-triage": {
+    "compact-ctl": {
+     "used": 0,
+     "dts": 1,
+     "dist": 2,
+     "pass": 3,
+     "failed": 0.3333333333333333
+    },
+    "lookup": {
+     "used": 1,
+     "dts": 0,
+     "dist": 1,
+     "pass": 3,
+     "failed": 1.3333333333333333
+    },
+    "grep": {
+     "used": 0,
+     "dts": 0,
+     "dist": 0,
+     "pass": 3,
+     "failed": 1.3333333333333333
+    }
+   }
+  },
+  "names": {
+   "cli": [
+    [
+     "SocketReconnect",
+     2
+    ],
+    [
+     "makeFetchDriver",
+     2
+    ],
+    [
+     "makeSocketDriver",
+     2
+    ],
+    [
+     "reconnect",
+     2
+    ],
+    [
+     "DROPPED",
+     1
+    ],
+    [
+     "ROUTER",
+     1
+    ],
+    [
+     "STATE",
+     1
+    ],
+    [
+     "SocketActions",
+     1
+    ],
+    [
+     "SocketClose",
+     1
+    ],
+    [
+     "SocketConnection",
+     1
+    ],
+    [
+     "SocketOpen",
+     1
+    ],
+    [
+     "answers",
+     1
+    ],
+    [
+     "block",
+     1
+    ],
+    [
+     "data",
+     1
+    ],
+    [
+     "decide",
+     1
+    ],
+    [
+     "head",
+     1
+    ],
+    [
+     "makeChatDriver",
+     1
+    ],
+    [
+     "stream",
+     1
+    ],
+    [
+     "uiMessageStream",
+     1
+    ],
+    [
+     "willReconnect",
+     1
+    ]
+   ],
+   "unknown": [
+    [
+     "DROPPED",
+     1
+    ],
+    [
+     "willReconnect",
+     1
+    ]
+   ],
+   "grepKinds": [
+    [
+     "by heading",
+     42
+    ],
+    [
+     "keyword grep",
+     14
+    ],
+    [
+     "line ranges only (sed)",
+     5
+    ]
+   ],
+   "grepHeadings": [
+    [
+     "uiMessageStream",
+     4
+    ],
+    [
+     "uid",
+     4
+    ],
+    [
+     "withToolResults",
+     4
+    ],
+    [
+     "ELEMENT",
+     3
+    ],
+    [
+     "SocketReconnect",
+     3
+    ],
+    [
+     "chat",
+     3
+    ],
+    [
+     "data",
+     3
+    ],
+    [
+     "defineWidget",
+     3
+    ],
+    [
+     "keydown",
+     3
+    ],
+    [
+     "makeChatDriver",
+     3
+    ],
+    [
+     "makeSocketDriver",
+     3
+    ],
+    [
+     "messageText",
+     3
+    ],
+    [
+     "undo",
+     3
+    ],
+    [
+     "SocketClose",
+     2
+    ],
+    [
+     "SocketMessage",
+     2
+    ],
+    [
+     "Switchable",
+     2
+    ],
+    [
+     "VirtualCollection",
+     2
+    ],
+    [
+     "event",
+     2
+    ],
+    [
+     "key",
+     2
+    ],
+    [
+     "makeFetchDriver",
+     2
+    ],
+    [
+     "BOOTSTRAP",
+     1
+    ],
+    [
+     "CHILD",
+     1
+    ],
+    [
+     "ChatCall",
+     1
+    ],
+    [
+     "ChatRequest",
+     1
+    ],
+    [
+     "ChatTransport",
+     1
+    ],
+    [
+     "DOM",
+     1
+    ],
+    [
+     "DOM.data",
+     1
+    ],
+    [
+     "DOM.key",
+     1
+    ],
+    [
+     "DOMSelection.data",
+     1
+    ],
+    [
+     "DOMSource.data",
+     1
+    ],
+    [
+     "HEAD",
+     1
+    ],
+    [
+     "INITIALIZE",
+     1
+    ],
+    [
+     "PARENT",
+     1
+    ],
+    [
+     "ROUTER",
+     1
+    ],
+    [
+     "Route",
+     1
+    ],
+    [
+     "RouteName",
+     1
+    ],
+    [
+     "RouterBlocked",
+     1
+    ],
+    [
+     "RouterBlocked.",
+     1
+    ],
+    [
+     "STATE.watch",
+     1
+    ],
+    [
+     "SocketConnection",
+     1
+    ],
+    [
+     "SocketOpen",
+     1
+    ],
+    [
+     "block",
+     1
+    ],
+    [
+     "combobox",
+     1
+    ],
+    [
+     "debounce",
+     1
+    ],
+    [
+     "focus",
+     1
+    ],
+    [
+     "makeHeadDriver",
+     1
+    ],
+    [
+     "makeRouter",
+     1
+    ],
+    [
+     "persist",
+     1
+    ],
+    [
+     "preventDefault",
+     1
+    ],
+    [
+     "previousState",
+     1
+    ],
+    [
+     "renderComponent",
+     1
+    ],
+    [
+     "requests",
+     1
+    ],
+    [
+     "resources",
+     1
+    ],
+    [
+     "respond",
+     1
+    ],
+    [
+     "route",
+     1
+    ],
+    [
+     "scrollToIndex",
+     1
+    ],
+    [
+     "stream",
+     1
+    ],
+    [
+     "submit",
+     1
+    ],
+    [
+     "target",
+     1
+    ],
+    [
+     "value",
+     1
+    ],
+    [
+     "withToolResults.results",
+     1
+    ]
+   ]
+  },
+  "costPerFailedRun": 0.007817465989847715,
+  "promptFlaw": {
+   "ratio": 0.9926773587396461,
+   "low": 0.8767134370651701,
+   "high": 1.1234328778673217,
+   "p": 0.9375,
+   "tasks": 5,
+   "down": 3,
+   "min": 0.7896044308395757,
+   "max": 1.19369127969557
   }
  }
 }

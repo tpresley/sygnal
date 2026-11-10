@@ -1,0 +1,5 @@
+# agent-docs-pilot-grep-haiku: headless trials (orchestrate.mjs); transcripts are <trials-root>/agent-docs-pilot-grep-haiku/<trial>.transcript.jsonl
+sygnal-23-t1	headless
+sygnal-23-t2	headless
+sygnal-30-t1	headless
+sygnal-30-t2	headless

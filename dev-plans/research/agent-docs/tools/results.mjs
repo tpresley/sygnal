@@ -15,6 +15,7 @@ const RUNS = {
   haiku: { control: 'current', arms: ['current', 'compact'], run: (a) => `agent-docs-${a}-haiku` },
   pilot: { control: 'current', arms: ['current', 'compact'], run: (a) => `agent-docs-pilot-${a}-haiku` },
   skill: { control: 'current-skill', arms: ['current-skill', 'compact-skill'], run: (a) => `agent-docs-${a}-sonnet` },
+  'lookup-haiku': { control: 'compact-ctl', arms: ['compact-ctl', 'lookup', 'grep'], run: (a) => `agent-docs2-${a}-haiku` },
 }
 const METRICS = {
   costUsd: (t) => t.costUsd, billedTokens: (t) => t.tokens, wallSeconds: (t) => t.wallSeconds,
@@ -100,6 +101,7 @@ for (const [name, cfg] of Object.entries(RUNS)) {
   say('Within-task trial spread (pooled log SD): ' + cfg.arms.map((a) => `${a}: ` + ['costUsd', 'billedTokens', 'wallSeconds', 'peakContext'].map((m) => `${m} ${json[name].arms[a].metrics[m].withinTaskLogSd.toFixed(2)}`).join(', ')).join('; ') + '\n')
   const pairs = cfg.arms.filter((a) => a !== cfg.control).map((a) => [cfg.control, a])
   if (cfg.arms.includes('index')) pairs.push(['compact', 'index'])
+  if (cfg.arms.includes('grep')) pairs.push(['lookup', 'grep'])
   for (const [c, a] of pairs) {
     say(`### ${a} / ${c} (paired by task)\n`)
     say('| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |')
@@ -151,6 +153,7 @@ const TRIGGER = {
 const OPENED = {
   'called the skill': /"skill":"sygnal-dev"/, 'llms.txt': /llms\.txt/, 'a topic file': /llms\/[a-z-]+\.md|llms\/\*/, 'a guide page': /guide\/[\w/-]+\.md/,
   'dist/index.d.ts': /index\.d\.ts/, 'built JS or the package src': /dist\/[\w.-]+\.[mc]?js\b|sygnal\/src\b/,
+  'sygnal-check docs': /sygnal-check\s+docs\s/, 'dist/reference.md': /(?<![-\w])reference\.md/,
 }
 function toolInputs(run, trial) {
   const lines = fs.readFileSync(`${TRIALS}/${run}/${trial}.transcript.jsonl`, 'utf8').split('\n').filter(Boolean)
@@ -173,6 +176,131 @@ for (const [name, cfg] of Object.entries(RUNS)) {
   }
 }
 say()
+
+// The docs lookup (README section 10): how the two forms were used, and the decision rule as it was fixed before the runs.
+const DIST_READ = /index\.d\.ts|dist\/[\w.-]+\.[mc]?js\b|sygnal\/src\b/
+// What the rule's regex misses: a glob or a recursive grep over the built files, and the package's src after a cd into it.
+const DIST_READ_WIDE = /dist\/\*\.[mc]?js|--include=\*?\.?\*?\.?[mc]?js[^|;&]*dist|dist[^|;&]*--include=\*?\.?\*?\.?[mc]?js|(^|[\s"'])src\/(extra|core|cycle|ui)\b.*|\bgrep\s+-[a-zA-Z]*r[a-zA-Z]*\b[^|;&]*sygnal\/dist\b/
+const CLI = /sygnal-check\s+docs\s+([^\s|;&)'"]+)/g, REFERENCE = /(?<![-\w])reference\.md/
+function calls(run, trial) {
+  const lines = fs.readFileSync(`${TRIALS}/${run}/${trial}.transcript.jsonl`, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
+  const blocks = lines.flatMap((l) => Array.isArray(l.message?.content) ? l.message.content : [])
+  const results = new Map(blocks.filter((b) => b.type === 'tool_result').map((b) => [b.tool_use_id, b]))
+  return blocks.filter((b) => b.type === 'tool_use').map((b) => {
+    const r = results.get(b.id), text = typeof r?.content === 'string' ? r.content : (r?.content ?? []).map((x) => x.text ?? '').join('')
+    return { tool: b.name, input: JSON.stringify(b.input), command: String(b.input.command ?? ''), text }
+  })
+}
+const looksUpTheDocs = (c) => c.input.match(/sygnal-check\s+docs\s/) || REFERENCE.test(c.input)
+function usage(run, t) {
+  const cs = calls(run, t.a.trial), read = cs.filter((c) => c.tool !== 'Write' && c.tool !== 'Edit')
+  const cli = read.filter((c) => /sygnal-check\s+docs\s/.test(c.input)), grep = read.filter((c) => REFERENCE.test(c.input))
+  const names = cli.flatMap((c) => [...c.input.matchAll(CLI)].map((m) => ({ name: m[1], unknown: c.text.includes(`nothing named '${m[1]}'`) })))
+  const first = read.findIndex(looksUpTheDocs), distAt = read.findIndex((c) => DIST_READ.test(c.input))
+  return {
+    ...t, cli: cli.length, grep: grep.length, names, used: cli.length + grep.length > 0, usedBytes: [...new Set([...cli, ...grep])].reduce((s, c) => s + c.text.length, 0),
+    grepCommands: grep.map((c) => c.command || c.input),
+    dist: DIST_READ.test(JSON.stringify(cs.map((c) => JSON.parse(c.input)))), distWide: read.some((c) => DIST_READ.test(c.input) || DIST_READ_WIDE.test(c.command)),
+    dts: read.some((c) => /index\.d\.ts/.test(c.input)), distFirst: first >= 0 && distAt >= 0 && distAt < first, distAfter: first >= 0 && read.slice(first + 1).some((c) => DIST_READ.test(c.input)),
+    failed: t.a.failures.filter((f) => f.kind === 'verify').length, debug: t.a.phases.debug ?? 0,
+  }
+}
+const num = (a, f) => a.filter(f).length
+function pairedDiff(control, arm, f) {
+  const c = byTask(control), a = byTask(arm), tasks = [...c.keys()].filter((k) => a.has(k))
+  const d = tasks.map((k) => mean(a.get(k).map(f)) - mean(c.get(k).map(f)))
+  const r = rng(20261110), boots = []
+  for (let i = 0; i < 20000; i++) boots.push(mean(d.map(() => d[Math.floor(r() * d.length)])))
+  boots.sort((x, y) => x - y)
+  const obs = Math.abs(mean(d)); let extreme = 0
+  for (let mask = 0; mask < 2 ** d.length; mask++) if (Math.abs(mean(d.map((x, i) => (mask >> i) & 1 ? -x : x))) >= obs - 1e-12) extreme++
+  return { diff: mean(d), low: boots[Math.floor(boots.length * 0.025)], high: boots[Math.floor(boots.length * 0.975)], p: extreme / 2 ** d.length }
+}
+const LOOKUP = { control: 'compact-ctl', arms: ['lookup', 'grep'] }
+const u = Object.fromEntries([LOOKUP.control, ...LOOKUP.arms].map((a) => { const run = `agent-docs2-${a}-haiku`; return [a, load(run).map((t) => usage(run, t))] }))
+const pilots = Object.fromEntries(LOOKUP.arms.map((a) => { const run = `agent-docs-pilot-${a}-haiku`; return [a, load(run).map((t) => usage(run, t))] }))
+json.lookup = { rule: {}, perTask: {}, names: {} }
+say('## The docs lookup: use, and the decision rule (Haiku, no skill)\n')
+say('Pilot (tasks 23, 30 × 2): ' + LOOKUP.arms.map((a) => `${a} used in ${num(pilots[a], (t) => t.used)}/${pilots[a].length}`).join('; ') + '\n')
+say('| Arm | Trials | Used it | Calls per trial (users) | Bytes returned by those calls per user | Rule: dist/ read | index.d.ts | Wider: dist/ read | Passed | Failed build/test runs | Debug s | Cost per trial |')
+say('|---|---|---|---|---|---|---|---|---|---|---|---|')
+for (const [a, ts] of Object.entries(u)) {
+  const users = ts.filter((t) => t.used)
+  say(`| ${a} | ${ts.length} | ${users.length} | ${users.length ? mean(users.map((t) => t.cli + t.grep)).toFixed(1) : '–'} | ${users.length ? Math.round(mean(users.map((t) => t.usedBytes))) : '–'} | ${num(ts, (t) => t.dist)} | ${num(ts, (t) => t.dts)} | ${num(ts, (t) => t.distWide)} | ${num(ts, (t) => t.pass)} | ${mean(ts.map((t) => t.failed)).toFixed(2)} | ${mean(ts.map((t) => t.debug)).toFixed(1)} | $${mean(ts.map((t) => t.costUsd)).toFixed(4)} |`)
+}
+say()
+say('### The rule, requirement by requirement\n')
+say('| Requirement | Control | ' + LOOKUP.arms.join(' | ') + ' |')
+say('|---|---|' + LOOKUP.arms.map(() => '---').join('|') + '|')
+const c0 = u[LOOKUP.control], rows = {}
+for (const a of LOOKUP.arms) {
+  const ts = u[a], cost = pairedEffect(c0, ts, (t) => t.costUsd), tokens = pairedEffect(c0, ts, (t) => t.tokens), failed = pairedDiff(c0, ts, (t) => t.failed), debug = pairedDiff(c0, ts, (t) => t.debug)
+  rows[a] = {
+    used: { value: num(ts, (t) => t.used), of: ts.length, ok: num(ts, (t) => t.used) / ts.length >= 0.5 },
+    dist: { value: num(ts, (t) => t.dist), of: ts.length, ok: num(ts, (t) => t.dist) / ts.length <= (num(c0, (t) => t.dist) / c0.length) / 2 },
+    failed: { ...failed, ok: failed.diff <= 0.25 }, cost: { ...cost, ok: cost.ratio <= 1.05 && cost.high <= 1.15 },
+    pass: { value: num(ts, (t) => t.pass), of: ts.length, ok: num(ts, (t) => t.pass) >= num(c0, (t) => t.pass) - 3 }, tokens, debug,
+  }
+}
+json.lookup.rule = rows
+const mark = (ok) => (ok ? 'met' : '**not met**')
+say(`| 1. Used in ≥ 50% | – | ${LOOKUP.arms.map((a) => `${rows[a].used.value}/${rows[a].used.of}: ${mark(rows[a].used.ok)}`).join(' | ')} |`)
+say(`| 2. dist/ reads at most half the control's | ${num(c0, (t) => t.dist)}/${c0.length} | ${LOOKUP.arms.map((a) => `${rows[a].dist.value}/${rows[a].dist.of}: ${mark(rows[a].dist.ok)}`).join(' | ')} |`)
+say(`| 3. Failed runs, paired difference ≤ +0.25 | – | ${LOOKUP.arms.map((a) => `${rows[a].failed.diff >= 0 ? '+' : ''}${rows[a].failed.diff.toFixed(2)} (${rows[a].failed.low.toFixed(2)} to ${rows[a].failed.high.toFixed(2)}, p ${rows[a].failed.p.toFixed(3)}): ${mark(rows[a].failed.ok)}`).join(' | ')} |`)
+say(`| 4. Cost ratio ≤ 1.05, upper bound ≤ 1.15 | – | ${LOOKUP.arms.map((a) => `${rows[a].cost.ratio.toFixed(2)} (${rows[a].cost.low.toFixed(2)}–${rows[a].cost.high.toFixed(2)}, p ${rows[a].cost.p.toFixed(3)}): ${mark(rows[a].cost.ok)}`).join(' | ')} |`)
+say(`| 5. Pass within 3 of 45 | ${num(c0, (t) => t.pass)}/${c0.length} | ${LOOKUP.arms.map((a) => `${rows[a].pass.value}/${rows[a].pass.of}: ${mark(rows[a].pass.ok)}`).join(' | ')} |`)
+say(`| (billed tokens, ratio) | – | ${LOOKUP.arms.map((a) => `${rows[a].tokens.ratio.toFixed(2)} (${rows[a].tokens.low.toFixed(2)}–${rows[a].tokens.high.toFixed(2)})`).join(' | ')} |`)
+say(`| (debug phase seconds, paired difference) | – | ${LOOKUP.arms.map((a) => `${rows[a].debug.diff >= 0 ? '+' : ''}${rows[a].debug.diff.toFixed(1)} (${rows[a].debug.low.toFixed(1)} to ${rows[a].debug.high.toFixed(1)})`).join(' | ')} |`)
+say()
+say('### Per task: trials (of 3) that used the form / opened index.d.ts / passed\n')
+say('| Task | ' + Object.keys(u).join(' | ') + ' |')
+say('|---|---|---|---|')
+for (const task of byTask(c0).keys()) {
+  json.lookup.perTask[task] = {}
+  say(`| ${task} | ` + Object.entries(u).map(([a, ts]) => {
+    const g = ts.filter((t) => t.task === task), cell = { used: num(g, (t) => t.used), dts: num(g, (t) => t.dts), dist: num(g, (t) => t.dist), pass: num(g, (t) => t.pass), failed: mean(g.map((t) => t.failed)) }
+    json.lookup.perTask[task][a] = cell
+    return `${cell.used} / ${cell.dts} / ${cell.pass}`
+  }).join(' | ') + ' |')
+}
+say()
+say('### Against the same task\'s control, by whether the trial used the form (mean log cost difference as a ratio, and failed runs; descriptive: agents choose to look things up when they are stuck)\n')
+const ctlLog = new Map([...byTask(c0)].map(([k, g]) => [k, { cost: mean(g.map((t) => Math.log(t.costUsd))), failed: mean(g.map((t) => t.failed)) }]))
+say('| Arm | Trials that… | n | Cost vs control | Failed runs vs control | index.d.ts |')
+say('|---|---|---|---|---|---|')
+for (const a of LOOKUP.arms) for (const [label, g] of [['used it', u[a].filter((t) => t.used)], ['did not', u[a].filter((t) => !t.used)]]) {
+  if (!g.length) continue
+  say(`| ${a} | ${label} | ${g.length} | ${Math.exp(mean(g.map((t) => Math.log(t.costUsd) - ctlLog.get(t.task).cost))).toFixed(2)} | ${(mean(g.map((t) => t.failed - ctlLog.get(t.task).failed))).toFixed(2)} | ${num(g, (t) => t.dts)} |`)
+}
+say()
+say('Of the trials that used the form: ' + LOOKUP.arms.map((a) => { const g = u[a].filter((t) => t.used); return `${a}: ${num(g, (t) => t.distFirst)} read dist/ first, ${num(g, (t) => t.distAfter)} read dist/ after their first lookup, of ${g.length}` }).join('; ') + '\n')
+// What one failed build/test run costs: pooled within task and arm, the slope of cost on failed runs (descriptive).
+{
+  const all = Object.entries(u).flatMap(([a, ts]) => [...byTask(ts).values()].flatMap((g) => { const c = mean(g.map((t) => t.costUsd)), f = mean(g.map((t) => t.failed)); return g.map((t) => [t.failed - f, t.costUsd - c]) }))
+  const slope = all.reduce((s, [x, y]) => s + x * y, 0) / all.reduce((s, [x]) => s + x * x, 0)
+  json.lookup.costPerFailedRun = slope
+  say(`One more failed build/test run goes with $${slope.toFixed(4)} more cost in the same task and arm (pooled slope over ${all.length} trials; descriptive).\n`)
+}
+say('### What was looked up\n')
+const tally = (xs) => [...xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map())].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1))
+const allNames = u.lookup.flatMap((t) => t.names)
+json.lookup.names.cli = tally(allNames.map((n) => n.name)); json.lookup.names.unknown = tally(allNames.filter((n) => n.unknown).map((n) => n.name))
+say(`\`sygnal-check docs\`: ${allNames.length} names, ${allNames.filter((n) => n.unknown).length} unknown: ` + json.lookup.names.cli.map(([n, k]) => `\`${n}\`${k > 1 ? ` ×${k}` : ''}`).join(', ') + '\n')
+if (json.lookup.names.unknown.length) say('Unknown: ' + json.lookup.names.unknown.map(([n]) => `\`${n}\``).join(', ') + '\n')
+const kind = (c) => /\bsed\b/.test(c) && !/\bgrep\b/.test(c) ? 'line ranges only (sed)' : /\^##|\^\(##|'## |"## /.test(c) ? 'by heading' : /\bgrep\b/.test(c) ? 'keyword grep' : /\bcat\b/.test(c) ? 'cat' : 'other'
+const kinds = tally(u.grep.flatMap((t) => t.grepCommands.map(kind)))
+json.lookup.names.grepKinds = kinds
+say(`\`dist/reference.md\`: ${kinds.map(([k, n]) => `${k} ${n}`).join(', ')}.\n`)
+const heads = u.grep.flatMap((t) => t.grepCommands.flatMap((c) => [...c.matchAll(/\^## (?:\(\.\*\\+\.\)\?)?\(?([A-Za-z_][\w|\\.]*)/g)].flatMap((m) => m[1].replaceAll('\\', '').split('|')))).filter(Boolean)
+json.lookup.names.grepHeadings = tally(heads)
+say('Headings asked for: ' + json.lookup.names.grepHeadings.map(([n, k]) => `\`${n}\`${k > 1 ? ` ×${k}` : ''}`).join(', ') + '\n')
+// The prompt fix, roughly: the earlier compact Haiku run against the new control, on the tasks they share. Descriptive.
+{
+  const old = load('agent-docs-compact-haiku'), ctl = load('agent-docs2-compact-ctl-haiku'), e = pairedEffect(old, ctl, (t) => t.costUsd), n = e.tasks
+  say(`Earlier compact Haiku run (prompt names a skill it does not have) against the new control, on the ${n} tasks they share: cost ratio ${e.ratio.toFixed(2)} (${e.low.toFixed(2)}–${e.high.toFixed(2)}). Descriptive: it mixes the prompt, the date and the checker version.\n`)
+  json.lookup.promptFlaw = e
+}
+
 fs.writeFileSync(path.join(here, '../data/results.md'), out.join('\n'))
 fs.writeFileSync(path.join(here, '../data/results.json'), JSON.stringify(json, null, 1) + '\n')
 console.log(out.join('\n'))
