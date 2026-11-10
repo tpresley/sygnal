@@ -428,11 +428,7 @@ export function behaviourFacts(project, graph) {
     for (const e of c.model?.entries || []) {
       const a = actions[e.action] ||= { trigger: triggers.get(e.action) ?? null, sinks: {} }
       for (const sv of (c.model.sinkValues || []).filter(x => x.action === e.action)) a.sinks[sv.sink] = sinkFacts(project, e, sv.sink, sv.node, sv.file, stateKeys)
-      if (e.stateValue && !a.sinks.STATE) {
-        // `SAVE: emit('SAVED', fn)`: an entry that is an EVENTS sink, though the model reads it as a reducer
-        const form = sinkForm(project, e.stateValue.file, e.stateValue.node)
-        a.sinks[form.eventType ? 'EVENTS' : 'STATE'] = sinkFacts(project, e, form.eventType ? 'EVENTS' : 'STATE', e.stateValue.node, e.stateValue.file, stateKeys)
-      }
+      if (e.stateValue && !a.sinks.STATE) a.sinks.STATE = sinkFacts(project, e, 'STATE', e.stateValue.node, e.stateValue.file, stateKeys)
     }
     const initial = {}
     for (const [k, v] of c.initialState?.keys || []) initial[k] = { h: fingerprint(project, v.file ?? c.file, v.node).own, text: textOf(v.file ?? c.file, v.node).slice(0, 80) }

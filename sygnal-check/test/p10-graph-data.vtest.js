@@ -234,3 +234,17 @@ describe('inline cases', () => {
     })
   })
 })
+
+describe('emit() as a whole model entry', () => {
+  it("`A: emit('T', fn)` is an EVENTS sink, not a reducer that writes unknown keys", () => {
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'graph-emit-')))
+    try {
+      const file = path.join(dir, 'App.jsx')
+      const sources = { [file]: `import { emit } from 'sygnal'\nexport function App() { return <button className="b">x</button> }\nApp.intent = ({ DOM }) => ({ A: DOM.click('.b') })\nApp.model = { A: emit('T', (s) => ({ id: s.id })) }\n` }
+      const g = graphFiles([file], { cwd: dir, sources })
+      expect(g.components[0].actions[0]).toMatchObject({ name: 'A', sinks: ['EVENTS'] })
+      expect(g.components[0].actions[0].writes).toBeUndefined()
+      expect(g.components[0].eventsEmitted).toEqual(['T'])
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+})
