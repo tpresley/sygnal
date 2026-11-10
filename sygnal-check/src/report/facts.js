@@ -13,7 +13,8 @@
  *   SinkFacts {
  *     fp, reads, readsPartial, guards: [{ h, text }], conds: [{ h, text }], branches,
  *     mutates (assigns through a local or calls an array mutator), opaque (can't be read),
- *     STATE: perKey { [key]: hash of what the returns put there }
+ *     STATE: writes (keys, null unknown; reducerWrites with deep), removes,
+ *            perKey { [key]: hash of what the returns put there }
  *     EVENTS: events [type]; PARENT / EVENTS: shape [keys of the returned literal] | null
  *     a driver sink (HTTP, LLM, ...): requests ['PUT /api/x/${…} → ok SAVED, error FAILED']
  *   }
@@ -25,10 +26,10 @@ import { findBinding } from '../scope.js'
 import { resolveExpr } from '../model/resolve.js'
 import { returnedExpressions, sourceAliases, isSourceRef } from '../model/intent.js'
 import { eventSinkTypes, returnedObjects, requestProps, NON_REPLY_SINKS } from '../model/modelEntries.js'
-import { stateReads, sygnalName } from '../model/stateAccess.js'
+import { stateReads, sygnalName, reducerWrites } from '../model/stateAccess.js'
 import { renderGraph } from '../model/renderGraph.js'
 import { findApps } from '../model/apps.js'
-import { fingerprint, canonOf, hash, textOf, returnedLiterals } from './canon.js'
+import { fingerprint, canonOf, canonText, hash, textOf, returnedLiterals } from './canon.js'
 
 const MUTATORS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'fill', 'copyWithin'])
 const bare = (n) => { n = unwrap(n); while (n?.type === 'ChainExpression') n = unwrap(n.expression); return n }
@@ -63,77 +64,99 @@ function statementsOf(fn) {
   return fn.body.type === 'BlockStatement' ? fn.body : { type: 'ReturnStatement', argument: fn.body }
 }
 
-/** The guards (conditions that end in ABORT / the state unchanged), conditions and branch count of a function. */
-function controlFlow(file, fn, isStateSink) {
-  const guards = [], conds = []
-  let branches = 0
-  const p0 = fn.params[0]
-  const noop = (e) => {
-    e = bare(e)
-    if (!e) return false
-    if (sygnalName(file, e) === 'ABORT') return true
-    return isStateSink && e.type === 'Identifier' && p0?.type === 'Identifier' && e.name === p0.name
-  }
-  const neg = (c) => ({ text: `!(${c.text})`, h: 'not:' + c.h })
-  // (conds: `!x` and `x` are one condition, an if / else written the other way round isn't a change)
-  const cond = (c) => {
-    const x = { text: textOf(file, c), h: canonOf(file, c, fn) }
-    const pos = bare(c).type === 'UnaryExpression' && bare(c).operator === '!' ? bare(bare(c).argument) : bare(c)
-    conds.push({ text: textOf(file, pos), h: canonOf(file, pos, fn) })
-    branches++
-    return x
-  }
-  const guard = (path) => path.length && guards.push({ text: path.map(c => c.text).join(' && ') || '(always)', h: hash(path.map(c => c.h).join('&')) })
-  const expr = (e, path) => {
-    e = bare(e)
-    if (!e) return
-    if (noop(e)) { guard(path); return }
-    if (e.type === 'ConditionalExpression') {
-      const c = cond(e.test)
-      expr(e.consequent, [...path, c])
-      expr(e.alternate, [...path, neg(c)])
-    } else if (e.type === 'LogicalExpression') {
-      // `a && ABORT`, `a || ABORT`
-      const c = { text: textOf(file, e.left), h: canonOf(file, e.left, fn) }
-      if (noop(e.right)) guard([...path, e.operator === '&&' ? c : neg(c)])
+/** The function a call runs, when the checker can read it (not a package's). */
+function helperOf(project, file, call) {
+  const callee = bare(call.callee)
+  if (callee?.type !== 'Identifier') return null
+  const b = findBinding(file, callee.name, callee)
+  if (!b || (b.kind === 'import' && !/^[./]/.test(b.source))) return null
+  const h = resolveExpr(project, file, callee)
+  return h?.node && isFunction(h.node) ? { fn: h.node, file: h.file, name: callee.name } : null
+}
+
+/**
+ * The guards (conditions that end in ABORT / the state unchanged), conditions, branch count and
+ * returned object literals of a function, following helpers in return position (3 calls deep): a guard
+ * moved into a helper hashes as it did in place (canon.js args), a guard changed in one is a changed guard.
+ */
+function controlFlow(project, file0, fn0, isStateSink) {
+  const out = { guards: [], conds: [], branches: 0, literals: [], mutates: false }
+  const seen = new Set()
+  const visit = (file, fn, path0, level) => {
+    seen.add(fn)
+    if (mutates(fn)) out.mutates = true
+    const c = (n) => canonOf(file, n, fn, { args: level.args })
+    const say = (t) => level.name ? `${t} (in ${level.name})` : t
+    const stateParam = fn.params[level.state]
+    const noop = (e) => {
+      e = bare(e)
+      if (!e) return false
+      if (sygnalName(file, e) === 'ABORT') return true
+      return isStateSink && e.type === 'Identifier' && stateParam?.type === 'Identifier' && e.name === stateParam.name
     }
-  }
-  const stmt = (s, path) => {
-    if (!s) return
-    switch (s.type) {
-      case 'BlockStatement': s.body.forEach(x => stmt(x, path)); break
-      case 'ReturnStatement': expr(s.argument, path); break
-      case 'IfStatement': {
-        const c = cond(s.test)
-        stmt(s.consequent, [...path, c])
-        stmt(s.alternate, [...path, neg(c)])
-        break
+    const neg = (x) => ({ text: `!(${x.text})`, h: 'not:' + x.h })
+    // (conds: `!x` and `x` are one condition, an if / else written the other way round isn't a change)
+    const positive = (n) => { const t = bare(n); return t.type === 'UnaryExpression' && t.operator === '!' ? bare(t.argument) : t }
+    const seenConds = new Set()
+    const addCond = (n) => { const p = positive(n); const x = { text: say(textOf(file, p)), h: c(p) }; if (!seenConds.has(x.text)) { seenConds.add(x.text); out.conds.push(x); out.branches++ } }
+    const cond = (n) => { addCond(n); return { text: say(textOf(file, n)), h: c(n) } }
+    const guard = (path) => path.length && out.guards.push({ text: path.map(x => x.text).join(' && '), h: hash(path.map(x => x.h).join('&')) })
+    const expr = (e, path) => {
+      e = bare(e)
+      if (!e) return
+      if (noop(e)) { guard(path); return }
+      if (e.type === 'ConditionalExpression') {
+        const x = cond(e.test)
+        expr(e.consequent, [...path, x])
+        expr(e.alternate, [...path, neg(x)])
+      } else if (e.type === 'LogicalExpression') {
+        // `a && ABORT`, `a || ABORT`
+        const x = { text: say(textOf(file, e.left)), h: c(e.left) }
+        if (noop(e.right)) guard([...path, e.operator === '&&' ? x : neg(x)])
+        else { expr(e.right, path); if (e.operator !== '&&') expr(e.left, path) }
+      } else if (e.type === 'ObjectExpression') {
+        out.literals.push({ obj: e, file, fn, args: level.args })
+      } else if (e.type === 'CallExpression' && level.depth < 3) {
+        const h = helperOf(project, file, e)
+        if (!h || seen.has(h.fn)) return
+        const i = e.arguments.findIndex(a => bare(a)?.type === 'Identifier' && stateParam?.type === 'Identifier' && bare(a).name === stateParam.name)
+        visit(h.file, h.fn, path, { depth: level.depth + 1, name: h.name, state: i < 0 ? -1 : i, args: e.arguments.map(a => a.type === 'SpreadElement' ? '...' : canonText(file, a, fn, { args: level.args })) })
       }
-      case 'SwitchStatement': {
-        const d = { text: textOf(file, s.discriminant), h: canonOf(file, s.discriminant, fn) }
-        for (const k of s.cases) {
-          if (k.test) { branches++; conds.push({ text: `${d.text} === ${textOf(file, k.test)}`, h: d.h + canonOf(file, k.test, fn) }) }
-          const c = k.test ? { text: `${d.text} === ${textOf(file, k.test)}`, h: d.h + canonOf(file, k.test, fn) } : { text: 'default', h: 'default' }
-          k.consequent.forEach(x => stmt(x, [...path, c]))
+    }
+    const stmt = (s, path) => {
+      if (!s) return
+      switch (s.type) {
+        case 'BlockStatement': s.body.forEach(x => stmt(x, path)); break
+        case 'ReturnStatement': expr(s.argument, path); break
+        case 'IfStatement': {
+          const x = cond(s.test)
+          stmt(s.consequent, [...path, x])
+          stmt(s.alternate, [...path, neg(x)])
+          break
         }
-        break
+        case 'SwitchStatement': {
+          const d = { text: textOf(file, s.discriminant), h: c(s.discriminant) }
+          for (const k of s.cases) {
+            const x = k.test ? { text: say(`${d.text} === ${textOf(file, k.test)}`), h: d.h + c(k.test) } : { text: 'default', h: 'default' }
+            if (k.test && !seenConds.has(x.text)) { seenConds.add(x.text); out.conds.push(x); out.branches++ }
+            k.consequent.forEach(y => stmt(y, [...path, x]))
+          }
+          break
+        }
+        case 'TryStatement': stmt(s.block, path); stmt(s.handler?.body, path); stmt(s.finalizer, path); break
+        case 'ForStatement': case 'ForInStatement': case 'ForOfStatement': case 'WhileStatement': case 'DoWhileStatement': stmt(s.body, path); break
       }
-      case 'TryStatement': stmt(s.block, path); stmt(s.handler?.body, path); stmt(s.finalizer, path); break
-      case 'ForStatement': case 'ForInStatement': case 'ForOfStatement': case 'WhileStatement': case 'DoWhileStatement': stmt(s.body, path); break
     }
+    stmt(statementsOf(fn), path0)
+    // conditions the walk above doesn't reach (inside expressions, nested callbacks): counted as branches
+    walk(fn.body, (n) => {
+      if (n.type === 'ConditionalExpression' || n.type === 'IfStatement') addCond(n.test)
+      else if (n.type === 'LogicalExpression' && ['&&', '||', '??'].includes(n.operator)) out.branches++
+      return true
+    })
   }
-  stmt(statementsOf(fn), [])
-  // conditions the walk above doesn't reach (inside expressions, nested callbacks): counted as branches
-  const counted = new Set(conds.map(c => c.text))
-  walk(fn.body, (n) => {
-    if (n.type === 'ConditionalExpression' || n.type === 'IfStatement') {
-      const t = bare(n.test), pos = t.type === 'UnaryExpression' && t.operator === '!' ? bare(t.argument) : t
-      const x = { text: textOf(file, pos), h: canonOf(file, pos, fn) }
-      if (!counted.has(x.text)) { counted.add(x.text); conds.push(x); branches++ }
-    } else if (n.type === 'LogicalExpression' && ['&&', '||', '??'].includes(n.operator)) branches++
-    return true
-  })
-  return { guards, conds, branches }
+  visit(file0, fn0, [], { depth: 0, name: null, state: 0, args: null })
+  return out
 }
 
 function mutates(fn) {
@@ -160,15 +183,15 @@ function previousStateReads(fn) {
 }
 
 /** What each key of the state a reducer's returns put there (the state carried over isn't a key). */
-function perKey(file, fn, literals, opts) {
+function perKey(literals) {
   const lists = {}
-  for (const obj of literals) {
+  for (const { obj, file, fn, args } of literals) {
     for (const p of obj.properties) {
       if (p.type === 'SpreadElement') continue
       const k = propName(p)
       if (k == null) continue
       const v = p.type === 'ObjectMethod' ? p : p.value
-      ;(lists[k] ||= []).push(canonOf(file, v, fn, opts))
+      ;(lists[k] ||= []).push(canonOf(file, v, fn, { inline: true, args }))
     }
   }
   const out = {}
@@ -191,10 +214,16 @@ function requestsOf(project, file, value) {
   return [...new Set(out)]
 }
 
-function sinkFacts(project, entry, sink, value, vfile) {
+function sinkFacts(project, entry, sink, value, vfile, stateKeys) {
   const form = sinkForm(project, vfile, value)
   const out = { reads: [], readsPartial: false, guards: [], conds: [], branches: 0, mutates: false, opaque: false }
   const f = form.file
+  // the keys it writes, following helpers further than the graph's `writes` does
+  if (sink === 'STATE') {
+    const removes = {}
+    out.writes = reducerWrites(project, vfile, value, { stateKeys, deep: true, out: removes })
+    if (removes.removes) out.removes = true
+  }
   if (form.fn) {
     const fn = form.fn
     const strip = sink === 'STATE' ? new Set(returnedLiterals(fn, returnedExpressions)) : null
@@ -204,9 +233,9 @@ function sinkFacts(project, entry, sink, value, vfile) {
     out.readsPartial = reads ? reads.partial : true
     for (const k of previousStateReads(fn)) if (!out.reads.includes(k)) out.reads.push(k)
     out.reads.sort()
-    Object.assign(out, controlFlow(f, fn, sink === 'STATE'))
-    out.mutates = mutates(fn)
-    if (sink === 'STATE') out.perKey = perKey(f, fn, returnedLiterals(fn, returnedExpressions), { inline: true, strip })
+    const flow = controlFlow(project, f, fn, sink === 'STATE')
+    Object.assign(out, { guards: flow.guards, conds: flow.conds, branches: flow.branches, mutates: flow.mutates })
+    if (sink === 'STATE') out.perKey = perKey(flow.literals)
     if (sink === 'EVENTS' || sink === 'PARENT') {
       const lits = returnedLiterals(fn, returnedExpressions)
       // `{ type: 'X', data }`: the payload is data, the same as event('X', fn) returning it
@@ -225,7 +254,7 @@ function sinkFacts(project, entry, sink, value, vfile) {
     const e = bare(form.expr)
     out.fp = fingerprint(project, f, e, form.setter && sink === 'STATE' && e?.type === 'ObjectExpression' ? { strip: new Set([e]) } : {})
     out.opaque = !e || (e.type !== 'ObjectExpression' && !/Literal$/.test(e.type) && sygnalName(f, e) !== 'ABORT' && !(e.type === 'CallExpression' && ['set', 'toggle', 'emit', 'event'].includes(sygnalName(f, e.callee))))
-    if (sink === 'STATE' && e?.type === 'ObjectExpression') out.perKey = perKey(f, null, [e], {})
+    if (sink === 'STATE' && e?.type === 'ObjectExpression') out.perKey = perKey([{ obj: e, file: f, fn: null, args: null }])
     if (sink === 'STATE' && e?.type === 'CallExpression' && sygnalName(f, e.callee) === 'toggle') out.perKey = { [stringValue(e.arguments[0]) ?? '?']: 'toggle' }
     if ((sink === 'PARENT' || sink === 'EVENTS') && e?.type === 'ObjectExpression') out.shape = shapeOf([e])
   }
@@ -394,14 +423,15 @@ export function behaviourFacts(project, graph) {
     const node = graph.components[i]
     const triggers = triggersOf(project, c)
     const actions = {}
+    const stateKeys = c.initialState?.known ? node.stateKeys : null
     for (const a of node.actions) actions[a.name] = { trigger: triggers.get(a.name) ?? null, sinks: {} }
     for (const e of c.model?.entries || []) {
       const a = actions[e.action] ||= { trigger: triggers.get(e.action) ?? null, sinks: {} }
-      for (const sv of (c.model.sinkValues || []).filter(x => x.action === e.action)) a.sinks[sv.sink] = sinkFacts(project, e, sv.sink, sv.node, sv.file)
+      for (const sv of (c.model.sinkValues || []).filter(x => x.action === e.action)) a.sinks[sv.sink] = sinkFacts(project, e, sv.sink, sv.node, sv.file, stateKeys)
       if (e.stateValue && !a.sinks.STATE) {
         // `SAVE: emit('SAVED', fn)`: an entry that is an EVENTS sink, though the model reads it as a reducer
         const form = sinkForm(project, e.stateValue.file, e.stateValue.node)
-        a.sinks[form.eventType ? 'EVENTS' : 'STATE'] = sinkFacts(project, e, form.eventType ? 'EVENTS' : 'STATE', e.stateValue.node, e.stateValue.file)
+        a.sinks[form.eventType ? 'EVENTS' : 'STATE'] = sinkFacts(project, e, form.eventType ? 'EVENTS' : 'STATE', e.stateValue.node, e.stateValue.file, stateKeys)
       }
     }
     const initial = {}

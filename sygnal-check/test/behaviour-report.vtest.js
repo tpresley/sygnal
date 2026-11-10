@@ -220,7 +220,7 @@ describe('--report: reads, writes, reducer logic', () => {
   it('a helper: in this file or imported, named, its file accounted for', () => {
     const v = (x) => ({ 'src/App.jsx': app(`{ ADD: (s) => bump(s), SAVE: (s) => s }`, { head: `import { bump } from './bump.js'` }), 'src/bump.js': `export const bump = (s) => ({ ...s, n: s.n + ${x} })\n` })
     const r = report(v(1), v(2), ['src/bump.js'])
-    expect(sink(r, 'ADD').logic).toMatchObject({ kinds: ['helper'] })
+    expect(sink(r, 'ADD').logic.kinds).toEqual(['helper', 'value'])
     expect(sink(r, 'ADD').logic.notes[0]).toContain('`bump`')
     expect(r.coverage).toMatchObject({ explained: ['src/bump.js'], unexplained: [] })
   })
@@ -508,10 +508,19 @@ describe('--report: the CLI on a git repository', () => {
 // What the analysis gets wrong, on purpose: each is written up in the research README. A change here
 // means a limit moved, for better or worse.
 describe('--report: known limits (false alarms and false calm)', () => {
-  it('false alarm (softened): a guard moved into a helper reads as removed, medium, naming the helper', () => {
+  it('fixed: a guard moved into a helper is the same guard, also with the parameters in another order', () => {
+    const move = (extra, call) => report(
+      app(`{ ADD: (s, d) => { if (s.n > d) return ABORT; return { ...s, n: 1 } }, SAVE: (s) => s }`, { head: ABORT }),
+      app(`{ ADD: (s, d) => ${call}, SAVE: (s) => s }`, { head: ABORT, extra }),
+    )
+    expect(kinds(move(`function add(t, e) { if (t.n > e) return ABORT; return { ...t, n: 1 } }`, 'add(s, d)'))).toEqual([])
+    expect(kinds(move(`function add(e, t) { if (t.n > e) return ABORT; return { ...t, n: 1 } }`, 'add(d, s)'))).toEqual([])
+  })
+
+  it('false alarm (softened): a guard moved somewhere the walk does not reach names the helper', () => {
     const r = report(
       app(`{ ADD: (s) => { if (!s.draft) return ABORT; return { ...s, n: 1 } }, SAVE: (s) => s }`, { head: ABORT }),
-      app(`{ ADD: (s) => add(s), SAVE: (s) => s }`, { head: ABORT, extra: `function add(s) { if (!s.draft) return ABORT; return { ...s, n: 1 } }` }),
+      app(`{ ADD: (s) => { const t = add(s); return t }, SAVE: (s) => s }`, { head: ABORT, extra: `function add(s) { if (!s.draft) return ABORT; return { ...s, n: 1 } }` }),
     )
     expect(r.attention[0]).toMatchObject({ severity: 'medium', kind: 'guard-removed' })
     expect(r.attention[0].text).toContain('or moved into `add`')
@@ -527,11 +536,24 @@ describe('--report: known limits (false alarms and false calm)', () => {
     expect(sink(report(v('s.n + 1'), v('1 + s.n')), 'ADD').logic.kinds).toEqual(['value'])
   })
 
-  it('false calm: a guard weakened in a helper is only "helper changed"', () => {
+  it('fixed: a guard changed in a helper is a changed guard, named in its helper', () => {
     const v = (c) => app(`{ ADD: (s) => add(s), SAVE: (s) => s }`, { head: ABORT, extra: `function add(s) { if (${c}) return ABORT; return { ...s, n: 1 } }` })
     const r = report(v('s.a && s.b'), v('s.a'))
-    expect(sink(r, 'ADD').logic.kinds).toEqual(['helper'])
-    expect(kinds(r)).not.toContain('guard-changed')
+    expect(sink(r, 'ADD').logic.kinds).toEqual(expect.arrayContaining(['helper', 'guard']))
+    expect(r.attention.find(a => a.kind === 'guard-changed').text).toContain('`s.a (in add)`')
+  })
+
+  it('fixed: a guard removed from a helper, three calls down', () => {
+    const v = (g) => app(`{ ADD: (s) => a(s), SAVE: (s) => s }`, { head: ABORT, extra: `const a = (s) => b(s)\nconst b = (s) => c(s)\nconst c = (s) => { ${g} return { ...s, n: 1 } }` })
+    expect(kinds(report(v('if (s.x) return ABORT;'), v('')))).toContain('guard-removed')
+  })
+
+  it('fixed: writes through a composition of helpers, and a spread of one', () => {
+    const v = (w) => app(`{ ADD: (s, d) => track(step(s, d)), SAVE: (s) => { const t = step(s); return { ...t, draft: '' } } }`, { extra: `const step = (s, d) => ({ ...s, ${w}: d })\nconst track = (s) => ({ ...s, n: 1 })` })
+    const r = report(v('items'), v('other'))
+    expect(sink(r, 'ADD').writes).toMatchObject({ base: ['n', 'items'], head: ['n', 'other'], added: ['other'] })
+    expect(sink(r, 'SAVE').writes).toMatchObject({ base: ['items', 'draft'], head: ['other', 'draft'] })
+    expect(sink(r, 'ADD').logic.confidence).toBe('high')
   })
 
   it('false calm: a flipped comparator is a value change, with no attention item', () => {

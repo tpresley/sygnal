@@ -19,6 +19,8 @@
  *     opts.out: when given, a reducer that returns `undefined` (`() => undefined`, `void 0`,
  *     `return;`) sets out.removes = true (it removes a Collection item / clears the lensed slice)
  *     and that return writes no key; without it such a return is unknown.
+ *     opts.deep (the behaviour report): also follow what is made from the state, not only given it:
+ *     `track(step(state))`, `{ ...helper(state), a }`, a local const holding such a call.
  *     keyParam { index, value }: a parameter holding a known key (a behavior's HOST reducer gets
  *     its uses key as the 6th parameter: `{ ...st, [k]: slice }` writes that key).
  *
@@ -137,6 +139,10 @@ function exprWrites(project, file, e, ctx, opts, depth) {
       if (b?.kind === 'var' && b.declKind === 'const' && unwrap(b.init)?.type === 'ObjectExpression' && inside(ctx.fn, b.node) && !mutated(ctx.fn, e.name)) {
         return objectWrites(project, file, unwrap(b.init), ctx, opts, depth)
       }
+      // opts.deep: a local const holding what a helper made of the state
+      if (opts.deep && b?.kind === 'var' && b.declKind === 'const' && unwrap(b.init)?.type === 'CallExpression' && inside(ctx.fn, b.node) && !mutated(ctx.fn, e.name)) {
+        return exprWrites(project, file, b.init, ctx, opts, depth)
+      }
       return null
     }
     case 'CallExpression': {
@@ -144,16 +150,28 @@ function exprWrites(project, file, e, ctx, opts, depth) {
       if (depth >= 3) return null
       const callee = unwrap(e.callee)
       if (callee?.type !== 'Identifier') return null
-      const i = e.arguments.findIndex(a => isStateRef(ctx, file, a))
+      const i = e.arguments.findIndex(a => isStateRef(ctx, file, a) || (opts.deep && derivesFromState(ctx, file, a)))
       if (i < 0) return null
       const h = resolveExpr(project, file, callee)
       if (!h?.node || !isFunction(h.node)) return null
       if (h.node.params[i]?.type !== 'Identifier') return null
-      return fnWrites(project, h.file, h.node, { stateKeys: opts.stateKeys, partial: ctx.partial, out: opts.out }, depth + 1, i)
+      const own = fnWrites(project, h.file, h.node, { stateKeys: opts.stateKeys, partial: ctx.partial, out: opts.out, deep: opts.deep }, depth + 1, i)
+      // track(step(state)): what step writes, and what track writes on top
+      return isStateRef(ctx, file, e.arguments[i]) ? own : union([own, exprWrites(project, file, e.arguments[i], ctx, opts, depth + 1)])
     }
     default:
       return null
   }
+}
+
+/** A call given the state (or another such call), or a local const holding one. */
+function derivesFromState(ctx, file, e, depth = 0) {
+  e = unwrap(e)
+  if (!e || depth > 3) return false
+  if (e.type === 'CallExpression') return e.arguments.some(a => isStateRef(ctx, file, a) || derivesFromState(ctx, file, a, depth + 1))
+  if (e.type !== 'Identifier') return false
+  const b = findBinding(file, e.name, e)
+  return b?.kind === 'var' && b.declKind === 'const' && !!b.init && inside(ctx.fn, b.node) && unwrap(b.init)?.type === 'CallExpression' && derivesFromState(ctx, file, b.init, depth + 1)
 }
 
 function objectWrites(project, file, obj, ctx, opts, depth) {
@@ -167,6 +185,14 @@ function objectWrites(project, file, obj, ctx, opts, depth) {
         const inner = objectWrites(project, file, a, { ...ctx, partial: true }, opts, depth)
         if (inner === null) return null
         for (const k of inner) if (!keys.includes(k)) keys.push(k)
+        continue
+      }
+      // opts.deep: `{ ...helper(state), a }`
+      if (opts.deep && derivesFromState(ctx, file, a)) {
+        const inner = exprWrites(project, file, a, ctx, opts, depth)
+        if (inner === null) return null
+        for (const k of inner) if (!keys.includes(k)) keys.push(k)
+        spread = true
         continue
       }
       return null

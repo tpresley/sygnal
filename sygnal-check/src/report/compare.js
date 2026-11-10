@@ -61,7 +61,8 @@ function classify(a, b, fp, writes) {
   if (!fp.own) {
     kinds.push('helper')
     notes.push(`code is the same, but ${fp.helpers.map(h => `\`${h}\``).join(', ')} changed`)
-  } else {
+  }
+  {
     if (some(listDiff(guardH(a), guardH(b)))) kinds.push('guard')
     if (a.branches !== b.branches) { kinds.push('branch'); notes.push(`${b.branches > a.branches ? 'more' : 'fewer'} branches (${a.branches} → ${b.branches})`) }
     const guardTexts = [...a.guards, ...b.guards].map(g => g.text)
@@ -83,18 +84,19 @@ function classify(a, b, fp, writes) {
     }
     if (!sameList(a.shape, b.shape) || some(listDiff(a.requests, b.requests)) || some(listDiff(a.events, b.events))) kinds.push('payload')
     if (!kinds.length) { kinds.push('other'); notes.push('no guard, branch, condition or written key differs: the computation changed, or the code was only rearranged') }
-    if (fp.helpers.length) notes.push(`also changed: ${fp.helpers.map(h => `\`${h}\``).join(', ')}`)
+    if (fp.own && fp.helpers.length) notes.push(`also changed: ${fp.helpers.map(h => `\`${h}\``).join(', ')}`)
   }
-  const low = a.opaque || b.opaque || a.mutates || b.mutates || a.readsPartial || b.readsPartial || a.fp.opaque.length > 0 || b.fp.opaque.length > 0 || (writes && writes.unknown)
-  return { kinds, notes, confidence: low ? 'low' : 'high', helpers: fp.helpers, ...(dropped?.length ? { dropped } : {}) }
+  // (reads that can't be listed in full are marked on the reads; they don't make this classification less sure)
+  const why = [(a.opaque || b.opaque) && 'unreadable-value', (a.mutates || b.mutates) && 'mutates', (a.fp.opaque.length > 0 || b.fp.opaque.length > 0) && 'opaque-import', writes?.unknown && 'writes-unknown'].filter(Boolean)
+  return { kinds, notes, confidence: why.length ? 'low' : 'high', why, stateWhole: !!(a.readsPartial || b.readsPartial), helpers: fp.helpers, ...(dropped?.length ? { dropped } : {}) }
 }
 
 function sinkDiff(sink, a, b, ga, gb) {
   const w = sink === 'STATE' ? (() => {
-    const x = ga?.writes, y = gb?.writes
+    const x = a ? a.writes : undefined, y = b ? b.writes : undefined
     return { base: x ?? null, head: y ?? null, unknown: (a && x == null) || (b && y == null), added: x && y ? listDiff(x, y).added : [], removed: x && y ? listDiff(x, y).removed : [] }
   })() : null
-  if (!a) return { sink, change: 'added', reads: b.reads, readsPartial: b.readsPartial, writes: w, removes: !!gb?.removes, guards: { added: b.guards.map(g => g.text), removed: [] }, requests: { added: b.requests || [], removed: [] }, events: { added: b.events || [], removed: [] }, touches: { added: b.fp.touches, removed: [] }, shape: b.shape ?? null, logic: null, files: [] }
+  if (!a) return { sink, change: 'added', reads: b.reads, readsPartial: b.readsPartial, writes: w, removes: !!b.removes, guards: { added: b.guards.map(g => g.text), removed: [] }, requests: { added: b.requests || [], removed: [] }, events: { added: b.events || [], removed: [] }, touches: { added: b.fp.touches, removed: [] }, shape: b.shape ?? null, logic: null, files: [] }
   if (!b) return { sink, change: 'removed', reads: a.reads, readsPartial: a.readsPartial, writes: w, guards: { added: [], removed: [] }, requests: { added: [], removed: a.requests || [] }, events: { added: [], removed: a.events || [] }, touches: { added: [], removed: [] }, logic: null, files: [] }
   const fp = fpDiff(a.fp, b.fp)
   const gChanged = !sameList(w?.base && uniq(w.base), w?.head && uniq(w.head))
@@ -103,7 +105,7 @@ function sinkDiff(sink, a, b, ga, gb) {
   const text = (list, h) => list.find(x => x.h === h)?.text
   return {
     sink, change: 'changed',
-    reads: b.reads, readsDiff: listDiff(a.reads, b.reads), readsPartial: b.readsPartial, writes: w, removes: !!gb?.removes, removesBefore: !!ga?.removes,
+    reads: b.reads, readsDiff: listDiff(a.reads, b.reads), readsPartial: b.readsPartial, writes: w, removes: !!b.removes, removesBefore: !!a.removes,
     guards: { added: g.added.map(h => text(b.guards, h)), removed: g.removed.map(h => text(a.guards, h)) },
     requests: listDiff(a.requests, b.requests), events: listDiff(a.events, b.events), touches: listDiff(a.fp.touches, b.fp.touches),
     shape: sameList(a.shape, b.shape) ? null : { base: a.shape ?? null, head: b.shape ?? null },

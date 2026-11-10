@@ -13,7 +13,9 @@
  *     opts     strip: object literals whose `...<first param>` spread is dropped and keys sorted
  *              (a reducer's `{ ...state, a }` = `set({ a })`); inline: local consts written out
  *   canonOf(file, node, root, opts?) → the hash with the root's parameters by position and other names
- *              as written (conditions: stable when unrelated locals come and go)
+ *              as written (conditions: stable when unrelated locals come and go); opts.args: the
+ *              canonical text of each parameter's argument, so a condition in a helper hashes as
+ *              it would written in its caller
  *   hash(text), textOf(file, node) (the source, whitespace collapsed)
  */
 import { createHash } from 'node:crypto'
@@ -123,9 +125,9 @@ function ident(file, n, ctx) {
   if (!b) { ctx.globals?.add(n.name); return n.name }
   if (ctx.root && b.node === ctx.root && b.kind === 'param') {
     const i = ctx.root.params.findIndex(p => (p.type === 'AssignmentPattern' ? p.left : p).type === 'Identifier' && (p.type === 'AssignmentPattern' ? p.left : p).name === n.name)
-    if (i >= 0) return `$${i}`
+    if (i >= 0) return ctx.args?.[i] ?? `$${i}`
   }
-  if (ctx.root && inside(ctx.root, b.kind === 'import' ? null : b.node)) {
+  if (ctx.scope && inside(ctx.scope, b.kind === 'import' ? null : b.node)) {
     if (ctx.inline && b.kind === 'var' && b.declKind === 'const' && b.init && !ctx.noInline?.(b) && !ctx.inlining.has(b.node) && ctx.inlining.size < 8) {
       ctx.inlining.add(b.node)
       const out = ser(file, b.init, ctx)
@@ -142,10 +144,15 @@ function ident(file, n, ctx) {
   return n.name
 }
 
-const newCtx = (root, opts = {}) => ({ root: isFunction(root) ? root : null, locals: new Map(), free: new Map(), globals: new Set(), depth: 0, inlining: new Set(), ...opts })
+const newCtx = (root, opts = {}) => ({ root: isFunction(root) ? root : null, scope: opts.root ?? root ?? null, locals: new Map(), free: new Map(), globals: new Set(), depth: 0, inlining: new Set(), ...opts })
 
 export function canonOf(file, node, root, opts = {}) {
-  return hash(ser(file, node, newCtx(root, { localNames: true, ...opts })))
+  return hash(canonText(file, node, root, opts))
+}
+
+/** canonOf before the hash: what a helper's parameter is, written the caller's way (opts.args). */
+export function canonText(file, node, root, opts = {}) {
+  return ser(file, node, newCtx(root, { localNames: true, ...opts }))
 }
 
 /** Dotted paths of the non-pure globals a node calls or reads. */
@@ -192,8 +199,11 @@ export function fingerprint(project, file, node, opts = {}) {
       const r = resolveExpr(project, f, id)
       // another component: its own changes are reported on it, not on everything that renders it
       if (r?.node && comps.has(r.node)) continue
+      const b = findBinding(f, name, id)
+      // `const { Add, Save } = controls(...)`: the declaration is what can change
+      if (b?.kind === 'pattern') { deps[name] = { file: project.relPath(f.path), h: hash(ser(f, b.node, newCtx(null))) }; continue }
       if (!r?.node || r.node === id || r.node.type === 'Identifier') {
-        // an import that can't be read, a pattern-bound module name
+        // an import that can't be read
         opaque.push(name)
         continue
       }
