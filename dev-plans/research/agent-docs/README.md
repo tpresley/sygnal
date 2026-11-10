@@ -2,15 +2,17 @@
 
 **Question.** The agent context is `llms.txt` (66.5 KB), `SKILL.md` (56.2 KB) and ten topic files (54.5 KB). Sygnal trials carry +32–35k tokens of context over React and cost 1.3–3× more. How much of it has to be there before the first line, and how do the experimental subpaths stop loading it, without moving code out of the package?
 
-**Limits of this spike.** No paid runs were made, so nothing here shows a pass-rate change; the proposal in section 7 would. Token counts are bytes ÷ 3.6 (the ratio the llms-context spike measured with cl100k_base). The trap verdicts and paragraph kinds are hand-assigned. The coverage table measures whether API names are present, not whether agents use them well. The root `npm test` gate was not run (other sessions are busy); `test/llms-txt.test.js`, the eval unit tests and the checks named below were.
+**Results (added after the paid runs).** Section 9 has them. The compact core cost 14% less on Sonnet and 21% less on Haiku with no detectable pass-rate loss, on the no-skill path. The `AGENTS.md` index did not beat the compact core on cost. The two skill arms were not run. The table below is the spike's original proposal, with its status updated from those runs.
+
+**Limits of this spike.** The audit, candidates and coverage were done before any paid run. Token counts are bytes ÷ 3.6 (the ratio the llms-context spike measured with cl100k_base). The trap verdicts and paragraph kinds are hand-assigned. The coverage table measures whether API names are present, not whether agents use them well. The root `npm test` gate was not run (other sessions are busy); `test/llms-txt.test.js`, the eval unit tests and the checks named below were.
 
 ## Recommendation (accept or reject)
 
 | # | Do this | Evidence | Cost |
 |---|---|---|---|
-| 1 | Replace the core `llms.txt` with the **compact core** (21.7 KB, ⅓ of today), everything removed moved verbatim to on-demand topic files. | Fact coverage: 97.4% of what the 49 reference solutions use is inline, 100% within one read (today 99% / 100%). | Run §7 before it ships. E5 and D235 say a cut can cost more than it saves. |
-| 2 | **Generate the skill from the same source** (22.4 KB against 56.2 KB). | The two files carry the same facts in two wordings: only 28–34% shares exact wording, 652 of the 1,064 distinct API names are in both, and no skill trial needs both. | With #1. |
-| 3 | Put the **trigger index in `AGENTS.md`** (7.0 KB; passive, always in context). | Vercel: 100% against 53–79% for a skill; here the llms-context core index found the right topic in 36/40 trials. | Run §7 decides it against #1 alone. |
+| 1 | Replace the core `llms.txt` with the **compact core** (21.7 KB, ⅓ of today), everything removed moved verbatim to on-demand topic files. | Fact coverage: 97.4% of what the 49 reference solutions use is inline, 100% within one read (today 99% / 100%). | **Run done: ship it for the no-skill path** (section 9). A pass-rate loss under about 20 pp cannot be ruled out. |
+| 2 | **Generate the skill from the same source** (22.4 KB against 56.2 KB). | The two files carry the same facts in two wordings: only 28–34% shares exact wording, 652 of the 1,064 distinct API names are in both, and no skill trial needs both. | **Not tested: the skill arms were not run.** Hold until they are (section 9). |
+| 3 | Put the **trigger index in `AGENTS.md`** (7.0 KB; passive, always in context). | Vercel: 100% against 53–79% for a skill; here the llms-context core index found the right topic in 36/40 trials. | **Run done: do not adopt.** Cost ratio to #1 alone 0.97 (0.90–1.06), so it fails the section 7 rule, though it reached the right topic in 42 of 42 trials. |
 | 4 | Keep **option lists out of the core**, reachable by symbol: the types already answer them. Ship `sygnal-check docs <Symbol\|sygnal/x\|dir>`. | 88% of the API names in reference prose already sit in a JSDoc; about 23 KB of `llms.txt` is option-list sentences. `dist/index.d.ts` is 390 KB, so agents need a lookup, not more JSDoc. | Small; a prototype is in the folder. |
 | 5 | Drop the **47 trap sentences whose diagnostic already says the fix** (6.5 KB in `llms.txt`, 4.8 KB in the skill), after raising SYG105 from info to warn. | Section 4. | None. |
 | 6 | Take the **13 traps in section 4's list** to the 8.0 backlog as throw-or-impossible candidates. | Section 4. | 8.0 work; I did not edit the backlog. |
@@ -223,6 +225,152 @@ node evals/agent-ergonomics/orchestrate.mjs --run agent-docs-compact-haiku --var
 
 - `test/llms-txt.test.js`: a byte budget on `skills/sygnal-dev/SKILL.md`, set at today's 56,221 B, with a comment that it only goes down.
 - Nothing is published or released; no template or topic file in the package changed. Candidates live under this folder.
+
+## 9. Results of the paid runs (2026-11-09)
+
+The maintainer ran the seven commands of section 7, 173 trials for **$23.00** at list price. Full tables, per-task numbers and the method are in `data/results.md` (`tools/results.mjs`); raw results are in `evals/agent-ergonomics/results/agent-docs-*`.
+
+**Short answer.** On the no-skill path, the compact core cost 14% less on Sonnet and 21% less on Haiku with no pass-rate loss that these runs could detect. The `AGENTS.md` index was not distinguishable from the compact core on cost, so it does not meet the adoption rule. **The two skill arms were not run**, so nothing here says whether the compact skill works, and that is how plugin users get the docs.
+
+### What ran and what did not
+
+| Arm | Sonnet (15 tasks × 3) | Haiku (5 tasks × 3) | Haiku pilot (2 tasks × 2) |
+|---|---|---|---|
+| `agent-docs-current` | 45 | 15 | 4 |
+| `agent-docs-compact` | 45 | 15 | 4 |
+| `agent-docs-index` | 45 | not in the proposal | not in the proposal |
+| `agent-docs-current-skill` | **0, not run** | 0 | 0 |
+| `agent-docs-compact-skill` | **0, not run** | 0 | 0 |
+
+The seven commands were steps 1–3 of section 7. The skill pair was optional step 4 and has no commands in that section. Of the five arms asked about, three have data.
+
+No run or trial is missing or failed to start: every run scored all its trials, every transcript ended in `success`, none reported an error, and no audit flags or process kills were raised. All runs used the same tarball, git SHA `c86f6d41` and Claude Code 2.1.303, and I confirmed in one trial directory of each main run that the arm received its intended `llms.txt` (66,548 or 21,701 B) and `AGENTS.md` (1,844 or 7,041 B).
+
+### Per arm
+
+Mean per trial, with the SD across trials in brackets. That SD includes the differences between tasks, so the paired table below is the one that decides.
+
+| Run, arm | Trials | Pass (95% interval) | Hidden tests | Cost | Billed tokens | Peak context | Wall time | Run total |
+|---|---|---|---|---|---|---|---|---|
+| Sonnet, current | 45 | 44 (88–100%) | 308/315 | $0.181 (0.069) | 252k (163k) | 34.6k (9.5k) | 42.2 s (19.8) | $8.15 |
+| Sonnet, compact | 45 | 45 (92–100%) | 315/315 | $0.154 (0.057) | 187k (108k) | 30.7k (9.5k) | 36.6 s (13.1) | $6.94 |
+| Sonnet, index | 45 | 44 (88–100%) | 314/315 | $0.149 (0.047) | 192k (89k) | 29.5k (7.4k) | 36.6 s (11.7) | $6.68 |
+| Haiku, current | 15 | 14 (70–99%) | 108/111 | $0.037 (0.019) | 1,034k (579k) | 74.7k (17.1k) | 120.6 s (51.6) | $0.55 |
+| Haiku, compact | 15 | 13 (62–96%) | 108/111 | $0.029 (0.011) | 744k (337k) | 61.5k (16.7k) | 107.5 s (45.1) | $0.43 |
+| Pilot Haiku, current | 4 | 4 | 26/26 | $0.038 | 1,237k | 78.8k | 125.5 s | $0.15 |
+| Pilot Haiku, compact | 4 | 4 | 26/26 | $0.026 | 724k | 55.9k | 95.3 s | $0.10 |
+
+Spread between repeat trials of one task (pooled log SD, Sonnet): cost 0.16–0.18, billed tokens 0.31–0.38, wall time 0.20–0.21, peak context 0.12–0.13. A single task's three-trial mean therefore moves by about ±10% for cost and about ±20% for billed tokens by chance.
+
+### Which differences are larger than the noise
+
+Paired by task. The ratio is the geometric mean of arm ÷ control, the interval resamples tasks, p is the exact sign-flip test over tasks. "Survives" means Holm correction across the eight comparisons of cost, billed tokens, peak context and wall time for compact and index against current on Sonnet.
+
+| Comparison | Metric | Ratio | 95% interval | p | Tasks lower | Survives |
+|---|---|---|---|---|---|---|
+| Sonnet, compact ÷ current | cost | **0.86** | 0.78–0.94 | 0.007 | 12/15 | yes |
+| | billed tokens | **0.77** | 0.65–0.89 | 0.003 | 13/15 | yes |
+| | peak context | **0.88** | 0.82–0.95 | 0.007 | 12/15 | yes |
+| | wall time | 0.90 | 0.80–0.99 | 0.086 | 11/15 | no |
+| Sonnet, index ÷ current | cost | **0.83** | 0.75–0.92 | 0.005 | 12/15 | yes |
+| | billed tokens | 0.82 | 0.69–0.96 | 0.029 | 11/15 | no |
+| | peak context | **0.86** | 0.79–0.93 | 0.005 | 12/15 | yes |
+| | wall time | 0.91 | 0.82–0.99 | 0.087 | 10/15 | no |
+| Sonnet, index ÷ compact | cost | 0.97 | 0.90–1.06 | 0.50 | 10/15 | no difference shown |
+| | billed tokens | 1.06 | 0.91–1.23 | 0.47 | 8/15 | no difference shown |
+| | peak context | 0.97 | 0.91–1.05 | 0.46 | 10/15 | no difference shown |
+| | wall time | 1.01 | 0.91–1.12 | 0.90 | 6/15 | no difference shown |
+| Haiku, compact ÷ current | cost | 0.79 | see below | 0.063 | 5/5 | cannot reach significance |
+| | billed tokens | 0.74 | see below | 0.125 | 4/5 | cannot reach significance |
+| | peak context | 0.81 | see below | 0.063 | 5/5 | cannot reach significance |
+| | wall time | 0.89 | see below | 0.125 | 4/5 | cannot reach significance |
+
+- **Sonnet:** compact and index both cost less than the control, and those differences are larger than the noise. The savings are not uniform: compact cost more on 3 of 15 tasks (31, 44, 49, up to 1.15×).
+- **Wall time:** the 9–10% drop does not survive correction. The arms also ran one after another rather than interleaved, so API load is confounded with time.
+- **Haiku:** with five tasks the smallest possible p is 0.0625, so no test can pass, and a bootstrap over five tasks is not a reliable interval. The direction agrees on every task for cost and peak context, and the 8-trial pilot agrees (cost 0.67, peak 0.70). Read this as consistent, not established.
+- **Why Sonnet saved less than the file shrank:** the core lost 67% of its bytes, but Sonnet's peak context fell only 12%. Sonnet usually measures the file and greps or reads ranges (39 KB of docs read per trial under the control, against a 66.5 KB core). Haiku `cat`s the whole file, and its peak context fell by 13.2k tokens against 3.9k for Sonnet.
+
+### Pass rate: what the numbers cannot say
+
+| Gap in pass rate | Difference | 95% interval |
+|---|---|---|
+| Sonnet, compact − current | +2.2 pp | −5.9 to +11.6 |
+| Sonnet, index − current | 0.0 pp | −9.5 to +9.5 |
+| Haiku, compact − current | −6.7 pp | −31.8 to +18.4 |
+
+No pass-rate difference is larger than the noise. That is weak evidence of no harm: at 45 trials per arm and a 98% baseline, Fisher's test has 15% power to catch a drop to 90%, 45% to 85%, 73% to 80% and 90% to 75%. Haiku's point estimate is unfavourable by one trial, and its interval allows a large loss.
+
+### The five failures
+
+| Trial | Result | What went wrong | Caused by the layout? |
+|---|---|---|---|
+| Sonnet, current, 45 t1 | 0/7 | Sent no request to `/api/chat` under the hidden tests, though the agent's own mocked tests passed. Cause not traced further | Control arm, so no |
+| Sonnet, index, 48 t2 | 6/7 | After switching to the month, the title changed but a month goal was missing from the list. Cause not traced | No sign it was the docs, not established |
+| Haiku, current, 30 t2 | 4/7 | The order POST was never sent | Control arm, so no |
+| Haiku, compact, 30 t2 | 5/7 | Read the forms docs, then chose hand-written validation over `form()`, and fields carried `aria-invalid="true"` when the tests expected them valid | Unclear. Task 30 also failed on the control |
+| Haiku, compact, 23 t3 | 6/7 | Refresh after a failed load kept showing the error instead of "Loading…" | Not missing text: this trial read `llms/resources.md`, which states the rule, and applied it only to the success case |
+
+In all 165 main trials the final code had no `sygnal-check` diagnostics and no wiring failures, so the checker separates no arm.
+
+### What agents opened
+
+| Run, arm | `llms.txt` | A topic file | A guide page | `dist/index.d.ts` | Built JS or package `src` | The task's matching file | Failed build/test runs, mean |
+|---|---|---|---|---|---|---|---|
+| Sonnet, current | 45/45 | 21/45 | 19/45 | 1/45 | 1/45 | 28/42 (67%) | 1.6 |
+| Sonnet, compact | 45/45 | 33/45 | 16/45 | 3/45 | 0/45 | 29/42 (69%) | 0.8 |
+| Sonnet, index | 21/45 | 45/45 | 31/45 | 4/45 | 0/45 | 42/42 (100%) | 1.4 |
+| Haiku, current | 15/15 | 1/15 | 11/15 | 8/15 | 7/15 | 10/15 (67%) | 1.9 |
+| Haiku, compact | 15/15 | 15/15 | 7/15 | 11/15 | 6/15 | 14/15 (93%) | 1.3 |
+
+- The index does what it was built for: every Sonnet trial with a matching topic opened it, against 69% with the compact core alone. It clears section 7's 80% trigger check, though the match allows either the topic file or a named guide page. It did not buy a lower cost than compact.
+- Only 21 of 45 index trials opened `llms.txt`, although the index tells them to read it before their first component. They went to topic files instead.
+- Haiku's reliance on `dist/index.d.ts` and built JS did not drop under compact (`d.ts` 8 → 11 of 15, built JS 7 → 6). The compact core does not address the reading of `dist/` that §6 found; a lookup is still the proposal for that, and it remains unbuilt and unmeasured.
+
+### Against the decision rule in section 7
+
+| Rule | Result | Met? |
+|---|---|---|
+| Compact: each task's Sonnet pass count within one trial of the control | Largest gap one trial (task 45, in compact's favour) | yes |
+| Compact: Haiku pass rate drops by no more than 10 pp | −6.7 pp, one trial of 15 | yes, on a very wide interval |
+| Compact: cost or billed tokens fall by at least 10% | Sonnet −14% / −23%, Haiku −21% / −26% | yes |
+| Index: beats compact on cost at equal pass rate | ratio 0.97 (0.90–1.06), 44 against 45 passes | **no** |
+| Triggers: at least 80% of topic-task trials read the matching file | 100% on Sonnet | yes |
+
+### Recommendation
+
+1. **Ship the compact core as `llms.txt`, with the topic set**, for projects without the skill. It met its pre-set rule, and the saving is larger than the noise on Sonnet.
+2. **Do not ship the index in `AGENTS.md` on this evidence.** It costs 5.2 KB in every session and did not beat the compact core. Its 100% topic reach is real and worth keeping as a candidate if a harder task set shows topic reach changes pass rate.
+3. **Do not generate the skill from the compact core yet** (recommendation #2 at the top). That arm has no data, and earlier spikes (E5, D235) found a cut can cost more than it saves.
+4. The remaining recommendations (#4–#7) do not depend on these runs. None was tested by them.
+
+### What this does not show
+
+- **Anything about the skill**, the main delivery path for plugin users.
+- **A small pass-rate loss.** Section 7 said so in advance; anything under about 20 pp could be missed.
+- **Tasks outside these 15**, or Haiku beyond 5. Experimental subpaths (`yjs`, `canvas`, `three` and others) were not exercised, so their topic files are untested.
+- **Other models.** Opus was not run.
+- **Long sessions or repeat work in one project.** Each trial is one fresh task.
+
+**Harness caveats.**
+- The prompt says "Use the sygnal-dev skill" even when a variant has none (`prepare.mjs:110`). 164 of the 165 main trials tried it and got `Unknown skill`. That hits all arms alike, so the comparison stands, but every trial spends a failed tool call, and absolute numbers are not those of a clean no-skill project.
+- Section 7's Haiku estimates were far too high: $14 and $54 proposed against $0.25 and $0.98 actual, because the $1.80-per-trial rate behind them was set on the AI tier; Haiku trials cost about $0.03. The Sonnet estimates were right ($7.94 per arm against $6.68–8.15).
+
+### Next run, if wanted (not started; the maintainer decides)
+
+| Run | Trials | Cost, from these runs' rates | Answers |
+|---|---|---|---|
+| Skill pair on Sonnet, the 15 tasks × 2 | 60 | $10.30 (dry-run estimate, $5.15 per arm) | Recommendation #2 |
+| Haiku, current and compact on all 15 tasks × 3 | 90 | about $3 | Makes Haiku's comparison testable |
+
+Both skill commands pass a literal `--dry-run` (no trial directory was created). Remove the flag to run:
+
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs-current-skill-sonnet --variant agent-docs-current-skill --arms sygnal --tasks 10,11,13,23,24,25,30,31,33,34,44,45,46,48,49 --trials 2 --model claude-sonnet-5-5 --dry-run
+```
+
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs-compact-skill-sonnet --variant agent-docs-compact-skill --arms sygnal --tasks 10,11,13,23,24,25,30,31,33,34,44,45,46,48,49 --trials 2 --model claude-sonnet-5-5 --dry-run
+```
 
 ## Appendix A: every trap the context mentions
 

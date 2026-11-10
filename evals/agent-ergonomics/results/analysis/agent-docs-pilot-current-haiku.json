@@ -1,0 +1,1409 @@
+{
+  "meta": {
+    "run": "agent-docs-pilot-current-haiku",
+    "generatedAt": "2026-11-10T05:03:26.547Z",
+    "trialsInMap": 4,
+    "trialsAnalyzed": 4,
+    "trialsScored": 4,
+    "skillDir": "/Users/troy/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnals-features-showcase-5a7f2b/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-haiku-5-5"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "23-quote-resource",
+      "24-list-detail-cache"
+    ],
+    "sharedTasks": [],
+    "byTask": {
+      "23-quote-resource": {
+        "sygnal": {
+          "n": 2,
+          "pass": 2,
+          "scored": 2,
+          "wall": {
+            "mean": 100.4,
+            "median": 100.4
+          },
+          "peakContext": {
+            "mean": 70787,
+            "median": 70787
+          },
+          "cacheCreation": {
+            "mean": 70780,
+            "median": 70780
+          },
+          "cacheRead": {
+            "mean": 1114575,
+            "median": 1114575
+          },
+          "messages": {
+            "mean": 22.5,
+            "median": 22.5
+          },
+          "costUsd": {
+            "mean": 0.035,
+            "median": 0.035
+          },
+          "billedTokens": {
+            "mean": 1204111,
+            "median": 1204111
+          },
+          "outputTokens": {
+            "mean": 18711,
+            "median": 18711
+          },
+          "durationSeconds": {
+            "mean": 100.4,
+            "median": 100.4
+          },
+          "iterations": {
+            "mean": 7,
+            "median": 7
+          },
+          "effectiveIterations": {
+            "mean": 7,
+            "median": 7
+          },
+          "editRounds": {
+            "mean": 6,
+            "median": 6
+          },
+          "toolCalls": {
+            "mean": 26,
+            "median": 26
+          },
+          "failedRuns": {
+            "mean": 2.5,
+            "median": 2.5
+          },
+          "episodes": {
+            "mean": 1,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 110,
+            "median": 110
+          },
+          "locRemoved": {
+            "mean": 7,
+            "median": 7
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 3.5,
+            "learn": 28.8,
+            "implement": 9.4,
+            "test-authoring": 6.7,
+            "verify": 5.8,
+            "debug": 42.7,
+            "tooling-friction": 0,
+            "think": 3.6,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.5,
+            "framework-source": 21.3,
+            "testing-utility": 7.1
+          }
+        }
+      },
+      "24-list-detail-cache": {
+        "sygnal": {
+          "n": 2,
+          "pass": 2,
+          "scored": 2,
+          "wall": {
+            "mean": 148.3,
+            "median": 148.3
+          },
+          "peakContext": {
+            "mean": 86718,
+            "median": 86718
+          },
+          "cacheCreation": {
+            "mean": 80243,
+            "median": 80243
+          },
+          "cacheRead": {
+            "mean": 1160548,
+            "median": 1160548
+          },
+          "messages": {
+            "mean": 23,
+            "median": 23
+          },
+          "costUsd": {
+            "mean": 0.042,
+            "median": 0.042
+          },
+          "billedTokens": {
+            "mean": 1269970,
+            "median": 1269970
+          },
+          "outputTokens": {
+            "mean": 29133,
+            "median": 29133
+          },
+          "durationSeconds": {
+            "mean": 148.3,
+            "median": 148.3
+          },
+          "iterations": {
+            "mean": 5,
+            "median": 5
+          },
+          "effectiveIterations": {
+            "mean": 5,
+            "median": 5
+          },
+          "editRounds": {
+            "mean": 4,
+            "median": 4
+          },
+          "toolCalls": {
+            "mean": 23.5,
+            "median": 23.5
+          },
+          "failedRuns": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "episodes": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "locAdded": {
+            "mean": 206,
+            "median": 206
+          },
+          "locRemoved": {
+            "mean": 11.5,
+            "median": 11.5
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 2.4,
+            "learn": 84.7,
+            "implement": 11.2,
+            "test-authoring": 22,
+            "verify": 11.8,
+            "debug": 11.3,
+            "tooling-friction": 0,
+            "think": 5.1,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.5,
+            "framework-source": 60.2,
+            "testing-utility": 22,
+            "types": 2
+          }
+        }
+      }
+    },
+    "overall": {
+      "sygnal": {
+        "n": 4,
+        "pass": 4,
+        "scored": 4,
+        "wall": {
+          "mean": 124.3,
+          "median": 146.5
+        },
+        "peakContext": {
+          "mean": 78752.5,
+          "median": 83569
+        },
+        "cacheCreation": {
+          "mean": 75511.5,
+          "median": 80243
+        },
+        "cacheRead": {
+          "mean": 1137561.5,
+          "median": 1160548
+        },
+        "messages": {
+          "mean": 22.8,
+          "median": 23
+        },
+        "costUsd": {
+          "mean": 0.038,
+          "median": 0.042
+        },
+        "billedTokens": {
+          "mean": 1237040.5,
+          "median": 1269970
+        },
+        "outputTokens": {
+          "mean": 23922,
+          "median": 27359
+        },
+        "durationSeconds": {
+          "mean": 124.4,
+          "median": 146.6
+        },
+        "iterations": {
+          "mean": 6,
+          "median": 5
+        },
+        "effectiveIterations": {
+          "mean": 6,
+          "median": 5
+        },
+        "editRounds": {
+          "mean": 5,
+          "median": 4
+        },
+        "toolCalls": {
+          "mean": 24.8,
+          "median": 23.5
+        },
+        "failedRuns": {
+          "mean": 2,
+          "median": 2
+        },
+        "episodes": {
+          "mean": 1.3,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 158,
+          "median": 158
+        },
+        "locRemoved": {
+          "mean": 9.3,
+          "median": 9
+        },
+        "wroteTest": 4,
+        "keptTest": 4,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 2.9,
+          "learn": 56.7,
+          "implement": 10.3,
+          "test-authoring": 14.3,
+          "verify": 8.8,
+          "debug": 27,
+          "tooling-friction": 0,
+          "think": 4.4,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 0.5,
+          "framework-source": 40.7,
+          "testing-utility": 14.5,
+          "types": 1
+        }
+      }
+    },
+    "overallShared": {},
+    "delta": {
+      "tasks": [],
+      "wallDelta": null,
+      "items": []
+    },
+    "catalog": [
+      {
+        "id": "G-125",
+        "title": "Guessed `t.state` on a `renderComponent()` handle (it has `t.states`, `t.next()`, `t.waitForState()`; no `state`)",
+        "kind": "docs",
+        "status": "fixed",
+        "trialsAffected": 3,
+        "sygnal": "3/4",
+        "react": "—",
+        "inResults": 0,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 3,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-23-t1",
+          "sygnal-24-t1",
+          "sygnal-24-t2"
+        ]
+      },
+      {
+        "id": "G-125-HTML",
+        "title": "`t.html()` read before the first render (returns `''`; await `t.ready()` / `t.next()` first)",
+        "kind": "pitfall",
+        "status": "open",
+        "trialsAffected": 1,
+        "sygnal": "1/4",
+        "react": "—",
+        "inResults": 0,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 1,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-24-t2"
+        ]
+      }
+    ],
+    "skill": {
+      "sygnalTrials": 4,
+      "skillInvoked": 4,
+      "skillBytes": {
+        "mean": 0,
+        "median": 0
+      },
+      "files": {},
+      "sections": [],
+      "library": {
+        "sygnal": {
+          "sygnal": {
+            "trials": 4,
+            "files": {
+              "(dir)": 4,
+              "dist": 3,
+              "dist/guide": 4,
+              "dist/guide/resources.md": 4,
+              "dist/integration/testing.md": 1,
+              "llms": 4,
+              "llms-full.txt": 3,
+              "llms.txt": 4,
+              "package.json": 1,
+              "dist/index.d.ts": 1,
+              "dist/index.esm.js": 1,
+              "dist/guide/http.md": 1
+            }
+          }
+        },
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": 70721,
+          "median": 69525.5
+        },
+        "react": {
+          "mean": null,
+          "median": null
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 4,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 4,
+      "forms": {
+        "shorthandKeys": {
+          "total": 0,
+          "trials": 0
+        },
+        "emitCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "eventCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "rawEventsObjects": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectString": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectFn": {
+          "total": 0,
+          "trials": 0
+        },
+        "positionalView": {
+          "total": 0,
+          "trials": 0
+        },
+        "abortReturns": {
+          "total": 4,
+          "trials": 2
+        },
+        "effectSinks": {
+          "total": 0,
+          "trials": 0
+        }
+      },
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected [Function] to throw an error",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Test Files 1 failed (1)",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: promise resolved \"undefined\" instead of rejecting",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected [ …(3) ] to have a length of 1 but got 3",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected MockElement{ _v: Plain{ …(6) }, …(3) } to be falsy",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected '<div class=\"items-app\"><h1>Items</h1>…' to contain 'Loading…'",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: [Sygnal] simulateEvent('.back', 'click'): the selector matched nothing in the rendered output (waited Nms for it to render; the eventWaitMs option sets t",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: [Sygnal] t.respond('HTTP', …, '1'): no pending HTTP request matching '1'. The component sent 3 (t.requests('HTTP') lists every request sent, answered or ",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {
+          "agent-mistake": {
+            "episodes": 3,
+            "seconds": 94.8,
+            "iterations": 6,
+            "unresolved": 0
+          },
+          "other": {
+            "episodes": 2,
+            "seconds": 13.1,
+            "iterations": 2,
+            "unresolved": 0
+          }
+        },
+        "react": {}
+      }
+    },
+    "failureCategories": {
+      "sygnal": {},
+      "react": {}
+    },
+    "otherSkills": {
+      "sygnal": {},
+      "react": {}
+    }
+  },
+  "trials": [
+    {
+      "trial": "sygnal-23-t1",
+      "run": "agent-docs-pilot-current-haiku",
+      "arm": "sygnal",
+      "task": "23-quote-resource",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 149,
+        "iterations": 12,
+        "editRounds": 10,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 70,
+        "output": 353,
+        "cacheRead": 1897859,
+        "cacheCreation": 82548,
+        "messages": 35,
+        "peakContext": 82556,
+        "total": 1980830
+      },
+      "usage": {
+        "tokens": 2007071,
+        "outputTokens": 26594,
+        "costUsd": 0.048792190000000006,
+        "durationMs": 148158,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 35,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 25,
+          "Read": 2,
+          "Edit": 5,
+          "Write": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 148.1,
+      "phases": {
+        "orient": 2.9,
+        "learn": 37.1,
+        "implement": 6.9,
+        "test-authoring": 7.4,
+        "verify": 9.2,
+        "debug": 80.5,
+        "think": 4.1
+      },
+      "attributedShare": 1,
+      "iterations": 12,
+      "effectiveIterations": 12,
+      "edits": 15,
+      "editRounds": 10,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected [Function] to throw an error",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 59
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 67
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: promise resolved \"undefined\" instead of rejecting",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 72
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 119
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected [ …(3) ] to have a length of 1 but got 3",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 132
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 80.5,
+          "iterations": 4,
+          "signature": "AssertionError: expected [Function] to throw an error",
+          "signatures": [
+            "AssertionError: expected [Function] to throw an error",
+            "Test Files 1 failed (1)",
+            "AssertionError: promise resolved \"undefined\" instead of rejecting",
+            "AssertionError: expected [ …(3) ] to have a length of 1 but got 3"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 59
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 22.5,
+        "testing-utility": 14.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist",
+            "dist/guide",
+            "dist/guide/resources.md",
+            "dist/integration/testing.md",
+            "llms",
+            "llms-full.txt",
+            "llms.txt",
+            "package.json"
+          ]
+        },
+        "libraryBytes": 38593
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 93.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-pilot-current-haiku/sygnal-23-t1",
+      "diff": {
+        "added": 121,
+        "removed": 7,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 21,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 96,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1765
+    },
+    {
+      "trial": "sygnal-23-t2",
+      "run": "agent-docs-pilot-current-haiku",
+      "arm": "sygnal",
+      "task": "23-quote-resource",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 54,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 20,
+        "output": 68,
+        "cacheRead": 331291,
+        "cacheCreation": 59012,
+        "messages": 10,
+        "peakContext": 59018,
+        "total": 390391
+      },
+      "usage": {
+        "tokens": 401151,
+        "outputTokens": 10828,
+        "costUsd": 0.020531310000000004,
+        "durationMs": 52676,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 17,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 5,
+          "Read": 3,
+          "Grep": 1,
+          "Edit": 6,
+          "Write": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 52.6,
+      "phases": {
+        "orient": 4.1,
+        "learn": 20.5,
+        "implement": 11.8,
+        "test-authoring": 5.9,
+        "verify": 2.3,
+        "debug": 4.9,
+        "think": 3.1
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 7,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected MockElement{ _v: Plain{ …(6) }, …(3) } to be falsy",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 42
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 4.9,
+          "iterations": 1,
+          "signature": "AssertionError: expected MockElement{ _v: Plain{ …(6) }, …(3) } to be falsy",
+          "signatures": [
+            "AssertionError: expected MockElement{ _v: Plain{ …(6) }, …(3) } to be falsy"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 42
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 20
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide",
+            "dist/guide/resources.md",
+            "llms",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 82919
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 13.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-pilot-current-haiku/sygnal-23-t2",
+      "diff": {
+        "added": 99,
+        "removed": 7,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 21,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 74,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1772
+    },
+    {
+      "trial": "sygnal-24-t1",
+      "run": "agent-docs-pilot-current-haiku",
+      "arm": "sygnal",
+      "task": "24-list-detail-cache",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 153,
+        "iterations": 4,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 52,
+        "output": 265,
+        "cacheRead": 1259689,
+        "cacheCreation": 78108,
+        "messages": 26,
+        "peakContext": 84582,
+        "total": 1338114
+      },
+      "usage": {
+        "tokens": 1367991,
+        "outputTokens": 30142,
+        "costUsd": 0.043294690000000004,
+        "durationMs": 151653,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 26,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 19,
+          "Read": 3,
+          "Write": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 151.6,
+      "phases": {
+        "orient": 2.9,
+        "learn": 99.2,
+        "implement": 7.2,
+        "test-authoring": 22.2,
+        "verify": 14.9,
+        "think": 5.2
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 4,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 17
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 51.4,
+        "testing-utility": 43.4,
+        "types": 3.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist",
+            "dist/guide",
+            "dist/guide/resources.md",
+            "dist/index.d.ts",
+            "dist/index.esm.js",
+            "llms",
+            "llms-full.txt",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 56132
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 28.2,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-pilot-current-haiku/sygnal-24-t1",
+      "diff": {
+        "added": 195,
+        "removed": 12,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 48,
+            "removed": 9,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 143,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1992
+    },
+    {
+      "trial": "sygnal-24-t2",
+      "run": "agent-docs-pilot-current-haiku",
+      "arm": "sygnal",
+      "task": "24-list-detail-cache",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 146,
+        "iterations": 6,
+        "editRounds": 6,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 40,
+        "output": 150,
+        "cacheRead": 1061407,
+        "cacheCreation": 82378,
+        "messages": 20,
+        "peakContext": 88854,
+        "total": 1143975
+      },
+      "usage": {
+        "tokens": 1171949,
+        "outputTokens": 28124,
+        "costUsd": 0.04115567,
+        "durationMs": 144974,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 21,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 15,
+          "Read": 2,
+          "Write": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 144.9,
+      "phases": {
+        "orient": 1.8,
+        "learn": 70.1,
+        "implement": 15.1,
+        "test-authoring": 21.8,
+        "verify": 8.6,
+        "debug": 22.6,
+        "think": 5
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 8,
+      "editRounds": 6,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '<div class=\"items-app\"><h1>Items</h1>…' to contain 'Loading…'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 102
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] simulateEvent('.back', 'click'): the selector matched nothing in the rendered output (waited Nms for it to render; the eventWaitMs option sets t",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 119
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] t.respond('HTTP', …, '1'): no pending HTTP request matching '1'. The component sent 3 (t.requests('HTTP') lists every request sent, answered or ",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 134
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 9.4,
+          "iterations": 1,
+          "signature": "AssertionError: expected '<div class=\"items-app\"><h1>Items</h1>…' to contain 'Loading…'",
+          "signatures": [
+            "AssertionError: expected '<div class=\"items-app\"><h1>Items</h1>…' to contain 'Loading…'"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 102
+        },
+        {
+          "seconds": 7.7,
+          "iterations": 1,
+          "signature": "Error: [Sygnal] simulateEvent('.back', 'click'): the selector matched nothing in the rendered output (waited Nms for it to render; the eventWaitMs option sets t",
+          "signatures": [
+            "Error: [Sygnal] simulateEvent('.back', 'click'): the selector matched nothing in the rendered output (waited Nms for it to render; the eventWaitMs option sets t"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 119
+        },
+        {
+          "seconds": 5.4,
+          "iterations": 1,
+          "signature": "Error: [Sygnal] t.respond('HTTP', …, '1'): no pending HTTP request matching '1'. The component sent 3 (t.requests('HTTP') lists every request sent, answered or ",
+          "signatures": [
+            "Error: [Sygnal] t.respond('HTTP', …, '1'): no pending HTTP request matching '1'. The component sent 3 (t.requests('HTTP') lists every request sent, answered or "
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 134
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 69,
+        "testing-utility": 0.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125",
+          "G-125-HTML"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist",
+            "dist/guide",
+            "dist/guide/http.md",
+            "dist/guide/resources.md",
+            "llms",
+            "llms-full.txt",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 105240
+      },
+      "selfReported": [
+        "The data loading uses Sygnal's `resources` with a `queryCache()`, which covers the cache, 2-second freshness, \"Loading…\" and \"Updating…\" statuses, and ignoring stale replies."
+      ],
+      "wroteTest": true,
+      "testWindow": 47.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-pilot-current-haiku/sygnal-24-t2",
+      "diff": {
+        "added": 217,
+        "removed": 11,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 51,
+            "removed": 8,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 162,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1814
+    }
+  ]
+}
