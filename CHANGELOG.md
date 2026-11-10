@@ -4,6 +4,18 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
+- **`App.drivers`: a feature's drivers on the root component.** `App.drivers = { HTTP: makeFetchDriver() }` in
+  the file that uses the driver, with `main.js` left as `run(App)`. This is now the canonical form; `run()`'s
+  second argument still works, overrides the static by name, and is for what differs per environment.
+  `renderComponent` ignores the static. `drivers` on a component that is not the root is SYG646. `sygnal-check
+  --fix` writes the static for SYG643 / SYG609, and `--graph` lists a root's drivers and where each came from.
+- **`sygnal-check --report --base <ref>` (experimental).** What a change newly sends, writes and stops checking,
+  computed from the two app graphs. It is an inventory for a reviewer, not a verdict: informational unless
+  `--fail-on=high` is given. Also an MCP tool, `report`.
+- **Side effects outside a declared output.** SYG265 (error): a network request in a view, reducer, intent or a
+  helper they call. SYG266 (warning): other side effects there. Strict: SYG511 (a network call inside `EFFECT`)
+  and SYG512 (a module-level variable written outside an output). The check follows the project's own helpers
+  through imports; calls into packages it does not know and functions that arrive as values are not covered.
 - **`dataset={{ … }}` on an element is `data={{ … }}`.** It was set as a DOM property, which the element's
   getter-only `dataset` rejects, and `renderComponent`'s mock DOM printed `dataset="[object Object]"`, so
   `.data('id')` read `undefined` with no diagnostic. A component's own `dataset` prop is unchanged.

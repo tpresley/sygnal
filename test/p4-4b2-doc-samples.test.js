@@ -192,10 +192,10 @@ it('moves the focus there (real DOM)', async () => {
   tick: state.running && { every: 100, action: 'TICK' },
 })
 ` },
-  tSetup: { page: 'guide/timers.md', lang: 'jsx', code: `import { run, makeTimerDriver } from 'sygnal'
-import App from './App.jsx'
+  tSetup: { page: 'guide/timers.md', lang: 'jsx', code: `// App.jsx
+import { makeTimerDriver } from 'sygnal'
 
-run(App, { TIMER: makeTimerDriver() })
+App.drivers = { TIMER: makeTimerDriver() }
 ` },
   tShape: { page: 'guide/timers.md', lang: 'jsx', code: `Game.timers = (state) => ({
   tick: state.running && { every: 100, action: 'TICK' },
@@ -382,7 +382,7 @@ function undoable(model: Model, options: { key: string; limit?: number; track?: 
 ` },
   apiTimerDriver: { page: 'reference/api.md', lang: 'typescript', code: `function makeTimerDriver(): Driver
 ` },
-  apiTimerRun: { page: 'reference/api.md', lang: 'javascript', code: `run(App, { TIMER: makeTimerDriver() })
+  apiTimerRun: { page: 'reference/api.md', lang: 'javascript', code: `App.drivers = { TIMER: makeTimerDriver() }
 ` },
   apiTimersStatic: { page: 'reference/api.md', lang: 'typescript', code: `// (state: State & Calculated) => { [name]: spec | falsy }
 Stopwatch.timers = (state) => ({
@@ -399,10 +399,6 @@ function uid(name: string): string   // an id derived from it, e.g. 'u-email'
   apiWatch: { page: 'reference/api.md', lang: 'jsx', code: `Notes.intent = ({ STATE }) => ({
   SAVE: STATE.watch(state => state.text).compose(debounce(1000)),
 })
-` },
-  apiRunTimer: { page: 'reference/api.md', lang: 'javascript', code: `// With timers (the timers static needs its driver)
-import { makeTimerDriver } from 'sygnal'
-run(RootComponent, { TIMER: makeTimerDriver() })
 ` },
 }
 
@@ -836,23 +832,19 @@ App.model = { TICK: (state) => ({ ...state, ticks: state.ticks + 1 }) }
 export default App
 `
 
-  it('guide/timers setup: run(App, { TIMER: makeTimerDriver() }) ticks', async () => {
+  // the root's drivers static (canonical since App.drivers): main.js is run(App)
+  const RUN = `import { run } from 'sygnal'\nimport App from './App.jsx'\nrun(App)\n`
+
+  it('guide/timers setup: App.drivers = { TIMER: makeTimerDriver() } ticks', async () => {
     fresh()
-    await load({ 'App.jsx': TICKER, 'main.js': SAMPLES.tSetup.code }, 'main.js')
+    await load({ 'App.jsx': TICKER + SAMPLES.tSetup.code, 'main.js': RUN }, 'main.js')
     await until(() => document.querySelector('.ticks')?.textContent === '3', 'three ticks')
   })
 
   it('reference/api makeTimerDriver: the same with the reference fragment', async () => {
     fresh()
-    const main = `import { run, makeTimerDriver } from 'sygnal'\nimport App from './App.jsx'\n` + SAMPLES.apiTimerRun.code
-    await load({ 'App.jsx': TICKER, 'main.js': main }, 'main.js')
-    await until(() => document.querySelector('.ticks')?.textContent === '3', 'three ticks')
-  })
-
-  it('reference/api run(): the added timers example', async () => {
-    fresh()
-    const main = `import { run } from 'sygnal'\nimport RootComponent from './App.jsx'\n` + SAMPLES.apiRunTimer.code
-    await load({ 'App.jsx': TICKER, 'main.js': main }, 'main.js')
+    const app = TICKER + `import { makeTimerDriver } from 'sygnal'\n` + SAMPLES.apiTimerRun.code
+    await load({ 'App.jsx': app, 'main.js': RUN }, 'main.js')
     await until(() => document.querySelector('.ticks')?.textContent === '3', 'three ticks')
   })
 
