@@ -74,6 +74,7 @@ import lowercaseMarkers from './syg426-lowercase-markers.js'
 import unknownEndpoint from './syg691-unknown-endpoint.js'
 import clockInReducer from './syg258-clock-in-reducer.js'
 import outputReadsCleared from './syg259-output-reads-cleared.js'
+import undeclaredEffect from './syg265-undeclared-effect.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -123,6 +124,7 @@ export const coreRules = [
   byIdBinding,
   outputGuard,
   clockInReducer, // SYG258 (record/replay): Date.now()/Math.random()/crypto.randomUUID() in a STATE reducer; SYG509 under --strict
+  undeclaredEffect, // SYG265, SYG266: a side effect in a view, reducer, static or intent, or a helper they reach
   catalog, // SYG161, SYG162, SYG250, SYG253, SYG254, SYG450, SYG680 (PLAN-9 X-2: defineCatalog)
   ...a11yRules, // SYG701-708, 722, 724, 730, 731 (PLAN-4 GS-3, PLAN-6 K-1): warn, also under --strict; error with a11y: 'error' (D144)
 ]

@@ -300,5 +300,17 @@
   },
   "SYG109": {
     "App.jsx": "function App() {\n  return <div style={{ width: 10 }} />\n}\nexport default App\n"
+  },
+  "SYG265": {
+    "App.jsx": "function App({ state }) {\n  navigator.sendBeacon('/x', state.a)\n  return <p>{state.a}</p>\n}\nApp.initialState = { a: 0 }\n"
+  },
+  "SYG266": {
+    "App.jsx": "function App({ state }) {\n  document.title = 'x'\n  return <p>{state.a}</p>\n}\nApp.initialState = { a: 0 }\n"
+  },
+  "SYG511": {
+    "App.jsx": "function App({ state }) { return <button className=\"go\">{state.a}</button> }\nApp.initialState = { a: 0 }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nApp.model = {\n  GO: { EFFECT: () => { fetch('/x') } },\n}\n"
+  },
+  "SYG512": {
+    "App.jsx": "let n = 0\nfunction App({ state }) { return <button className=\"go\">{state.a}</button> }\nApp.initialState = { a: 0 }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nApp.model = {\n  GO: (s) => ({ ...s, a: n++ }),\n}\n"
   }
 }

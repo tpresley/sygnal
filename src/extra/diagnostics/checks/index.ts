@@ -109,6 +109,7 @@ import {staticsCheck} from './statics'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 import {nextHooks} from './next'
+import {installEffectHooks} from './effects'
 
 export {checkEventBus} from './events'
 export {configureStrict, isStrictEnabled} from './strict'
@@ -170,11 +171,13 @@ export function installChecks(): () => void {
   const uninstallForms = installFormHooks()
   const uninstallBag = installBagHooks()
   const uninstallSortable = installSortableHooks()
+  const uninstallEffects = installEffectHooks()
   // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
   const uninstall = () => {
     core.layers?.delete(nextHooks)
     unregister.forEach(fn => fn())
+    uninstallEffects()
     uninstallHints()
     uninstallInspect()
     uninstallRouter()
