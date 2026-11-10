@@ -248,3 +248,15 @@ describe('emit() as a whole model entry', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }) }
   })
 })
+
+describe('CHILD.select of a function no view renders', () => {
+  it("doesn't crash the graph: the function is listed, view only", () => {
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'graph-child-')))
+    try {
+      const file = path.join(dir, 'App.jsx')
+      const sources = { [file]: `function Row() { return <p>x</p> }\nexport function App() { return <div /> }\nApp.intent = ({ CHILD }) => ({ PICK: CHILD.select(Row) })\nApp.model = { PICK: (s) => s }\n` }
+      const g = graphFiles([file], { cwd: dir, sources })
+      expect(g.components.map(c => [c.name, !!c.viewOnly])).toEqual([['App', false], ['Row', true]])
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+})
