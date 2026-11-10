@@ -1,0 +1,10 @@
+llms.txt (today): 66548 B ≈ 18486 tok · inline 99% · inline+1 read 100% · 25 named files · missing: none
+   hottest on-demand: createRef×2, messageText×2, choice×1, noul×1, experimentalExposeWebMcp×1, askCard×1
+SKILL.md (today): 56221 B ≈ 15617 tok · inline 98.9% · inline+1 read 100% · 35 named files · missing: none
+   hottest on-demand: LLM sink×3, messageText×2, choice×1, noul×1, experimentalExposeWebMcp×1, askCard×1
+compact core: 21701 B ≈ 6028 tok · inline 97.4% · inline+1 read 100% · 21 named files · missing: none
+   hottest on-demand: LLM sink×3, makeChatDriver×3, uiMessageStream×3, type SygnalEvents×2, messageText×2, defineCatalog×2, emit×1, decide×1, choice×1, noul×1, experimentalExposeWebMcp×1, askCard×1
+compact skill: 22411 B ≈ 6225 tok · inline 97.4% · inline+1 read 100% · 21 named files · missing: none
+   hottest on-demand: LLM sink×3, makeChatDriver×3, uiMessageStream×3, type SygnalEvents×2, messageText×2, defineCatalog×2, emit×1, decide×1, choice×1, noul×1, experimentalExposeWebMcp×1, askCard×1
+AGENTS.md index only: 7041 B ≈ 1956 tok · inline 69.1% · inline+1 read 100% · 44 named files · missing: none
+   hottest on-demand: .calculated×10, xs×10, state= slice×8, xs.merge×8, uid()×8, .context×7, method:×7, t.ready×7, t.query×7, t.queryAll×7, resource status×6, sygnal/ai×6, key= identity×5, driverFromAsync×4, <Switchable×4, Switchable current×4, Switchable×4, type IntentSources×4, type ActionsOf×4, Component×4, IntentSources×4, ActionsOf×4, ROUTER sink×4, ROUTER to×4, state.form.fields×4

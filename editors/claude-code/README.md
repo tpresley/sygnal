@@ -2,7 +2,7 @@
 
 One install gives Claude Code two things for [Sygnal](https://sygnal.js.org) apps:
 
-- **The `sygnal-dev` skill.** The workflow for building, testing and debugging Sygnal apps, with the canonical forms. Claude Code loads it when it works on Sygnal code. It is the repository's [`skills/sygnal-dev`](../../skills/sygnal-dev/), so you no longer copy that folder into `.claude/skills/` by hand.
+- **The `sygnal-dev` skill.** The component model, the canonical forms, and how to test and check a change: the text of `llms.txt`, generated from it, with its topic files as references. Claude Code loads it when it works on Sygnal code. It is the repository's [`skills/sygnal-dev`](../../skills/sygnal-dev/), so you no longer copy that folder into `.claude/skills/` by hand.
 - **sygnal-check's findings after edits.** The plugin runs the project's own [`sygnal-check lsp`](../../sygnal-check/README.md#language-server) language server. When Claude edits a `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file, the server checks the whole project, and Claude Code passes new findings to the model with its next request, for example:
 
   ```text

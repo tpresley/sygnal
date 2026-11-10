@@ -1,0 +1,1303 @@
+{
+  "meta": {
+    "run": "agent-docs-pilot-grep-haiku",
+    "generatedAt": "2026-11-10T09:49:12.414Z",
+    "trialsInMap": 4,
+    "trialsAnalyzed": 4,
+    "trialsScored": 4,
+    "skillDir": "/Users/troy/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnals-features-showcase-5a7f2b/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-haiku-5-5"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "23-quote-resource",
+      "30-checkout-form"
+    ],
+    "sharedTasks": [],
+    "byTask": {
+      "23-quote-resource": {
+        "sygnal": {
+          "n": 2,
+          "pass": 2,
+          "scored": 2,
+          "wall": {
+            "mean": 50.8,
+            "median": 50.8
+          },
+          "peakContext": {
+            "mean": 38532,
+            "median": 38532
+          },
+          "cacheCreation": {
+            "mean": 32056,
+            "median": 32056
+          },
+          "cacheRead": {
+            "mean": 305414.5,
+            "median": 305414.5
+          },
+          "messages": {
+            "mean": 11.5,
+            "median": 11.5
+          },
+          "costUsd": {
+            "mean": 0.014,
+            "median": 0.014
+          },
+          "billedTokens": {
+            "mean": 347452.5,
+            "median": 347452.5
+          },
+          "outputTokens": {
+            "mean": 9959,
+            "median": 9959
+          },
+          "durationSeconds": {
+            "mean": 50.8,
+            "median": 50.8
+          },
+          "iterations": {
+            "mean": 5.5,
+            "median": 5.5
+          },
+          "effectiveIterations": {
+            "mean": 5.5,
+            "median": 5.5
+          },
+          "editRounds": {
+            "mean": 5,
+            "median": 5
+          },
+          "toolCalls": {
+            "mean": 11.5,
+            "median": 11.5
+          },
+          "failedRuns": {
+            "mean": 2,
+            "median": 2
+          },
+          "episodes": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "locAdded": {
+            "mean": 119.5,
+            "median": 119.5
+          },
+          "locRemoved": {
+            "mean": 7,
+            "median": 7
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 2.2,
+            "learn": 10.5,
+            "implement": 13.3,
+            "test-authoring": 7.3,
+            "verify": 5.1,
+            "debug": 9.5,
+            "tooling-friction": 0,
+            "think": 3.1,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "framework-source": 10.5
+          }
+        }
+      },
+      "30-checkout-form": {
+        "sygnal": {
+          "n": 2,
+          "pass": 2,
+          "scored": 2,
+          "wall": {
+            "mean": 166.7,
+            "median": 166.7
+          },
+          "peakContext": {
+            "mean": 74277,
+            "median": 74277
+          },
+          "cacheCreation": {
+            "mean": 67803.5,
+            "median": 67803.5
+          },
+          "cacheRead": {
+            "mean": 959951,
+            "median": 959951
+          },
+          "messages": {
+            "mean": 18.5,
+            "median": 18.5
+          },
+          "costUsd": {
+            "mean": 0.042,
+            "median": 0.042
+          },
+          "billedTokens": {
+            "mean": 1064610.5,
+            "median": 1064610.5
+          },
+          "outputTokens": {
+            "mean": 36819,
+            "median": 36819
+          },
+          "durationSeconds": {
+            "mean": 166.8,
+            "median": 166.8
+          },
+          "iterations": {
+            "mean": 5.5,
+            "median": 5.5
+          },
+          "effectiveIterations": {
+            "mean": 5.5,
+            "median": 5.5
+          },
+          "editRounds": {
+            "mean": 4.5,
+            "median": 4.5
+          },
+          "toolCalls": {
+            "mean": 18,
+            "median": 18
+          },
+          "failedRuns": {
+            "mean": 2,
+            "median": 2
+          },
+          "episodes": {
+            "mean": 1,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 362.5,
+            "median": 362.5
+          },
+          "locRemoved": {
+            "mean": 32.5,
+            "median": 32.5
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 8.5,
+            "learn": 6.6,
+            "implement": 85.4,
+            "test-authoring": 20,
+            "verify": 27.2,
+            "debug": 14.7,
+            "tooling-friction": 0,
+            "think": 4.4,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "framework-source": 6.6
+          }
+        }
+      }
+    },
+    "overall": {
+      "sygnal": {
+        "n": 4,
+        "pass": 4,
+        "scored": 4,
+        "wall": {
+          "mean": 108.7,
+          "median": 89.9
+        },
+        "peakContext": {
+          "mean": 56404.5,
+          "median": 53162.5
+        },
+        "cacheCreation": {
+          "mean": 49929.8,
+          "median": 46689
+        },
+        "cacheRead": {
+          "mean": 632682.8,
+          "median": 538581.5
+        },
+        "messages": {
+          "mean": 15,
+          "median": 14.5
+        },
+        "costUsd": {
+          "mean": 0.028,
+          "median": 0.024
+        },
+        "billedTokens": {
+          "mean": 706031.5,
+          "median": 601313.5
+        },
+        "outputTokens": {
+          "mean": 23389,
+          "median": 18791
+        },
+        "durationSeconds": {
+          "mean": 108.8,
+          "median": 89.9
+        },
+        "iterations": {
+          "mean": 5.5,
+          "median": 5.5
+        },
+        "effectiveIterations": {
+          "mean": 5.5,
+          "median": 5.5
+        },
+        "editRounds": {
+          "mean": 4.8,
+          "median": 4.5
+        },
+        "toolCalls": {
+          "mean": 14.8,
+          "median": 14
+        },
+        "failedRuns": {
+          "mean": 2,
+          "median": 2
+        },
+        "episodes": {
+          "mean": 1.3,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 241,
+          "median": 196.5
+        },
+        "locRemoved": {
+          "mean": 19.8,
+          "median": 17.5
+        },
+        "wroteTest": 4,
+        "keptTest": 4,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 5.3,
+          "learn": 8.5,
+          "implement": 49.3,
+          "test-authoring": 13.7,
+          "verify": 16.1,
+          "debug": 12.1,
+          "tooling-friction": 0,
+          "think": 3.7,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "framework-source": 8.5
+        }
+      }
+    },
+    "overallShared": {},
+    "delta": {
+      "tasks": [],
+      "wallDelta": null,
+      "items": []
+    },
+    "catalog": [
+      {
+        "id": "G-125",
+        "title": "Guessed `t.state` on a `renderComponent()` handle (it has `t.states`, `t.next()`, `t.waitForState()`; no `state`)",
+        "kind": "docs",
+        "status": "fixed",
+        "trialsAffected": 1,
+        "sygnal": "1/4",
+        "react": "—",
+        "inResults": 0,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 1,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-23-t1"
+        ]
+      }
+    ],
+    "skill": {
+      "sygnalTrials": 4,
+      "skillInvoked": 0,
+      "skillBytes": {
+        "mean": 0,
+        "median": 0
+      },
+      "files": {},
+      "sections": [],
+      "library": {
+        "sygnal": {
+          "sygnal": {
+            "trials": 4,
+            "files": {
+              "llms": 3,
+              "llms.txt": 4,
+              "llms/http.md": 2,
+              "llms/resources.md": 2,
+              "llms/testing.md": 1,
+              "(dir)": 2,
+              "package.json": 1,
+              "dist/guide/inputs.md": 1
+            }
+          },
+          "zod": {
+            "trials": 1,
+            "files": {
+              "package.json": 1
+            }
+          }
+        },
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": 37701.3,
+          "median": 37884.5
+        },
+        "react": {
+          "mean": null,
+          "median": null
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 4,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 4,
+      "forms": {
+        "shorthandKeys": {
+          "total": 0,
+          "trials": 0
+        },
+        "emitCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "eventCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "rawEventsObjects": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectString": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectFn": {
+          "total": 0,
+          "trials": 0
+        },
+        "positionalView": {
+          "total": 0,
+          "trials": 0
+        },
+        "abortReturns": {
+          "total": 7,
+          "trials": 1
+        },
+        "effectSinks": {
+          "total": 0,
+          "trials": 0
+        }
+      },
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "sygnal",
+          "signature": "Error: [Sygnal] t.respond('HTTP'): t.requests('HTTP')[0] (the one at nth: 0) is not pending: it was answered, aborted, or superseded by a later latest: true req",
+          "cause": "other",
+          "catalog": [],
+          "count": 2,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected '' to be 'Loading…' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "FAIL src/App.test.jsx > ignores an earlier response for the same quote after Refresh",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected <p id=\"name-error\" class=\"error\"></p> to be null",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected undefined to be 'Enter a quantity from 1 to 10.' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected '<main class=\"checkout-page\"><h1>Check…' to contain 'Enter a quantity from 1 to 10.'",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: Cannot read properties of null (reading 'textContent')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {
+          "agent-mistake": {
+            "episodes": 3,
+            "seconds": 35.9,
+            "iterations": 5,
+            "unresolved": 0
+          },
+          "other": {
+            "episodes": 1,
+            "seconds": 8.9,
+            "iterations": 2,
+            "unresolved": 0
+          },
+          "unknown (output truncated)": {
+            "episodes": 1,
+            "seconds": 3.7,
+            "iterations": 1,
+            "unresolved": 0
+          }
+        },
+        "react": {}
+      }
+    },
+    "failureCategories": {
+      "sygnal": {},
+      "react": {}
+    },
+    "otherSkills": {
+      "sygnal": {},
+      "react": {}
+    }
+  },
+  "trials": [
+    {
+      "trial": "sygnal-23-t1",
+      "run": "agent-docs-pilot-grep-haiku",
+      "arm": "sygnal",
+      "task": "23-quote-resource",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 55,
+        "iterations": 7,
+        "editRounds": 7,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 22,
+        "output": 91,
+        "cacheRead": 298206,
+        "cacheCreation": 33626,
+        "messages": 11,
+        "peakContext": 40102,
+        "total": 331945
+      },
+      "usage": {
+        "tokens": 343020,
+        "outputTokens": 11166,
+        "costUsd": 0.015292460000000003,
+        "durationMs": 54454,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 12,
+        "byTool": {
+          "Bash": 11,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 54.4,
+      "phases": {
+        "orient": 2.8,
+        "learn": 5.6,
+        "implement": 16.1,
+        "verify": 4.5,
+        "test-authoring": 6.7,
+        "debug": 15.3,
+        "think": 3.4
+      },
+      "attributedShare": 1,
+      "iterations": 7,
+      "effectiveIterations": 7,
+      "edits": 7,
+      "editRounds": 7,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '' to be 'Loading…' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 31
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] t.respond('HTTP'): t.requests('HTTP')[0] (the one at nth: 0) is not pending: it was answered, aborted, or superseded by a later latest: true req",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 42
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] t.respond('HTTP'): t.requests('HTTP')[0] (the one at nth: 0) is not pending: it was answered, aborted, or superseded by a later latest: true req",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 47
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 6.5,
+          "iterations": 1,
+          "signature": "AssertionError: expected '' to be 'Loading…' // Object.is equality",
+          "signatures": [
+            "AssertionError: expected '' to be 'Loading…' // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 31
+        },
+        {
+          "seconds": 8.9,
+          "iterations": 2,
+          "signature": "Error: [Sygnal] t.respond('HTTP'): t.requests('HTTP')[0] (the one at nth: 0) is not pending: it was answered, aborted, or superseded by a later latest: true req",
+          "signatures": [
+            "Error: [Sygnal] t.respond('HTTP'): t.requests('HTTP')[0] (the one at nth: 0) is not pending: it was answered, aborted, or superseded by a later latest: true req"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 42
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 5.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "llms",
+            "llms.txt",
+            "llms/http.md",
+            "llms/resources.md"
+          ]
+        },
+        "libraryBytes": 33317
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 30.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-pilot-grep-haiku/sygnal-23-t1",
+      "diff": {
+        "added": 112,
+        "removed": 7,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 29,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 79,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1635
+    },
+    {
+      "trial": "sygnal-23-t2",
+      "run": "agent-docs-pilot-grep-haiku",
+      "arm": "sygnal",
+      "task": "23-quote-resource",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 48,
+        "iterations": 4,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 24,
+        "output": 98,
+        "cacheRead": 312623,
+        "cacheCreation": 30486,
+        "messages": 12,
+        "peakContext": 36962,
+        "total": 343231
+      },
+      "usage": {
+        "tokens": 351885,
+        "outputTokens": 8752,
+        "costUsd": 0.013601830000000002,
+        "durationMs": 47171,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 11,
+        "byTool": {
+          "Bash": 8,
+          "Edit": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 47.1,
+      "phases": {
+        "orient": 1.5,
+        "learn": 15.4,
+        "implement": 10.4,
+        "verify": 5.6,
+        "test-authoring": 7.9,
+        "debug": 3.7,
+        "think": 2.7
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 6,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "FAIL src/App.test.jsx > ignores an earlier response for the same quote after Refresh",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 41
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 3.7,
+          "iterations": 1,
+          "signature": "FAIL src/App.test.jsx > ignores an earlier response for the same quote after Refresh",
+          "signatures": [
+            "FAIL src/App.test.jsx > ignores an earlier response for the same quote after Refresh"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": true,
+          "t": 41
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 15.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "llms.txt",
+            "llms/http.md",
+            "llms/resources.md",
+            "llms/testing.md"
+          ]
+        },
+        "libraryBytes": 37689
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 13.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-pilot-grep-haiku/sygnal-23-t2",
+      "diff": {
+        "added": 127,
+        "removed": 7,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 34,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 89,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1349
+    },
+    {
+      "trial": "sygnal-30-t1",
+      "run": "agent-docs-pilot-grep-haiku",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 209,
+        "iterations": 3,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 40,
+        "output": 158,
+        "cacheRead": 1155362,
+        "cacheCreation": 75855,
+        "messages": 20,
+        "peakContext": 82331,
+        "total": 1231415
+      },
+      "usage": {
+        "tokens": 1278479,
+        "outputTokens": 47222,
+        "costUsd": 0.05033962,
+        "durationMs": 208096,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 20,
+        "byTool": {
+          "Bash": 12,
+          "Write": 2,
+          "Edit": 6
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 208,
+      "phases": {
+        "orient": 10,
+        "learn": 9.9,
+        "implement": 144.2,
+        "test-authoring": 17.8,
+        "verify": 4.2,
+        "debug": 18.2,
+        "think": 3.7
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 9,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 5
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected <p id=\"name-error\" class=\"error\"></p> to be null",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 181
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected undefined to be 'Enter a quantity from 1 to 10.' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 192
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 18.2,
+          "iterations": 2,
+          "signature": "AssertionError: expected <p id=\"name-error\" class=\"error\"></p> to be null",
+          "signatures": [
+            "AssertionError: expected <p id=\"name-error\" class=\"error\"></p> to be null",
+            "AssertionError: expected undefined to be 'Enter a quantity from 1 to 10.' // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 181
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 9.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms",
+            "llms.txt",
+            "package.json"
+          ]
+        },
+        "libraryBytes": 41719
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 41.5,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-pilot-grep-haiku/sygnal-30-t1",
+      "diff": {
+        "added": 459,
+        "removed": 28,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 255,
+            "removed": 25,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 200,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 7,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 2033
+    },
+    {
+      "trial": "sygnal-30-t2",
+      "run": "agent-docs-pilot-grep-haiku",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 126,
+        "iterations": 8,
+        "editRounds": 6,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 34,
+        "output": 142,
+        "cacheRead": 764540,
+        "cacheCreation": 59752,
+        "messages": 17,
+        "peakContext": 66223,
+        "total": 824468
+      },
+      "usage": {
+        "tokens": 850742,
+        "outputTokens": 26416,
+        "costUsd": 0.032807199999999995,
+        "durationMs": 125426,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 16,
+        "byTool": {
+          "Bash": 11,
+          "Write": 3,
+          "Edit": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 125.4,
+      "phases": {
+        "orient": 7,
+        "learn": 3.2,
+        "verify": 50.2,
+        "implement": 26.6,
+        "test-authoring": 22.2,
+        "debug": 11.2,
+        "think": 5
+      },
+      "attributedShare": 1,
+      "iterations": 8,
+      "effectiveIterations": 8,
+      "edits": 8,
+      "editRounds": 6,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '<main class=\"checkout-page\"><h1>Check…' to contain 'Enter a quantity from 1 to 10.'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 96
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of null (reading 'textContent')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 102
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 11.2,
+          "iterations": 2,
+          "signature": "AssertionError: expected '<main class=\"checkout-page\"><h1>Check…' to contain 'Enter a quantity from 1 to 10.'",
+          "signatures": [
+            "AssertionError: expected '<main class=\"checkout-page\"><h1>Check…' to contain 'Enter a quantity from 1 to 10.'",
+            "TypeError: Cannot read properties of null (reading 'textContent')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 96
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 3.2
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide/inputs.md",
+            "llms",
+            "llms.txt"
+          ],
+          "zod": [
+            "package.json"
+          ]
+        },
+        "libraryBytes": 38080
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 34,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-pilot-grep-haiku/sygnal-30-t2",
+      "diff": {
+        "added": 266,
+        "removed": 37,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 80,
+            "removed": 34,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 182,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1989
+    }
+  ]
+}

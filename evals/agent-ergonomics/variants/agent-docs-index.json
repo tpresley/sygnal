@@ -1,0 +1,38 @@
+{
+  "description": "agent-docs spike, AGENTS.md index: no skill; the starter's AGENTS.md replaced by the \u2264 8 KB index of triggers (always in context through CLAUDE.md's @AGENTS.md), the compact core and topic set in the package. Compare with agent-docs-compact: what a passive index adds over the same files reached only by instruction",
+  "sygnal": "branch",
+  "skill": "none",
+  "overlay": {
+    "sygnal": {
+      "copy": {
+        "AGENTS.md": "dev-plans/research/agent-docs/candidates/agents-index/AGENTS.md"
+      },
+      "afterInstall": {
+        "node_modules/sygnal/llms.txt": "dev-plans/research/agent-docs/candidates/compact-core/llms.txt",
+        "node_modules/sygnal/llms/ai.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/ai.md",
+        "node_modules/sygnal/llms/api-facts.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/api-facts.md",
+        "node_modules/sygnal/llms/behaviors.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/behaviors.md",
+        "node_modules/sygnal/llms/collaboration.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/collaboration.md",
+        "node_modules/sygnal/llms/commands.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/commands.md",
+        "node_modules/sygnal/llms/details.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/details.md",
+        "node_modules/sygnal/llms/diagnostics.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/diagnostics.md",
+        "node_modules/sygnal/llms/examples.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/examples.md",
+        "node_modules/sygnal/llms/forms.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/forms.md",
+        "node_modules/sygnal/llms/graphics.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/graphics.md",
+        "node_modules/sygnal/llms/http.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/http.md",
+        "node_modules/sygnal/llms/renderers.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/renderers.md",
+        "node_modules/sygnal/llms/replay.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/replay.md",
+        "node_modules/sygnal/llms/resources.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/resources.md",
+        "node_modules/sygnal/llms/router.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/router.md",
+        "node_modules/sygnal/llms/sandbox.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/sandbox.md",
+        "node_modules/sygnal/llms/sockets.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/sockets.md",
+        "node_modules/sygnal/llms/styling.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/styling.md",
+        "node_modules/sygnal/llms/testing.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/testing.md",
+        "node_modules/sygnal/llms/typed-apis.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/typed-apis.md",
+        "node_modules/sygnal/llms/typescript.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/typescript.md",
+        "node_modules/sygnal/llms/ui.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/ui.md",
+        "node_modules/sygnal/llms/widgets.md": "dev-plans/research/agent-docs/candidates/compact-core/llms/widgets.md"
+      }
+    }
+  }
+}

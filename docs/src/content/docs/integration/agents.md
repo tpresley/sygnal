@@ -8,7 +8,7 @@ Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). 
 | Tool | What it gives the agent |
 |---|---|
 | [`llms.txt`](#llmstxt) | A compact reference of the canonical forms, plus topic files it points to |
-| [`sygnal-dev` skill](#the-sygnal-dev-skill) | The same knowledge as a Claude Code skill, with a workflow; installed by the Sygnal plugin |
+| [`sygnal-dev` skill](#the-sygnal-dev-skill) | The same files as a Claude Code skill; installed by the Sygnal plugin |
 | [`sygnal-check`](#sygnal-check) | Static wiring checks, strict mode, `--fix`, the app graph, `explain` |
 | [MCP server](#mcp-server) | `check`, `graph` and `explain` as tools |
 | [Dev server MCP endpoint](#dev-server-mcp-endpoint) | The running app in the open page: state, actions, diagnostics, its agent tools |
@@ -18,7 +18,7 @@ This page is about agents that **build** your app. For agents that **operate** i
 
 ## llms.txt
 
-[`/llms.txt`](/llms.txt) is a plain-text reference written for language models: the mental model, the anatomy of a component, one canonical example per concept, the wiring rules, an RxJS-to-xstream cheat sheet, how to read diagnostics, and how to test a change. Features fewer apps use (`sygnal/ai`, the `sygnal/ui` parts, three.js and canvas islands, typed APIs, collaborative state, other renderers, the sandbox, record and replay) are in topic files it lists at the top, such as [`/llms/ai.md`](/llms/ai.md), which an agent reads when it needs one. [`/llms-full.txt`](/llms-full.txt) is all of it in one file, for tools that load a whole file. It only uses the [canonical forms](/guide/strict-mode/), so code an agent copies from it passes `sygnal-check --strict`.
+[`/llms.txt`](/llms.txt) is a plain-text reference written for language models, about 22 KB: the mental model, the anatomy of a component, one canonical example per concept, the facts that can't be guessed, the tools, and how to test a change. It starts with a table of what to read when: a task that sends HTTP requests, uses the router, a form, sockets, timers, a widget, the `sygnal/ui` parts or `sygnal/ai` names a topic file, such as [`/llms/http.md`](/llms/http.md) or [`/llms/ai.md`](/llms/ai.md), which the agent reads before writing that feature. The topic files hold the option lists, the full wiring rules and diagnostics, the testing reference and the long forms of the examples, so the core stays one short read. [`/llms-full.txt`](/llms-full.txt) is all of it in one file, for tools that load a whole file. It only uses the [canonical forms](/guide/strict-mode/), so code an agent copies from it passes `sygnal-check --strict`.
 
 Point your agent at it, for example in your project's `AGENTS.md` or `CLAUDE.md`:
 
@@ -33,7 +33,7 @@ Projects created with `create-sygnal-app` (without prompts: `npm create sygnal-a
 
 ## The sygnal-dev skill
 
-`sygnal-dev` is a Claude Code skill for building Sygnal apps: the workflow (scaffold, write, test, check, inspect) and the canonical forms, with `llms.txt` for the API. Claude Code loads it whenever it works on Sygnal code.
+`sygnal-dev` is a Claude Code skill for building Sygnal apps. Its `SKILL.md` is `llms.txt`, generated from it, with the topic files as its `references/`, so the skill and `llms.txt` never disagree. Claude Code loads it whenever it works on Sygnal code.
 
 **Install it with the Sygnal plugin:**
 

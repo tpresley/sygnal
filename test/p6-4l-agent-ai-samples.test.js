@@ -29,7 +29,7 @@ const FRAGMENTS = {
   chatDelta: [['llms'], "DELTA: (s, { text }) => ({ ...s, draft: text })"],
   chatDone: [['llms'], "DONE: (s, { message }) => ({ ...s, messages: [...s.messages, message], draft: '' })"],
   chatAbort: [['llms'], "{ abort: 'reply' }"],
-  chatRun: [['llms'], "run(App, { LLM: makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) }) })"],
+  chatRun: [['llms'], "App.drivers = { LLM: makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) }) }"],
   chatProd: [['llms'], "transport: uiMessageStream('/api/chat')"],
   chatStream: [['llms'], "await t.stream('LLM', ['Hel', 'lo'])"],
   chatStreamSkill: [['skill'], "t.stream('LLM', ['Hi'])"],
@@ -160,7 +160,7 @@ describe('every fragment is in its agent doc, verbatim', () => {
       expect(FILES.llms).toContain(g + '.md')
       expect(fs.existsSync(path.join(repo, 'dist/guide', g + '.md')), g).toBe(true)
     }
-    for (const g of ['ai-chat', 'ai-decisions', 'agent']) expect(FILES.skill).toContain('`' + g + '.md`')
+    for (const g of ['ai-chat', 'ai-decisions', 'agent']) expect(FILES.skill).toContain(g + '.md')
   })
 })
 
@@ -268,7 +268,9 @@ describe('chat', () => {
 
   it('the main.js lines build drivers and transports', () => {
     let drivers
-    evaluate(F.chatRun, { run: (_, d) => { drivers = d }, App: () => null, makeChatDriver, openResponses })
+    const App = () => null
+    evaluate(F.chatRun, { App, makeChatDriver, openResponses })
+    drivers = App.drivers
     expect(typeof drivers.LLM).toBe('function')
     expect(typeof evaluate(`({ ${F.chatProd} })`, { uiMessageStream }).transport.stream).toBe('function')
     expect(typeof evaluate(F.strict, { openResponses, baseURL: 'http://localhost:11434/v1', model: 'llama3.2', strictSchemas }).stream).toBe('function')

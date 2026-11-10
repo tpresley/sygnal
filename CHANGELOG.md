@@ -4,6 +4,15 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
+- **A third of the agent context.** `llms.txt` is now a 22 KB core (it was 66.5 KB): the mental model, the
+  anatomy, one canonical example per concept, and a table of which file in `llms/` to read before a feature.
+  The option lists, the full wiring rules and diagnostics, the testing reference and the long forms of the
+  examples moved verbatim to topic files (`llms/http.md`, `resources.md`, `sockets.md`, `router.md`,
+  `forms.md`, `behaviors.md`, `commands.md`, `widgets.md`, `testing.md`, `diagnostics.md`, `api-facts.md`,
+  `details.md`, `examples.md`); `llms-full.txt` still has all of it. The `sygnal-dev` skill's `SKILL.md` is
+  now generated from `llms.txt` (56 KB to 23 KB), with the topic files as its references. In the agent eval
+  the compact core cost 14% less on Sonnet and the generated skill 22% less than the old one, with no
+  pass-rate loss detected (`dev-plans/research/agent-docs`). The driver recipes use `App.drivers`.
 - **`App.drivers`: a feature's drivers on the root component.** `App.drivers = { HTTP: makeFetchDriver() }` in
   the file that uses the driver, with `main.js` left as `run(App)`. This is now the canonical form; `run()`'s
   second argument still works, overrides the static by name, and is for what differs per environment.

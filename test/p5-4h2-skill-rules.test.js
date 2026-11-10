@@ -13,6 +13,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import { renderComponent, form, queryCache, Switchable } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
+import { llmsText, skillText } from './helpers/agent-context.js'
 
 let t
 afterEach(() => { try { t?.dispose() } catch (_) {} t = null; document.body.innerHTML = '' })
@@ -173,11 +174,17 @@ describe('a form on a Switchable page keeps its values across visits', () => {
 
 describe('the agent docs carry both rules (and the snippet these tests run)', () => {
   const RESOURCES = 'declares `items` in its own `.resources`'
+  // The skill and llms.txt as an agent reads them: the core plus its topic files (7.5: the form rule sits in llms/forms.md)
+  for (const [name, texts] of [['the skill (SKILL.md + references)', skillText()], ['llms.txt + llms/', llmsText()]]) {
+    it(name, () => {
+      expect(texts).toContain(SNIPPET)
+      expect(texts).toContain(RESOURCES)
+      if (name.startsWith('llms')) expect(texts).toContain(LLMS_SNIPPET)
+    })
+  }
   for (const [file, texts] of [
-    ['skills/sygnal-dev/SKILL.md', [SNIPPET, RESOURCES]],
     ['evals/agent-ergonomics/skills-toc/references/behaviors-and-forms.md', [SNIPPET]],
     ['evals/agent-ergonomics/skills-toc/references/resources.md', [RESOURCES]],
-    ['llms.txt', [SNIPPET, LLMS_SNIPPET, RESOURCES]],
   ]) {
     it(file, () => {
       const text = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8')

@@ -42,7 +42,7 @@ const FRAGMENTS = {
   domClose: [['llms'], "DOM.close('.help')"],
   commands: [BOTH, "t.commands('ELEMENT')"],
   timers: [BOTH, "Clock.timers = (state) => ({ tick: state.running && { every: 1000, action: 'TICK' } })"],
-  timerRun: [BOTH, 'run(App, { TIMER: makeTimerDriver() })'],
+  timerRun: [BOTH, 'App.drivers = { TIMER: makeTimerDriver() }'],
   persist: [BOTH, "App.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'] })"],
   persistClear: [BOTH, 'PERSIST: { clear: true }'],
   persistTest: [BOTH, "renderComponent(App, { storage: { 'todo-app': { version: 1, state: { todos: [] } } } })"],
@@ -57,8 +57,13 @@ const F = Object.fromEntries(Object.entries(FRAGMENTS).map(([k, [, text]]) => [k
 const run = (fragment, bindings) => new Function(...Object.keys(bindings), 'return ' + fragment)(...Object.values(bindings))
 
 // the code blocks changed for a11y (aria-label) and GS-4 (the "no change" comment)
+// A block is read from the core (llms.txt, and SKILL.md generated from it) when it is there, else from the
+// topic files: llms/examples.md has the long forms of the core's blocks, and the blocks the core left out (Chat).
+const repoFile = (rel) => fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', rel), 'utf8')
+const CORE = { llms: repoFile('llms.txt'), skill: repoFile('skills/sygnal-dev/SKILL.md') }
+const blocksIn = (text, marker) => [...text.matchAll(/```jsx\n([\s\S]*?)```/g)].map(m => m[1]).filter(b => b.includes(marker))
 const block = (file, marker) => {
-  const found = [...FILES[file].matchAll(/```jsx\n([\s\S]*?)```/g)].map(m => m[1]).filter(b => b.includes(marker))
+  const core = blocksIn(CORE[file], marker), found = core.length ? core : blocksIn(FILES[file], marker)
   expect(found, `${file}: one block with ${marker}`).toHaveLength(1)
   return found[0]
 }
@@ -476,11 +481,12 @@ describe('timers', () => {
     t.expectNoDiagnostics()
   })
 
-  it('run(App, { TIMER: makeTimerDriver() }) ticks in an app', async () => {
+  it('App.drivers = { TIMER: makeTimerDriver() } ticks in an app', async () => {
     document.body.innerHTML = '<div id="root"></div>'
     const app = `import { run, makeTimerDriver } from 'sygnal'
 import { Clock as App } from './Clock.jsx'
-export const instance = ${F.timerRun}
+${F.timerRun}
+export const instance = run(App)
 `
     const { instance } = await load({ 'Clock.jsx': MODULES.timers, 'main.js': app }, 'main.js')
     try {
