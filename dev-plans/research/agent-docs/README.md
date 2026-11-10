@@ -674,9 +674,72 @@ Of the grep users, 13 of 29 still read `dist/` after their first lookup (CLI: 2 
 
 **The 3.4 MB is not justified by this.** The two files are 3,423,901 B, 11% of the 32.2 MB unpacked package, and 807 KB gzipped of an 8.9 MB tarball; a shipped form would be one of them (1.9 MB or 1.5 MB). For that, step 1 shows no saving in cost, tokens or passes that can be credited to the file. Haiku used the CLI in 16% of trials, and with the grep form `dist/` reads stayed above the limit.
 
-**A cheaper next step, if this is wanted.** Two Haiku arms of 45 trials each, about $2 each. First, the compact core with only "not `dist/*`" and no reference file, which tests whether the sentence alone gives the `index.d.ts` drop for free. Second, a reworded CLI row, as requirement 1 asks: why the CLI got 16% against grep's 64% is not visible in a transcript, and my guess is that grep's row is a command to copy and that it fits a habit agents already have. Neither variant exists yet and I did not build them.
+**A cheaper next step, if this is wanted** (the first arm was approved and is defined in the next subsection). Two Haiku arms of 45 trials each, about $2 each. First, the compact core with only "not `dist/*`" and no reference file, which tests whether the sentence alone gives the `index.d.ts` drop for free. Second, a reworded CLI row, as requirement 1 asks: why the CLI got 16% against grep's 64% is not visible in a transcript, and my guess is that grep's row is a command to copy and that it fits a habit agents already have. Neither variant exists yet and I did not build them.
 
 **Not known.** Nothing here on Sonnet or with a skill, where agents read `dist/` far less. One night, the arms run one after another, 3 trials per task, and the cost interval is about ±10%.
+
+### The sentence-only arm (rule fixed before any run)
+
+Step 1 could not separate the lookup from the changed sentence, because both new rows dropped "grep the name in `dist/index.d.ts`" and added "not `dist/*`". This arm changes only that.
+
+| | Row |
+|---|---|
+| Control, `agent-docs-compact-ctl` | `llms/api-facts.md`, or grep the name in `dist/index.d.ts` · one symbol, not the whole file |
+| Sentence, `agent-docs-sentence` | `llms/api-facts.md` · not `dist/*` |
+
+`candidates/compact-sentence/llms.txt` (21,644 B, 57 B less than the compact core) is one row different from the compact core, written by `tools/build-lookup-candidates.mjs`. The topic files are the compact core's, both reference files are removed after install, and `prompt.skillLine` is false. **Nothing here changes the real `llms.txt`.**
+
+**A fresh control is needed; `agent-docs2-compact-ctl-haiku` is not enough.** That run is from a different night, and we have no estimate of how much the primary measure, the share of trials opening `dist/`, moves between nights with the same files. The fresh control costs about $2.40 and removes the problem. It also gives the first such estimate, by being the same variant (`025cf5c95ea0`, the same hash) on the same 15 tasks. It runs immediately before the sentence arm.
+
+**Why no reworded CLI arm.** I can't state a concrete reason a new wording would be used more. All 45 CLI-arm trials read `llms.txt` with the row in it, none ran `sygnal-check --help`, no command failed before being given up, and no agent's text says why it passed the tool over. One trial said it would read "the `sygnal-check docs` entry" and did not run it. The complete-command-to-copy explanation from the step 1 write-up is a guess. It is left out.
+
+**Measures**, as in the rule above, using `tools/results.mjs`'s regexes, unchanged: *index.d.ts* = trials whose tool inputs name it; *any `dist/`* = `index.d.ts`, built JS under `dist/`, or the package `src`; *built JS or src* = the second half alone. C is the fresh control and S the sentence arm.
+
+**1. Is the cross-night comparison usable?** If C has `index.d.ts` in 21–39 of 45 and any `dist/` in 28–44 of 45, the two nights agree within about two standard deviations of a 45-trial count, and S may be set beside the CLI arm's 9/45 and 22/45. If not, those two figures are not used, and the report says the night moved the result.
+
+**2. Does the sentence explain the `index.d.ts` drop?**
+
+| S against C (`index.d.ts`) | Meaning |
+|---|---|
+| S ≤ C/2 and S ≤ 17 (the CLI arm's 9 plus about two standard deviations) | **Explains it.** The fall in the CLI arm needs no tool |
+| S ≥ C − 8 | **Does not.** The sentence alone is not what moved it |
+| Anything between | **Partly.** No attribution claimed |
+
+With C near 30, halving is seen about 9 times in 10; a fall of 8 or fewer is about one night's noise, so a "does not" reading can still hide a small effect.
+
+**3. Should the compact core take this row?** Only if step 2 says "explains it" and all of these hold, each read as a point estimate against C, as in the rule above:
+
+| # | Requirement | Limit |
+|---|---|---|
+| 1 | Any `dist/` falls | S ≤ C − 7 (half the fall the CLI arm showed) |
+| 2 | Reading doesn't just move to the built code | Built JS or src: S ≤ C + 4 |
+| 3 | Failed build/test runs | Mean paired difference at most +0.25 per trial |
+| 4 | Cost | Paired ratio at most 1.05, upper 95% bound at most 1.15 |
+| 5 | Passes | At least C − 3 of 45 |
+
+Requirements 3–5 are there because this row takes a way out from agents and leaves them only `llms/api-facts.md`.
+
+**What each outcome means for the rest of the spike.**
+
+| Outcome | Then |
+|---|---|
+| Explains it, 1–5 met | Recommend the row for the compact core when that ships (a separate decision). The lookup added nothing on reads that the sentence did not; both reference files stay out of the package |
+| Explains it, a requirement missed | The row does not change. Report which one; the sentence moved reads but cost something |
+| Partly | No change and no claim. A further run would need a reason this result doesn't supply |
+| Does not | Keep the existing row. The CLI arm's drop came from something else, such as naming a tool even unused, or the night. The lookup still failed requirement 1, so nothing ships either way |
+
+**This arm cannot revive the lookup.** Whatever S shows, the step 1 result stands: neither form met its rule.
+
+**Not verified.** Both commands pass a literal `--dry-run` with no trial directory created and `variant.unit.mjs` passes. No trial has materialized this variant, and `tools/results.mjs` does not report these runs yet; adding them is a few lines when the files exist. The arms run one after another, so the sentence arm is about 50 minutes later than its control.
+
+**Commands.** `dist/` is current, as no source has changed since the build, so no rebuild is needed. Expected about **$5** total ($2.42 for this control last time; the harness's $7.35 per arm is too high for Haiku), and about 1 h 45 m. Task 45 is the variable one.
+
+```bash
+cd /Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnals-features-showcase-5a7f2b && node evals/agent-ergonomics/orchestrate.mjs --run agent-docs3-compact-ctl-haiku --variant agent-docs-compact-ctl --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5
+```
+```bash
+cd /Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnals-features-showcase-5a7f2b && node evals/agent-ergonomics/orchestrate.mjs --run agent-docs3-sentence-haiku --variant agent-docs-sentence --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5
+```
 
 ## Appendix A: every trap the context mentions
 

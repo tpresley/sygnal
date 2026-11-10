@@ -35,6 +35,10 @@ for (const [name, row] of Object.entries(ROWS)) {
   const skill = path.join(skillDir, 'SKILL.md')
   fs.writeFileSync(skill, swap(fs.readFileSync(skill, 'utf8'), OLD_SKILL_ROW, row, 'the skill'))
 }
+// The sentence alone, no lookup: no "grep index.d.ts" and the "not dist/*" cell the CLI row carries. Core only.
+const SENTENCE_ROW = '| a prop, option or field not shown here | `llms/api-facts.md` | not `dist/*` |'
+fs.mkdirSync(path.join(out, 'compact-sentence'), { recursive: true })
+fs.writeFileSync(path.join(out, 'compact-sentence/llms.txt'), swap(core, OLD_ROW, SENTENCE_ROW, 'the core'))
 const files = outputs(path.join(out, 'compact-core'), path.join(out, 'reference-compact'))
 for (const f of files) { fs.mkdirSync(path.dirname(f.file), { recursive: true }); fs.writeFileSync(f.file, f.text) }
-for (const n of ['compact-core/llms.txt', 'compact-lookup/llms.txt', 'compact-grep/llms.txt', 'compact-skill/SKILL.md', 'compact-lookup-skill/SKILL.md', 'compact-grep-skill/SKILL.md', 'reference-compact/reference.json', 'reference-compact/reference.md']) console.log(n, fs.statSync(path.join(out, n)).size)
+for (const n of ['compact-core/llms.txt', 'compact-sentence/llms.txt', 'compact-lookup/llms.txt', 'compact-grep/llms.txt', 'compact-skill/SKILL.md', 'compact-lookup-skill/SKILL.md', 'compact-grep-skill/SKILL.md', 'reference-compact/reference.json', 'reference-compact/reference.md']) console.log(n, fs.statSync(path.join(out, n)).size)
