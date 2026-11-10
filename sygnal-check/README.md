@@ -9,7 +9,8 @@ npx sygnal-check "src/**/*.tsx" --json
 npx sygnal-check --graph --json  # the app graph: components, actions, events, selectors, findings
 npx sygnal-check --graph=html    # the app graph as an interactive page (--watch: live)
 npx sygnal-check explain SYG104  # what a diagnostic code means and how to fix it
-npx sygnal-check mcp             # MCP server (stdio) with check, graph and explain tools
+npx sygnal-check --report --base main   # what a change does, per component (experimental)
+npx sygnal-check mcp             # MCP server (stdio) with check, graph, explain and report tools
 npx sygnal-check lsp             # language server (stdio) for editors
 ```
 
@@ -344,6 +345,7 @@ SYG104: Intent selector crosses an isolation boundary
 | `check` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | `{ diagnostics, summary: { error, warn, info } }` |
 | `graph` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | the `InspectGraph` |
 | `explain` | `{ code: string }` | `{ code, title, severity, staticSeverity?, strict, reportedBy, explanation, fix, docsUrl }` |
+| `report` (experimental) | `{ base: string, head?: string, paths?: string[] }` | what a change does per component: `{ summary, attention, notes, components, coverage, ... }` |
 
 Results come back as `structuredContent` and as JSON text. A bad path or an unknown code is a tool result with `isError: true`.
 

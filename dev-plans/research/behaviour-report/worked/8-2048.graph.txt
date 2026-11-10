@@ -1,0 +1,4 @@
+app graph: 64d57674~1 (18ce5c9dcf) → 64d57674
+~ BOARD: +reads max, +reads over, +reads score, +reads won  examples/ts-example-2048/src/app.tsx
+~ TILE: +reads column, +reads deleted, +reads id, +reads new, +reads row, +reads value  examples/ts-example-2048/src/tile.tsx
+0 added, 0 removed, 2 changed
