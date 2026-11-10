@@ -280,6 +280,6 @@ Blame is rough here (comments and imports count as written lines), so read this 
 1. The maintainer's view on the provisional decisions, and on promoting "guard changed" (question 2).
 2. The report's JSON has no schema file and is unversioned. It needs one before anyone depends on it, as `inspect.schema.json` does for the graph.
 3. Trial on a live PR flow: the Action has never run on GitHub. The comment format has only been read as text.
-4. The docs section needs a docs build and link check; I did not build the docs (other sessions were loading the machine).
+4. The docs section builds and passes the link and file-name-tab checks; the page's live examples were not re-run in the three browsers.
 5. A changelog entry and `sygnal-check` version bump at release time.
 6. Blast radius precision past helper boundaries is unmeasured.
