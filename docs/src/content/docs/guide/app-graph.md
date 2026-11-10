@@ -207,6 +207,96 @@ In CI, fetch the base first:
 
 `--base` exits with code 2 when the directory isn't in a git repository, the ref doesn't exist, or a scanned path is outside the repository.
 
+`--head <ref>` compares with another commit instead of the working tree.
+
+## What a change does (`--report`)
+
+:::caution[Experimental]
+`--report` and its JSON shape may change between releases.
+:::
+
+The graph comparison says which components, actions and sinks exist that didn't before. `--report` also compares what is inside them, so a reviewer can see what a change does without trusting its description:
+
+```bash
+npx --no-install sygnal-check --report --base main
+```
+
+It prints markdown for a pull request comment (`--json` prints the data, `--out` writes a file). For each changed component:
+
+- **Actions:** what triggers each one (a click on `.add`, a key, an event from a child), and whether that was added, removed or rewired.
+- **State:** the keys each changed action reads and writes, before and after.
+- **Sinks:** new or removed sinks, the requests they send (`POST /api/save → ok SAVED`), the `EVENTS` they emit.
+- **Guards:** the conditions under which a sink does nothing (`ABORT`, or a reducer returning the state unchanged), including those in helpers it calls.
+- **Blast radius:** which other components read the affected state, through lenses, Collections, context and calculated fields, and which listen to the affected events.
+
+Formatting, comments, renamed parameters and locals, and equivalent forms (`{ ...state, a }` and `set({ a })`) don't count as changes.
+
+The top of the report is a short list to read first: side effects added to existing actions, removed guards and trigger filters, and wider writes. Everything else worth a line is under "Also changed". Side effects of new actions are in their row of the table, since a new action is what the diff is about anyway.
+
+### What it can't tell you
+
+The report says what differs. It doesn't say whether the difference is right, and an empty list doesn't mean a change is safe:
+
+- A changed condition or value is reported as changed. It can't say whether a guard became stricter, or that `n + 1` and `1 + n` are the same.
+- What the view renders isn't classified (markup, text, styling, conditional rendering). The report only notes that the view's code changed and which state it reads.
+- Package and driver behaviour, and the data that arrives at run time, are outside it.
+- A wrong value in new code looks like any other new code.
+
+The end of the report lists what it did not account for: changed files where no difference was found, files that aren't code, and components it couldn't read whole.
+
+### In CI
+
+The report is informational: it exits 0. `--fail-on=high` makes it exit 1 when the list has a new side effect on an existing action or a removed guard. Most pull requests that add a request do so on purpose, so start without it.
+
+This workflow compares a pull request with its merge base and keeps one comment up to date, found by the marker on the report's first line. On a pull request from a fork the token can't comment, so only the job summary is written.
+
+```yaml title=".github/workflows/behaviour-report.yml"
+name: Behaviour report
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the base commit is read with git
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Write the report
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          npx --no-install sygnal-check --report --base "$base" --head "$HEAD_SHA" --out report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Post or update the comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.body | startswith("<!-- sygnal-behaviour-report -->"))][0].id // empty')
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@report.md
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@report.md
+          fi
+```
+
+Use the merge base, not the base branch's tip: otherwise commits merged to the base branch since the pull request was opened read as the pull request undoing them. GitHub refuses comments over 65,536 characters; on a very large pull request, cut the file before posting it.
+
+The MCP server (`sygnal-check mcp`) has the same report as the `report` tool (`{ base, head?, paths? }`), so an agent can compare what it wrote with what it says it did.
+
 ## Mermaid and JSON
 
 `--graph=mermaid` prints a Mermaid flowchart (`flowchart TD`) for a README or a pull request description, where GitHub draws it. Render edges are solid (Collections labelled with their state key, Switchables with `switch`), EVENTS edges dotted; `--events=false` leaves the EVENTS edges out. The page's **Copy as Mermaid** gives the same text.

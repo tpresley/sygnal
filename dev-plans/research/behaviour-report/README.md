@@ -5,20 +5,14 @@ Spike, 2026-11-09. Prototype behind `sygnal-check --report --base <ref> [--head 
 
 ## Recommendation
 
-**Yes, make it a release feature, in a narrower form than the prototype's wording suggests, and labelled for what it is.**
-Ship it as a *checked inventory of what changed*, with an attention list. Do not ship it as a description of what the
-change means.
+**Yes: an experimental release, as a *checked inventory of what changed* for wiring and side effects.** It is a review-focus tool, not a bug finder, and the real application history (section 9) is what settled that.
 
-- It adds information on the commits that matter. In 22 of the 84 commits with a report, today's `--graph --base` says
-  "no changes" while the code's behaviour changed or was at least rewritten.
-- The attention list stayed quiet on most ordinary edits: 31 of 55 incremental commits had none, and the median was 0.
-- Its value is largest for the claim the strategy review cares about: a machine-checked statement that a new request,
-  a removed guard or a wider write exists, regardless of what the PR description says.
-- It is not a proof of equivalence. "Nothing needs attention" must never read as "safe". Section 4 lists the
-  false-calm cases, and they are real.
+- On 47 real commits from Sift and Temper it changed what a reviewer would look at in 8, gave a useful inventory of a large change in 10, and had nothing to add in 29, where it mostly stayed quiet. After tuning, none of the 47 misdirected.
+- It would not have caught the bugs. Of 17 commits named as fixes, none had the defect flagged on the commit that introduced it. Those bugs were markup, omissions in new code, or wrong literals.
+- In 23 of the 84 example commits with a report, the graph diff says "no changes".
+- It says what differs. "Nothing to look at first" must never read as "safe".
 
-Keep it `experimental` for one release, and try it on an application repository first. This repository is a poor test
-bed: most PRs change the library, which is not a Sygnal app.
+What still stands between this and a release is at the end of this file. The provisional decisions the strategy session made for the maintainer are in section 8.
 
 ## 1. What `--graph --base` leaves out
 
@@ -42,13 +36,11 @@ It diffs `InspectGraph` as sets of names (`graphView/diff.js`). A reviewer canno
 | Which changed files it accounted for. "No changes" can't be told apart from "didn't look". | |
 | A moved file is a removal plus an addition. | |
 
-Two existing bugs turned up:
+Three existing bugs turned up, each now fixed in its own commit on this branch:
 
-- A model entry written as `A: emit('T')` is read as a STATE reducer (`modelEntries.js`, the final `else` of `analyzeModel`). In bd18dc24 the graph
-  diff says `+sink DELETE_LANE:STATE, -sink DELETE_LANE:EVENTS`, which is false. The report works around it. The graph itself is still wrong at HEAD,
-  and this `emit` form is still supported.
-- A diagnostic whose message contains a line number reads as removed and added when code moves (64d57674, SYG701). The diff's own comment says moved
-  code isn't a change. The report normalizes this, `graphDiff` doesn't.
+- A model entry written as `A: emit('T')` was read as a STATE reducer. In bd18dc24 the graph diff said `+sink DELETE_LANE:STATE, -sink DELETE_LANE:EVENTS`, which was false.
+- A diagnostic whose message contains a line number read as removed and added when code moved (64d57674, SYG701).
+- `--graph` crashed on `CHILD.select(Fn)` of a function no view renders. It hit 8 of the 47 Sift commits.
 
 ## 2. The prototype
 
@@ -60,10 +52,11 @@ reaches (5 levels, imported ones too). `compare.js` diffs two sides into the rep
 
 The report also says what it did not explain: changed code files with no behaviour difference found, non-code files, tests, and components whose model can't be listed.
 
+Helpers are followed: a helper in return position (3 calls deep, also `track(step(state))`) is read as part of the sink, so a guard moved into one hashes as it did in place. Writes follow what is made from the state (`reducerWrites` with `deep`; the graph's own `writes` are unchanged). Of an object used only as `api.x`, each key used is a dependency, not the whole object.
+
 `--head <ref>` is new and also works with `--graph --base`. It is what makes the commit-pair study below reproducible.
 
-Attention list: new side effect, new driver, removed guard or trigger filter, may remove a Collection item, persistence changes, agent surface changes (high);
-changed guards, wider or unknown writes, removed side effects, payload shape, new findings, dropped branches, orphaned listeners (medium); a clock read in a reducer, new event, low-confidence change (low).
+The first list ("Look at these first", `attention` in the JSON): side effects added to existing actions, removed guards and trigger filters, wider writes. Everything else worth a line ("Also changed", `notes`): new drivers, changed guards, persistence, agent surface, payload shape, new findings, dropped branches, orphaned listeners, clock reads, low-confidence changes. A helper that changed and reaches several components with nothing else to say gets one line under "Shared helpers that changed", and those components fold away.
 
 ## 3. Worked commits
 
@@ -82,7 +75,7 @@ The verdict column answers: could a reviewer who has not read the code say what 
 | 3 | 73b084d8 dialog() and toasts | tui-tracker | Partly | Yes, for wiring |
 | 4 | 916e23e7 lane sorting | kanban | Partly | Yes |
 | 5 | 43026613 `.data('laneId')` fix | kanban | No. "no changes" | Yes |
-| 6 | bd18dc24 reducers rewritten with `set()`, `emit()` | kanban | Misleading | Yes: the refactor reads as a refactor |
+| 6 | bd18dc24 reducers rewritten with `set()`, `emit()` | kanban | Misleading before the `emit` fix, now "no changes" | Yes: the refactor reads as a refactor |
 | 7 | ee35c135 camera moved to state | platformer | Barely | No, and it says so |
 | 8 | 64d57674 2048 typed intent, view signature | ts-example-2048 | Noise | Noise, smaller |
 
@@ -93,7 +86,7 @@ Today:
 app graph: a990ebbc~1 (f933f615e1) → a990ebbc
 no changes
 ```
-Prototype:
+Prototype (now under "Also changed"):
 ```
 - **Check** (Branch removed): `App.ROUTE` STATE: logic that depended on `inWizard(state.route)` is gone
 | ~ | `ROUTE` | reply | STATE, writes route, flow (same), reads -route | branches, conditions, values: fewer branches (2 → 1);
@@ -121,7 +114,7 @@ Today's output says nothing about `PICK` or `SELECT`, yet that payload change is
 ```
 A reviewer can see "status messages became toasts" from the writes and the emits. The modal's new focus behaviour lives in `sygnal/ui` and is invisible.
 
-**4. 916e23e7.** Prototype gives the guards (`LANE_DROP` stops when `!state.draggingLane`), the new `BOOTSTRAP` DND config, and the blast radius. It lists `main.js`
+**4. 916e23e7.** The report gives the guards (`LANE_DROP` stops when `!state.draggingLane`), the new `BOOTSTRAP` DND config, and the blast radius. It lists `main.js`
 as changed with no behaviour found, and that is a miss: the commit moved the `DND` driver's options out of `makeDragDriver({...})` and into `BOOTSTRAP`. The driver's name didn't change, and names are all the report compares.
 
 **5. 43026613.** Today: "no changes". Prototype:
@@ -129,52 +122,60 @@ as changed with no behaviour found, and that is a miss: the commit moved the `DN
 | ~ | `LANE_DRAG_START` | rewired: + `DND.dragstart(lane-sort).data(laneId)`, − `DND.dragstart(lane-sort)` | STATE, writes draggingLane (same) | values: what it puts in `draggingLane` differs |
 ```
 
-**6. bd18dc24 (the control).** Today reports three false sink changes (the `emit` bug). Prototype: only `DRAG_START`, which really changed its payload; the other rewrites are
+**6. bd18dc24 (the control).** The graph diff reported three false sink changes until the `emit` fix. The report: only `DRAG_START`, which really changed its payload; the other rewrites are
 recognized as the same code and `LaneComponent.jsx` is listed under "no behaviour difference found". This is the case that shows the canonicalization is worth having.
 
-**7. ee35c135 (the limit).** The commit moves the camera into state and changes `sim.ts`. Prototype: three actions marked `helper changed … (low confidence)`, each naming
-`cameraFor`, `clampCam`, and a note to read the diff. Correct and honest, but a reviewer learns only where to look.
+**7. ee35c135 (the limit).** The commit moves the camera into state and changes `sim.ts`. The report now follows `step` into the simulation and names the conditions that are gone from `Game.STEP`. A reviewer learns where to look and which branches moved, not what the game now does.
 
 **8. 64d57674.** The view signature moved from positional to destructured, so reads appear that were unreadable before. Both tools report that; the prototype at least drops the fake new SYG701.
 
 ### Across the history
 
-All 103 commits touching an example's `src` (`--no-config`, up to 40 per example):
+All 103 commits touching an example's `src` (`--no-config`, up to 40 per example), at the end of this work:
 
 | | |
 |---|---|
 | Commits where a component's behaviour or code differs | 84 |
-| of those, where today's diff says "no changes" | 22 |
+| of those, where the graph diff says "no changes" | 23 |
 | Components changed | 283 |
-| Sinks with classified logic changes | 74 (47 high confidence, 27 low) |
-| Kinds (a sink can have several) | value 22, helper 17, other 14, writes 11, guard 10, branch 7, condition 7, payload 1 |
-| Attention items, incremental commits | median 0, p90 4, max 23 (31 of 55 had none) |
-| Time per report | 213 ms (both sides) |
+| Sinks with classified logic changes | 74 (53 high confidence, 21 low) |
+| Kinds (a sink can have several) | value 24, helper 17, condition 12, writes 11, guard 11, branch 11, other 9, payload 5 |
+| Attention list, all commits | 8 items: 6 wider writes, 2 side effects |
+| Time per report | 221 ms (both sides) |
 | Crashes | 0 |
 
-I read the 9 guard-changed, the 1 guard-removed and the trigger-filter items against their diffs. The guard changes are real: 8 are the 7.0 `state` → `previousState` migration,
-one is `steps + 1 < MAX` → `steps < MAX`. The guard-removed is a guard replaced by a different one inside a helper (`firstChoice`), which is why such items are now medium and name the helper.
-The remaining kinds I checked by their text, not each diff, so treat their precision as unmeasured. Commits that add a whole example (29) produce a list of everything; grouping
-keeps that to one line per component, but a feature PR will be long.
+I read the guard-changed items against their diffs. They are real: 8 are the 7.0 `state` → `previousState` migration and one is `steps + 1 < MAX` → `steps < MAX`. They are notes now, not attention items, by the provisional decision. The other kinds I checked by their text, so treat their precision as unmeasured.
 
 ## 4. Reducer-level semantic diffing: is it useful, and where does it stop?
 
-**Useful as triage, not as understanding.** 58 % of the classified changes (43 of 74) got a specific kind rather than "only a helper changed" (17) or "the computation changed" (14). Same writes with different logic
-(`value`), a new branch, a changed condition are all recognized, and a key is named when the value is an expression reachable from the return. What it can do reliably:
+**Useful as triage, not as understanding.** 69 % of the classified changes in the examples (51 of 74) got a specific kind rather than "only a helper changed" (14) or "the computation changed" (9). What it can do reliably:
 
 - Tell *unchanged* from *changed*, across formatting and renames, with helpers included. This is the strong result.
-- Name the written key whose expression changed, the condition that changed, the guard that went away.
+- Name the written key whose expression changed, the condition that changed, the guard that went away, also in a helper.
+
+**Following helpers (open question 7 of the first round), before and after:**
+
+| | Before | After |
+|---|---|---|
+| Low confidence, the original definition | 27 of 74 | 25 of 74 |
+| Low confidence, excluding "reads can't be listed" | n/a | 21 of 74 |
+| Sinks reported only as "a helper changed" | 17 | 14 |
+| Guard weakened in a helper | no alarm | "guard changed", with the helper named |
+| Guard moved into a helper | false "guard removed" | no alarm |
+
+Most of the drop came from a bug, not the feature: objects at module scope looked like unreadable imports. The new definition drops "reads can't be listed" because the reads line already carries a `…` for that, and it doesn't make the classification less sure. So the honest figure is 27 → 25 on the same definition. The remaining 21 are 15 unknown writes (a reducer delegating to a method call, as `figma-lite`'s `history` does) and 6 helpers it can't follow.
 
 What it cannot do, each pinned by a test in the "known limits" block:
 
 | Case | What happens | Kind of error |
 |---|---|---|
-| A guard weakened inside a helper | "helper changed", no guard alarm | **False calm** |
 | A sort comparator flipped, or any change of meaning in an expression | "value of `items` differs", no attention item | **False calm**: the order is reversed and nothing is flagged |
 | The data the reducer receives changes meaning (the intent's `.map`) | a trigger note on the action, no change on the reducer, no attention item | **False calm** |
+| A guard changed in a helper | a note, "guard changed" | Softer than a removed guard |
+| A wrong literal in a request (`modal_vllm` for `modal_pool`) | "the request differs: read its arguments" in the table | **False calm**: section 9 |
 | Library, driver or package behaviour changes | nothing; a version bump in `package.json` is a non-code file | **False calm** |
 | View output | "view code changed" and the state reads. Conditional rendering, text, a11y are not classified | Out of scope, said in the report |
-| A guard moved into a helper | "guard removed", medium, names the helper | False alarm (softened) |
+| A guard moved where the walk doesn't reach (`const t = add(s); return t`) | "guard removed", medium, names the helper | False alarm (softened) |
 | An equivalent rewrite (`!(a && b)` → `!a \|\| !b`, `n + 1` → `1 + n`) | changed guard or value | False alarm |
 | A reducer that mutates locals or dispatches through a table | low confidence, "read the diff" | Honest |
 
@@ -182,9 +183,7 @@ The false-calm row is the one to be careful about. The classifier sees that an e
 called stricter or looser. It could be with a solver on simple comparisons, but that doesn't seem worth it. So the report's strong claims should be confined to what it *can* check: existence of sinks, requests,
 written keys, guards and edges. Everything about logic should stay phrased as "this differs".
 
-Two wording rules follow, both in the prototype: never print "safe" or "no behaviour change" (it prints "no behaviour difference was found" with what wasn't looked at), and "nothing needs attention" must sit next to the "did not look at" section.
-
-The 36 % low-confidence share (27 of 74) is honest but high. It comes mostly from reducers delegating to a simulation (`platformer`) and from mutating locals. It would drop if guards and writes were followed into helpers, as `reducerWrites` already does to depth 3 for writes.
+One wording rule follows, and the prototype keeps to it: never print "safe" or "no behaviour change". With nothing on the list it says only that nothing is on the list.
 
 ## 5. What worked, what didn't
 
@@ -198,12 +197,12 @@ Worked:
 Didn't, or only partly:
 - Blast radius past a function boundary: a child reading through a helper shows as "may read it". Upward through a `Collection`, it can only say where the state lives.
 - `{ configs }` for a request that isn't HTTP-shaped (DND, LLM): the driver's contract isn't known, so it shows keys.
-- No natural-language layer. I left that out on purpose. A model paraphrasing this JSON would be cheap, but it reintroduces the unfaithfulness this report exists to avoid, unless each sentence is tied to a fact.
+- No natural-language layer, by decision (section 8). A model paraphrasing this JSON would be cheap, but it reintroduces the unfaithfulness this report exists to avoid.
 - Driver names only: a changed driver *configuration* in `run()` still reads as "no behaviour found".
 
 ## 6. A GitHub Action
 
-[`behaviour-report.yml`](behaviour-report.yml) is a sketch (not under `.github/`): it finds the merge base, runs the report, truncates to fit GitHub's 65,536-character limit, writes the job summary,
+[`example/.github/workflows/behaviour-report.yml`](example/.github/workflows/behaviour-report.yml) is an example for an application repository (not this repo's `.github/`); the docs have the short form in `guide/app-graph`. It finds the merge base, runs the report, truncates to fit GitHub's 65,536-character limit, writes the job summary,
 and posts or updates one comment via the marker on the report's first line. The largest report I measured, on the commit with the most attention items, was 15 KB. On a fork the token is read-only, so it only writes the job summary. `pull_request_target` would
 get a write token, and `sygnal-check` only parses code and runs none of it, but it would still read config and code from the PR. I'd avoid it until someone asks for fork comments.
 
@@ -225,12 +224,62 @@ Against it, for now:
 
 Suggested shape if it is built: `sygnal-check --report --evidence <replay-results.json>`, where the CI job has run `replay()` over a `recordings/` folder through Vitest, and each divergence attaches to the action it names in the report, so "`ROUTE`: value of `flow` differs" could carry "session `wizard-from-list`: `flow.step` `'review'` → `'describe'`".
 
-## 8. Open questions for the maintainer
+## 8. Decisions and open questions
 
-1. Is `--report` a flag, or should it be `--graph=report`? I kept it separate because it needs facts beyond the graph and has its own JSON shape.
-2. Should the facts go into `InspectGraph` (per-action `reads`, `guards`, `requests`) so the page and the MCP `graph` tool get them? It would raise the schema's size and its promise.
-3. Do you want an MCP `report` tool, so an agent can check its own PR description against the facts? I left it out to keep the MCP tool list stable during the spike.
-4. Should high-severity items be able to fail a check (`--fail-on=high`), or stay informational? I'd start informational: a new request is often the point of a PR.
-5. Fix the `emit()` graph bug and the line-number diagnostic bug separately? Both exist today regardless of this feature.
-6. Are "Look closely" items a fair default for every new driver sink, given a feature PR will list many? An alternative is to flag only side effects on *existing* actions, and list new actions' effects in the table.
-7. Should the report follow guards and writes into helpers (the main false-calm fix)? It's the next most valuable piece of work, and bounded: the same depth-3 walk `reducerWrites` uses.
+**Provisional decisions, made by the strategy session so this wasn't blocked; the maintainer can overrule any of them:**
+
+1. `--report` stays a separate flag.
+2. Severity is informational, with an opt-in `--fail-on=high`.
+3. New driver sinks on new actions go in the table. Only side effects added to existing actions, removed guards and wider writes go on the first list.
+4. There is an MCP `report` tool.
+5. No natural-language layer.
+
+**Open for the maintainer:**
+
+1. Should the facts go into `InspectGraph` (per-action `reads`, `guards`, `requests`) so the page and the MCP `graph` tool get them? It would raise the schema's size and its promise.
+2. The first list leaves out a new driver in `run()`, changed guards and persistence changes. Reading the application history, a changed guard was as often the interesting line as a removed one. Promote "guard changed"?
+3. Should `reducerWrites` with `deep` become the graph's own `writes`? It's more complete, and `action.writes` would change for existing users.
+
+## 9. Real application history: Sift and Temper
+
+**Set-up.** `UsableMachines/kindo-sift-module` (the `frontend/` console, Sygnal since 2026-11-01) and `UsableMachines/kindo-tune-module` (Temper, `kindo-tune/ui`). Read-only clones outside this repository, with the push URL disabled. 47 commits: 17 whose subject names a fix, and 30 spread evenly over the rest (23 from Sift, 24 from Temper). Average 1.9 s per report on apps of this size. I judged each commit alone, from the report and the commit's subject and diffstat, and read the diffs of the flagged ones. That's one reader's judgement, and the fix sample leans on subject lines, several of which turned out to be bundles or features.
+
+**Would the report have changed what a reviewer looked at?**
+
+| Verdict | Commits | |
+|---|---|---|
+| Yes: a concrete behaviour fact the title and diffstat don't give | 8 | Sift 276d0a7c, ec6460b3, 521edc08; Temper c0b95025, 0c93835c, 0d676f50, de3cf8e1, f68c3bac |
+| Inventory: a large port or feature, the table orients but flags nothing | 10 | Sift 8b8d02bb, 831073fe, 73b5d875, 881a7b18, 844b7a06; Temper 902fed76, cf22e24c, 41968960, 146c6711, 399e2e59 |
+| Nothing to add: view-only, comments, generated code, a module no component reaches | 29 | |
+
+Examples of the first row:
+
+- c0b95025, a 40-file batch titled "batch of fixes": among 48 components, the first list singles out `ProjectsPage.CLONE` no longer stopping when `state.busy` (the action became a confirm step) and `ARCHIVE` writing three more keys.
+- f68c3bac: the note `Wizard.GOTO` guard became `… || (to === 'publish' && !canPublish(state))`, a new rule in a commit titled about scorecard rendering and wordmark contrast.
+- 0c93835c: `App.ROUTE` now has an EFFECT calling `window.location.assign`, and both guards changed.
+- ec6460b3, titled "drop the workarounds": a PARENT payload to the wizard lost `query`, which is the point of the change and easy to miss in the diff.
+
+What the trial changed, all fixed:
+
+- The first run crashed on 8 Sift commits (a graph bug, section 1).
+- Generated clients reported 27 components changed for a one-file API regeneration, because all of `api` was a dependency. Four commits went from 15 to 27 components each to none. It now tracks `api.x`.
+- `toProblem`, a shared helper, turned a branding commit into 50 components. It's one line now.
+- A respelled reply name (`ok: actions.ok` → `'TRIED'`) was reported as a new request.
+- The attention list was noisier before the provisional decision: 41 of 47 commits now have nothing on it, and 25 items across the 47.
+
+**The bugs: would the report on the commit that introduced them have flagged the line?** For each of the 17 fix-named commits I blamed the lines it removed and ran the report on the top 3 commits that wrote them. No report flagged a defect. In 5 of 17, the same action was on the introducing commit's first list (0c93835c, 0d676f50, 1470934a, 8f0e404d, de3cf8e1), which at best points a reviewer at the right action: `Health.FIX_ALL sends a new HTTP request` is true, and says nothing about the later finding that Fix all shouldn't apply fixes that remove much of the data. The reasons are structural:
+
+- Most of the "bugs" were markup or text (d17caa20, f9b7e3ad, 39265b62, 494c075b).
+- Others were omissions in new code: state that didn't survive a reload (0d676f50), a missing data check. The first list deliberately doesn't cover new actions, and a report can't see what isn't there.
+- 4a1073f6 was a wrong literal in a request. The report shows the request differs and can't know the value is wrong.
+
+Blame is rough here (comments and imports count as written lines), so read this as "no evidence it finds bugs", not a measured miss rate.
+
+## 10. What stands between this and a release
+
+1. The maintainer's view on the provisional decisions, and on promoting "guard changed" (question 2).
+2. The report's JSON has no schema file and is unversioned. It needs one before anyone depends on it, as `inspect.schema.json` does for the graph.
+3. Trial on a live PR flow: the Action has never run on GitHub. The comment format has only been read as text.
+4. The docs section needs a docs build and link check; I did not build the docs (other sessions were loading the machine).
+5. A changelog entry and `sygnal-check` version bump at release time.
+6. Blast radius precision past helper boundaries is unmeasured.

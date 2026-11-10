@@ -117,6 +117,8 @@ function controlFlow(project, file0, fn0, isStateSink) {
       } else if (e.type === 'ObjectExpression') {
         out.literals.push({ obj: e, file, fn, args: level.args })
       } else if (e.type === 'CallExpression' && level.depth < 3) {
+        // track(step(state)): step's guards are this sink's too
+        for (const a of e.arguments) if (bare(a)?.type === 'CallExpression') expr(a, path)
         const h = helperOf(project, file, e)
         if (!h || seen.has(h.fn)) return
         const i = e.arguments.findIndex(a => bare(a)?.type === 'Identifier' && stateParam?.type === 'Identifier' && bare(a).name === stateParam.name)

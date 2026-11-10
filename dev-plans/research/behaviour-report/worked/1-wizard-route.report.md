@@ -3,7 +3,9 @@
 
 `a990ebbc~1` (f933f615e1) → `a990ebbc`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.
 
-### Look at these first
+No side effect was added to an existing action, and no guard removed or write widened. That is all this line says: read the changes below.
+
+### Also changed
 - **Check** (Branch removed): `App.ROUTE` STATE: logic that depended on `inWizard(state.route)` is gone (`examples/filter-wizard/src/App.jsx:36`)
 
 ### `App` · `examples/filter-wizard/src/App.jsx`

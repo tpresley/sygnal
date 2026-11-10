@@ -616,6 +616,12 @@ describe('--report: known limits (false alarms and false calm)', () => {
     expect(kinds(report(v('if (s.x) return ABORT;'), v('')))).toContain('guard-removed')
   })
 
+  it('fixed: a guard inside a nested helper call is still there when the code around it moves', () => {
+    const extra = `const step = (s, d) => { if (s.x) return ABORT; return { ...s, n: d } }\nconst track = (s) => ({ ...s, t: 1 })`
+    const r = report(app(`{ ADD: (s, d) => step(s, d), SAVE: (s) => s }`, { head: ABORT, extra }), app(`{ ADD: (s, d) => track(step(s, d)), SAVE: (s) => s }`, { head: ABORT, extra }))
+    expect(kinds(r)).not.toContain('guard-removed')
+  })
+
   it('fixed: writes through a composition of helpers, and a spread of one', () => {
     const v = (w) => app(`{ ADD: (s, d) => track(step(s, d)), SAVE: (s) => { const t = step(s); return { ...t, draft: '' } } }`, { extra: `const step = (s, d) => ({ ...s, ${w}: d })\nconst track = (s) => ({ ...s, n: 1 })` })
     const r = report(v('items'), v('other'))

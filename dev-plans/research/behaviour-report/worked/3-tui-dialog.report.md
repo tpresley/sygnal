@@ -6,6 +6,8 @@
 ### Look at these first
 - **Check** (Wider writes): `Tracker.ASK_DELETE` now also writes `confirm` (`examples/tui-tracker/src/app.jsx:289`)
 - **Check** (Wider writes): `Tracker.DELETE` now also writes `confirm` (`examples/tui-tracker/src/app.jsx:290`)
+
+### Also changed
 - Note (Event without listener): `Tracker` emits `TOAST`, and no scanned component listens (a package component may: Toaster)
 
 ### `Tracker` · `examples/tui-tracker/src/app.jsx`
@@ -18,8 +20,8 @@
 | ~ | `DELETE` | `click .confirm-ok` | − ELEMENT<br>STATE, writes issues, selectedId, confirmId → issues, selectedId, confirmId, confirm, reads +confirm | STATE: written keys |
 | ~ | `DELETED` | reply | + EVENTS, emits `TOAST`<br>− STATE |  |
 | ~ | `SAVED` | reply | + EVENTS, emits `TOAST`<br>− STATE |  |
-| + | `confirm.CANCEL` | + (intent) | + STATE, writes confirmId, confirm |  |
-| + | `confirm.CLOSE` | + (intent) | + STATE, writes confirmId, confirm |  |
+| + | `confirm.CANCEL` | + (intent) | + STATE, writes confirmId |  |
+| + | `confirm.CLOSE` | + (intent) | + STATE, writes confirmId |  |
 
 - behavior `confirm` added
 - view code changed; reads +confirm; children +sygnal/ui:Toaster (markup, text and styling are not classified)

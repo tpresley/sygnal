@@ -3,7 +3,7 @@
 
 `43026613~1` (4bdf224104) → `43026613`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.
 
-Nothing here needs special attention: no new side effects, removed guards or wider writes were found.
+No side effect was added to an existing action, and no guard removed or write widened. That is all this line says: read the changes below.
 
 ### `RootComponent` · `examples/kanban/src/RootComponent.jsx`
 

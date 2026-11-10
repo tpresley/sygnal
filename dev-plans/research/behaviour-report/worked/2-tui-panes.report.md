@@ -3,7 +3,9 @@
 
 `d3b10f54~1` (531261de9d) → `d3b10f54`. Components: 2 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.
 
-### Look at these first
+No side effect was added to an existing action, and no guard removed or write widened. That is all this line says: read the changes below.
+
+### Also changed
 - **Check** (Payload): `IssueRow.PICK` PARENT payload changed shape: a value → { pick }; check the receivers (`examples/tui-tracker/src/app.jsx:47`)
 
 ### `IssueRow` · `examples/tui-tracker/src/app.jsx`

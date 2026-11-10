@@ -3,8 +3,7 @@
 
 `916e23e7~1` (4a8cbc95ad) → `916e23e7`. Components: 2 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.
 
-### Look at these first
-- **Look closely** (New side effect): `RootComponent.BOOTSTRAP` is new and sends to DND: `{ configs }` (`examples/kanban/src/RootComponent.jsx:71`)
+No side effect was added to an existing action, and no guard removed or write widened. That is all this line says: read the changes below.
 
 ### `LaneComponent` · `examples/kanban/src/LaneComponent.jsx`
 
