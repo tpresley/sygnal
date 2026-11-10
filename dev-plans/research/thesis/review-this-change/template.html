@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review This Change</title>
+<style>
+:root {
+  --bg: #fbfaf7; --panel: #ffffff; --ink: #1c1b18; --muted: #6a675f; --line: #e3e0d8;
+  --add: #e4f4e6; --add-ink: #17542a; --del: #fbe7e4; --del-ink: #8a2418;
+  --accent: #1f4fd8; --flag: #fff4d6; --flag-line: #d9a514; --hit: #ffd34d;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15151a; --panel: #1e1e25; --ink: #eceae4; --muted: #a09d95; --line: #33333c;
+    --add: #17331f; --add-ink: #9fe0ae; --del: #3d1c18; --del-ink: #f3aea4;
+    --accent: #86a7ff; --flag: #3a2f10; --flag-line: #d9a514; --hit: #7a5c00;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--sans); }
+main { max-width: 880px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: clamp(30px, 6vw, 44px); line-height: 1.1; margin: 0 0 12px; letter-spacing: -0.02em; }
+h2 { font-size: 24px; margin: 48px 0 8px; letter-spacing: -0.01em; }
+h3 { font-size: 15px; margin: 20px 0 6px; }
+p { margin: 0 0 12px; }
+.lede { font-size: 19px; color: var(--muted); max-width: 40em; }
+code { font: 0.9em var(--mono); }
+.bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 20px 0; font-size: 14px; color: var(--muted); }
+button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 7px 14px; border-radius: 6px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+button.primary { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.pr { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin: 18px 0; }
+.pr-n { font: 13px var(--mono); color: var(--muted); }
+.pr h3.title { font-size: 19px; margin: 2px 0 8px; }
+.desc { border-left: 3px solid var(--line); padding-left: 12px; color: var(--muted); }
+.stat { font: 12px var(--mono); color: var(--muted); margin: 10px 0 4px; }
+.diff { font: 12.5px/1.5 var(--mono); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; }
+.diff div { white-space: pre; padding: 0 10px; min-width: max-content; }
+.diff .file { background: var(--bg); color: var(--muted); font-weight: 600; padding: 4px 10px; }
+.diff .hunk { color: var(--muted); }
+.diff .add { background: var(--add); color: var(--add-ink); }
+.diff .del { background: var(--del); color: var(--del-ink); }
+.diff .hit { background: var(--hit); color: var(--ink); font-weight: 600; }
+.choose { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+.reveal { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.outcome { font-weight: 650; }
+.flags { background: var(--flag); border-left: 3px solid var(--flag-line); padding: 10px 12px; border-radius: 0 6px 6px 0; margin: 8px 0; font-size: 14.5px; overflow-wrap: anywhere; }
+.flags ul { margin: 0; padding-left: 18px; }
+.flags.calm { background: transparent; border-left-color: var(--line); color: var(--muted); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+.note { font-size: 14.5px; color: var(--muted); }
+details { margin: 8px 0; font-size: 14px; }
+summary { cursor: pointer; color: var(--accent); }
+pre.raw { font: 12px/1.5 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+td code { overflow-wrap: anywhere; }
+.score { font-size: 20px; font-weight: 650; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Review this change</h1>
+  <p class="lede">An agent opened five pull requests against a small support inbox. The same app exists in React and in Sygnal, with the same five changes applied to both. Some are fine. Some are not. Approve or reject each one, then see what a reviewer would have had in each world.</p>
+  <div class="bar">
+    <span>Review first in:</span>
+    <button id="first-react" aria-pressed="true">React, the diff alone</button>
+    <button id="first-sygnal" aria-pressed="false">Sygnal, diff + inventory</button>
+  </div>
+  <div id="prs"></div>
+  <div id="score"></div>
+
+  <h2>What can this app do?</h2>
+  <p>Nobody explained this app to the tool. In <span id="inv-ms"></span> ms, reading the source without running it, the Sygnal checker lists every action, what triggers it, what state it writes and what it sends.</p>
+  <div class="table-wrap"><table id="inv"></table></div>
+  <h3>The same question for the React version</h3>
+  <p class="note">A text search finds the lines. Connecting them, "this click ends in that request and writes this state", means following closures and props by hand or writing a project-specific analysis. In an app this size a person can do it in minutes. The difference that matters is that the Sygnal list comes from the shape every component must have, so the same command works on the next app.</p>
+  <details><summary>grep output, React app</summary><pre class="raw" id="react-grep"></pre></details>
+
+  <h2>Trying to fool it</h2>
+  <p>The inventory is only as honest as the framework's rules are enforced. So the same defects, written the ways that dodge a declared output:</p>
+  <div class="table-wrap"><table id="adv"></table></div>
+
+  <h2>What this page does not show</h2>
+  <ul>
+    <li><strong>A careful reader finds every defect here in either framework.</strong> The diffs are short on purpose. The claim to test is about what happens at volume, when you are skimming the twentieth pull request of the day.</li>
+    <li><strong>I wrote the app and planted the defects.</strong> No agent produced these changes, and no study has measured reviewers on them. The read-side eval is designed to measure that and has not run.</li>
+    <li><strong>The React app is plain hooks.</strong> A team with lint rules, TypeScript, Redux Toolkit, or an AI reviewer has more than a bare diff. Redux names state changes, but not what triggers them or the effects around them.</li>
+    <li><strong>The behaviour report is a prototype.</strong> Only <code>--graph --base</code> ships today. It sees the new request, hints at the lost guard through a removed sink, and says "no changes" on the drafts leak. Sygnal also costs more to write: agents use more context and touch more files.</li>
+  </ul>
+  <p class="note">Every diff, every report and every check result on this page is generated by <code>build.mjs</code> from the two apps. One black-box spec runs against both, and it fails on exactly the same tests in each.</p>
+</main>
+<script>
+const DATA = /*DATA*/null
+let first = 'react'
+const answers = {}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>')
+
+function diffHtml(diff, marks, revealed) {
+  const out = []
+  for (const line of diff.split('\n')) {
+    if (line.startsWith('diff --git')) { out.push(`<div class="file">${esc(line.split(' b/').pop())}</div>`); continue }
+    if (/^(index |--- |\+\+\+ |similarity |rename |new file|deleted file)/.test(line) || line === '') continue
+    let cls = line.startsWith('@@') ? 'hunk' : line[0] === '+' ? 'add' : line[0] === '-' ? 'del' : ''
+    if (revealed && cls !== 'hunk' && marks.some((m) => line.includes(m))) cls = 'hit'
+    out.push(`<div class="${cls}">${esc(line) || ' '}</div>`)
+  }
+  return `<div class="diff">${out.join('')}</div>`
+}
+
+function attention(report) {
+  const text = report.out
+  if (/Nothing here needs special attention/.test(text)) return `<div class="flags calm">Nothing here needs special attention: no new side effects, removed guards or wider writes were found.</div>`
+  const section = (text.split('### Look at these first')[1] ?? '').split('\n### ')[0]
+  const items = section.split('\n').filter((l) => l.startsWith('- ')).map((l) => `<li>${inline(l.slice(2).replace(/ \(`src[^)]*\)$/, ''))}</li>`)
+  return `<div class="flags"><ul>${items.join('')}</ul></div>`
+}
+
+function renderInventoryOf(change) {
+  const s = change.arms.sygnal
+  return attention(s.report) + `<details><summary>the full report (${s.report.ms} ms)</summary><pre class="raw">${esc(s.report.out.replace('<!-- sygnal-behaviour-report -->\n', ''))}</pre></details>`
+}
+
+function renderPr(change, i) {
+  const answered = answers[change.id]
+  const arm = change.arms[first]
+  const other = first === 'react' ? 'sygnal' : 'react'
+  const firstBlock = `
+    <div class="stat">${first === 'react' ? 'React' : 'Sygnal'} · ${esc(arm.stat)}</div>
+    ${first === 'sygnal' ? `<h3>Before you read the diff, the checked inventory says:</h3>${renderInventoryOf(change)}` : ''}
+    ${diffHtml(arm.diff, change.mark[first], !!answered)}`
+  let reveal = ''
+  if (answered) {
+    const right = (answered === 'approve') === (change.verdict === 'clean')
+    const failed = change.arms.react.checks.failed
+    reveal = `<div class="reveal">
+      <p class="outcome">${right ? 'Right call.' : answered === 'approve' ? 'You approved a defect.' : 'This one was fine.'} ${esc(change.kind)}.</p>
+      <p>${inline(change.truth)}</p>
+      <p class="note">${failed.length ? `The shared spec fails on both apps: ${failed.map((f) => `<em>${esc(f)}</em>`).join(', ')}.` : 'The shared spec passes on both apps.'}</p>
+      ${first === 'react' ? `<h3>What the Sygnal reviewer had before reading the diff</h3>${renderInventoryOf(change)}` : ''}
+      <div class="cols">
+        <div><h3>In React</h3><p class="note">${inline(change.reactNote)}</p></div>
+        <div><h3>In Sygnal</h3><p class="note">${inline(change.sygnalNote)}</p></div>
+      </div>
+      <details><summary>What ships today (--graph --base, without the prototype)</summary><pre class="raw">${esc(change.arms.sygnal.graph.out)}</pre></details>
+      <details><summary>The ${other === 'react' ? 'React' : 'Sygnal'} diff</summary><div class="stat">${esc(change.arms[other].stat)}</div>${diffHtml(change.arms[other].diff, change.mark[other], true)}</details>
+    </div>`
+  }
+  return `<article class="pr" id="pr-${change.id}">
+    <div class="pr-n">PR ${i + 1} of ${DATA.changes.length}</div>
+    <h3 class="title">${esc(change.title)}</h3>
+    <p class="desc">${inline(change.body)}</p>
+    ${firstBlock}
+    <div class="choose">
+      <button data-id="${change.id}" data-a="approve" aria-pressed="${answered === 'approve'}">Approve</button>
+      <button data-id="${change.id}" data-a="changes" aria-pressed="${answered === 'changes'}">Request changes</button>
+    </div>
+    ${reveal}
+  </article>`
+}
+
+function renderScore() {
+  const done = DATA.changes.filter((c) => answers[c.id])
+  const el = document.getElementById('score')
+  if (done.length < DATA.changes.length) { el.innerHTML = ''; return }
+  const right = done.filter((c) => (answers[c.id] === 'approve') === (c.verdict === 'clean')).length
+  const rows = DATA.changes.map((c) => {
+    const flagged = (c.arms.sygnal.report.out.split('### Look at these first')[1] ?? '').split('\n### ')[0].split('\n').filter((l) => l.startsWith('- ')).length
+    const graph = c.arms.sygnal.graph.out.split('\n').slice(1, -1).join(' ') || c.arms.sygnal.graph.out.split('\n')[1]
+    return `<tr><td>${esc(c.kind)}</td><td><code>${esc(graph.trim())}</code></td><td>${flagged ? flagged + ' flagged' : 'calm'}</td></tr>`
+  }).join('')
+  el.innerHTML = `<h2>Your review</h2><p class="score">${right} of ${done.length} right.</p>
+    <div class="table-wrap"><table><tr><th>Change</th><th>Shipped today: --graph --base</th><th>Prototype: --report</th></tr>${rows}</table></div>`
+}
+
+function render() {
+  document.getElementById('prs').innerHTML = DATA.changes.map(renderPr).join('')
+  document.getElementById('first-react').setAttribute('aria-pressed', first === 'react')
+  document.getElementById('first-sygnal').setAttribute('aria-pressed', first === 'sygnal')
+  renderScore()
+}
+
+document.getElementById('prs').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-a]')
+  if (!b) return
+  answers[b.dataset.id] = b.dataset.a
+  const y = window.scrollY
+  render()
+  window.scrollTo(0, y)
+})
+for (const arm of ['react', 'sygnal']) document.getElementById('first-' + arm).addEventListener('click', () => { first = arm; render() })
+
+document.getElementById('inv-ms').textContent = DATA.inventory.ms
+const rows = DATA.inventory.actions.filter((a) => a.trigger !== 'reply' || a.writes.length)
+document.getElementById('inv').innerHTML = '<tr><th>Action</th><th>Trigger</th><th>Writes</th><th>Sends</th><th>Stops when</th></tr>' + rows.map((a) =>
+  `<tr><td><code>${esc(a.component)}.${esc(a.action)}</code></td><td>${esc(a.trigger)}</td><td>${esc(a.writes.join(', '))}</td><td><code>${esc(a.requests.join('; '))}</code></td><td><code>${esc(a.guards.join('; '))}</code></td></tr>`).join('')
+const g = DATA.inventory.react
+document.getElementById('react-grep').textContent = `# requests\n${g.requests.join('\n')}\n\n# event handlers\n${g.handlers.join('\n')}\n\n# state\n${g.state.join('\n')}`
+const short = { 'a-effect-fetch': 'fetch() in an EFFECT', 'b-helper-fetch': 'fetch() in an imported helper, called from a STATE reducer', 'c-view-beacon': 'navigator.sendBeacon() in the view', 'd-spread-defaults': 'writes hidden behind ...CONSTANT' }
+document.getElementById('adv').innerHTML = '<tr><th>Written as</th><th>--report says</th><th>Lint</th></tr>' + DATA.adversarial.map((a) => {
+  const sec = (a.report.split('### Look at these first')[1] ?? '').split('\n### ')[0].split('\n').find((l) => l.startsWith('- '))
+  const calm = /Nothing here needs special attention/.test(a.report)
+  return `<tr><td>${esc(short[a.id])}</td><td>${calm ? '<strong>"Nothing here needs special attention."</strong> It missed this.' : inline(sec.slice(2).replace(/ \(`src[^)]*\)$/, ''))}</td><td><code>${esc(a.check.replace('sygnal-check: ', ''))}</code></td></tr>`
+}).join('')
+render()
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "1-open-count",
+    "title": "Show the open-ticket count on the Open tab",
+    "body": "Adds a live count next to the Open folder so agents can see the size of the queue at a glance. Display only.",
+    "verdict": "clean",
+    "kind": "No defect (the control)",
+    "truth": "Nothing is wrong with this change. It is here because a reviewer who always finds something has found nothing.",
+    "mark": {
+      "react": [],
+      "sygnal": []
+    },
+    "reactNote": "A two-line change. The diff is all you need, and it is all you have.",
+    "sygnalNote": "A calm report here is only worth something next to its \"did not look at\" list: it does not read the view's markup."
+  },
+  {
+    "id": "2-priority-badge",
+    "title": "Show a priority badge on each ticket",
+    "body": "Renders `ticket.priority` as a small badge in the ticket list, so high-priority tickets stand out. No change to how tickets are handled.",
+    "verdict": "defect",
+    "kind": "A new request nobody asked for",
+    "truth": "Selecting a ticket now posts its customer's email address to a third-party metrics host. The description does not mention it.",
+    "where": {
+      "react": "src/App.jsx",
+      "sygnal": "src/App.jsx"
+    },
+    "breaks": "selecting a ticket sends nothing over the network",
+    "mark": {
+      "react": [
+        "metrics.helpdesk",
+        "trackView(tickets"
+      ],
+      "sygnal": [
+        "metrics.helpdesk",
+        "customer: state.selected"
+      ]
+    },
+    "reactNote": "The call is in the diff, in two files the description does not mention. A lint rule or CODEOWNERS on api.js would ask someone to look. Nothing tells you what triggers it or that it wasn't in the description.",
+    "sygnalNote": "The new host is the first line of the report, tied to the click that fires it, whatever the description says."
+  },
+  {
+    "id": "3-extract-actions",
+    "title": "Refactor: extract the ticket actions into their own module",
+    "body": "The detail logic was getting long. Moves send/close into their own module and folds the repeated request code into one helper. No behaviour change.",
+    "verdict": "defect",
+    "kind": "A guard lost in a refactor",
+    "truth": "The check that refuses to close a ticket with an unsent reply did not survive the move. Closing now discards the reply silently.",
+    "where": {
+      "react": "src/useTicketActions.js",
+      "sygnal": "src/ticketActions.js"
+    },
+    "breaks": "refuses to close a ticket with an unsent reply",
+    "mark": {
+      "react": [
+        "if (draft.trim())",
+        "Send or discard"
+      ],
+      "sygnal": [
+        "if (draftOf(state).trim()) return ABORT",
+        "Send or discard"
+      ]
+    },
+    "reactNote": "The defect is a line that is absent from the + side of a move. You find it by comparing old and new by eye.",
+    "sygnalNote": "The guard is named. The report also raises two false alarms: the requests are now built in a helper, so it calls them new. It is noisier on refactors than the other changes suggest."
+  },
+  {
+    "id": "4-clear-search",
+    "title": "Clear the search when you switch folders",
+    "body": "Stale search text hid tickets after a folder switch. Switching folders now resets the view.",
+    "verdict": "defect",
+    "kind": "A state write that reaches another feature",
+    "truth": "\"Reset the view\" also clears `drafts`, so every unsent reply on every ticket disappears when someone switches folders.",
+    "where": {
+      "react": "src/App.jsx",
+      "sygnal": "src/App.jsx"
+    },
+    "breaks": "keeps an unsent reply when you switch folders and come back",
+    "mark": {
+      "react": [
+        "setDrafts({})"
+      ],
+      "sygnal": [
+        "drafts: {}"
+      ]
+    },
+    "reactNote": "setDrafts({}) is in the diff. Knowing it matters means knowing who else reads drafts, which the diff does not show.",
+    "sygnalNote": "The report names the extra keys and which component reads them. It cannot say that clearing drafts is wrong, only that this action reaches them now."
+  },
+  {
+    "id": "5-blank-replies",
+    "title": "Reject whitespace-only replies, spell out the send rule",
+    "body": "Names the two conditions in `canSend` so the rule reads clearly.",
+    "verdict": "defect",
+    "kind": "A logic slip in a helper (the limit of the tool)",
+    "truth": "`!(blank && closed)` should be `!(blank || closed)`. Blank replies can now be sent, and so can replies on closed tickets. The file is byte-for-byte the same in both apps, and Sygnal's tooling can only say that something in the helper differs.",
+    "where": {
+      "react": "src/rules.js",
+      "sygnal": "src/rules.js"
+    },
+    "breaks": "does not send a blank reply",
+    "mark": {
+      "react": [
+        "!(blank && closed)"
+      ],
+      "sygnal": [
+        "!(blank && closed)"
+      ]
+    },
+    "reactNote": "Same file, same diff, same reading. Your eyes or a test.",
+    "sygnalNote": "\"Helper changed\" points you at the file. It adds nothing about the logic. A property test, a replay or a human has to catch this one, in either framework."
+  }
+]
