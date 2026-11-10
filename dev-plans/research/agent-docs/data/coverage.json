@@ -1,0 +1,1642 @@
+{
+ "totalFacts": 811,
+ "summary": [
+  {
+   "name": "llms.txt (today)",
+   "bytes": 66548,
+   "tok": 18486,
+   "inlinePct": 99,
+   "reachPct": 100,
+   "files": 25,
+   "missing": [],
+   "hottestOnDemand": [
+    "createRef×2",
+    "messageText×2",
+    "choice×1",
+    "noul×1",
+    "experimentalExposeWebMcp×1",
+    "askCard×1"
+   ]
+  },
+  {
+   "name": "SKILL.md (today)",
+   "bytes": 56221,
+   "tok": 15617,
+   "inlinePct": 98.9,
+   "reachPct": 100,
+   "files": 35,
+   "missing": [],
+   "hottestOnDemand": [
+    "LLM sink×3",
+    "messageText×2",
+    "choice×1",
+    "noul×1",
+    "experimentalExposeWebMcp×1",
+    "askCard×1"
+   ]
+  },
+  {
+   "name": "compact core",
+   "bytes": 21701,
+   "tok": 6028,
+   "inlinePct": 97.4,
+   "reachPct": 100,
+   "files": 21,
+   "missing": [],
+   "hottestOnDemand": [
+    "LLM sink×3",
+    "makeChatDriver×3",
+    "uiMessageStream×3",
+    "type SygnalEvents×2",
+    "messageText×2",
+    "defineCatalog×2",
+    "emit×1",
+    "decide×1",
+    "choice×1",
+    "noul×1",
+    "experimentalExposeWebMcp×1",
+    "askCard×1"
+   ]
+  },
+  {
+   "name": "compact skill",
+   "bytes": 22411,
+   "tok": 6225,
+   "inlinePct": 97.4,
+   "reachPct": 100,
+   "files": 21,
+   "missing": [],
+   "hottestOnDemand": [
+    "LLM sink×3",
+    "makeChatDriver×3",
+    "uiMessageStream×3",
+    "type SygnalEvents×2",
+    "messageText×2",
+    "defineCatalog×2",
+    "emit×1",
+    "decide×1",
+    "choice×1",
+    "noul×1",
+    "experimentalExposeWebMcp×1",
+    "askCard×1"
+   ]
+  },
+  {
+   "name": "AGENTS.md index only",
+   "bytes": 7041,
+   "tok": 1956,
+   "inlinePct": 69.1,
+   "reachPct": 100,
+   "files": 44,
+   "missing": [],
+   "hottestOnDemand": [
+    ".calculated×10",
+    "xs×10",
+    "state= slice×8",
+    "xs.merge×8",
+    "uid()×8",
+    ".context×7",
+    "method:×7",
+    "t.ready×7",
+    "t.query×7",
+    "t.queryAll×7",
+    "resource status×6",
+    "sygnal/ai×6",
+    "key= identity×5",
+    "driverFromAsync×4",
+    "<Switchable×4",
+    "Switchable current×4",
+    "Switchable×4",
+    "type IntentSources×4",
+    "type ActionsOf×4",
+    "Component×4",
+    "IntentSources×4",
+    "ActionsOf×4",
+    "ROUTER sink×4",
+    "ROUTER to×4",
+    "state.form.fields×4"
+   ]
+  }
+ ],
+ "rows": [
+  {
+   "task": "01-clear-completed",
+   "facts": 6,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 6,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 6,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 6,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 6,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 5,
+     "rea": 1,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "02-collection-pin",
+   "facts": 10,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "03-events-status",
+   "facts": 7,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "04-derived-total",
+   "facts": 7,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 6,
+     "rea": 1,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "05-driver-quote",
+   "facts": 9,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 9,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 9,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 9,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 9,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 7,
+     "rea": 2,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "06-fix-add-button",
+   "facts": 5,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 5,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 5,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 5,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 5,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 4,
+     "rea": 1,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "07-fix-remove-button",
+   "facts": 10,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "08-extract-rating",
+   "facts": 7,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "09-board-moves",
+   "facts": 13,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 1,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "10-signup-wizard",
+   "facts": 14,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 2,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "11-search-debounce",
+   "facts": 14,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 2,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "12-selection-panel",
+   "facts": 17,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 17,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 17,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 16,
+     "rea": 1,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 16,
+     "rea": 1,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 5,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "13-course-portal",
+   "facts": 22,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 22,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 22,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 22,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 22,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 17,
+     "rea": 5,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "14-fix-support-inbox",
+   "facts": 13,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 10,
+     "rea": 3,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "15-fix-reading-list",
+   "facts": 14,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 2,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "16-split-checkout",
+   "facts": 15,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 3,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "17-address-lookup",
+   "facts": 14,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 13,
+     "rea": 1,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 14,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 2,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "18-ts-collection-pin",
+   "facts": 13,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 13,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 8,
+     "rea": 5,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "19-ts-events-status",
+   "facts": 15,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 14,
+     "rea": 1,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 14,
+     "rea": 1,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 9,
+     "rea": 6,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "20-ts-board-moves",
+   "facts": 16,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 16,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 16,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 16,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 16,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 10,
+     "rea": 6,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "21-ts-selection-panel",
+   "facts": 23,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 23,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 23,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 22,
+     "rea": 1,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 22,
+     "rea": 1,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 13,
+     "rea": 10,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "22-chat-socket",
+   "facts": 11,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 10,
+     "rea": 1,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "23-quote-resource",
+   "facts": 10,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "24-list-detail-cache",
+   "facts": 20,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 20,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 20,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 20,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 20,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 14,
+     "rea": 6,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "25-router-spa",
+   "facts": 25,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 25,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 25,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 25,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 25,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 8,
+     "rea": 17,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "26-autosave-draft",
+   "facts": 21,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 21,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 21,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 21,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 21,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 18,
+     "rea": 3,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "27-undo-editor",
+   "facts": 11,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 7,
+     "rea": 4,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "28-stopwatch",
+   "facts": 11,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 7,
+     "rea": 4,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "29-accessible-signup",
+   "facts": 12,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 11,
+     "rea": 1,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 11,
+     "rea": 1,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "30-checkout-form",
+   "facts": 25,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 25,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 25,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 25,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 25,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 17,
+     "rea": 8,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "31-command-menu",
+   "facts": 8,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 8,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 8,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 8,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 8,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 7,
+     "rea": 1,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "32-sales-chart",
+   "facts": 12,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 8,
+     "rea": 4,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "33-virtual-list",
+   "facts": 12,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 12,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 8,
+     "rea": 4,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "34-sortable-playlist",
+   "facts": 11,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 11,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 9,
+     "rea": 2,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "35-pantry-search",
+   "facts": 15,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 15,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 10,
+     "rea": 5,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "36-pantry-restock-rules",
+   "facts": 24,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 24,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 24,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 24,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 24,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 15,
+     "rea": 9,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "37-pantry-remove-tabs",
+   "facts": 24,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 24,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 24,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 24,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 24,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 15,
+     "rea": 9,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "38-pipeline-hold",
+   "facts": 27,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 27,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 27,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 27,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 27,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 23,
+     "rea": 4,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "39-pipeline-stages",
+   "facts": 21,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 21,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 21,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 21,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 21,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 17,
+     "rea": 4,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "40-pipeline-remove-log",
+   "facts": 10,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 10,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 8,
+     "rea": 2,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "41-expenses-budgets",
+   "facts": 45,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 45,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 45,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 45,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 45,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 18,
+     "rea": 27,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "42-expenses-drafts",
+   "facts": 43,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 43,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 43,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 43,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 43,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 19,
+     "rea": 24,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "43-expenses-remove-settings",
+   "facts": 45,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 45,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 45,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 45,
+     "rea": 0,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 45,
+     "rea": 0,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 18,
+     "rea": 27,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "44-streaming-chat",
+   "facts": 18,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 17,
+     "rea": 1,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 16,
+     "rea": 2,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 14,
+     "rea": 4,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 14,
+     "rea": 4,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 6,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "45-packing-assistant",
+   "facts": 23,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 22,
+     "rea": 1,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 21,
+     "rea": 2,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 19,
+     "rea": 4,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 19,
+     "rea": 4,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 17,
+     "rea": 6,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "46-ticket-triage",
+   "facts": 23,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 21,
+     "rea": 2,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 20,
+     "rea": 3,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 17,
+     "rea": 6,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 17,
+     "rea": 6,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 15,
+     "rea": 8,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "47-board-agent-tools",
+   "facts": 18,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 17,
+     "rea": 1,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 17,
+     "rea": 1,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 17,
+     "rea": 1,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 17,
+     "rea": 1,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 15,
+     "rea": 3,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "48-dashboard-goals",
+   "facts": 7,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 7,
+     "rea": 0,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 6,
+     "rea": 1,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 6,
+     "rea": 1,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 5,
+     "rea": 2,
+     "miss": []
+    }
+   }
+  },
+  {
+   "task": "49-session-card",
+   "facts": 15,
+   "cells": {
+    "llms.txt (today)": {
+     "inl": 14,
+     "rea": 1,
+     "miss": []
+    },
+    "SKILL.md (today)": {
+     "inl": 14,
+     "rea": 1,
+     "miss": []
+    },
+    "compact core": {
+     "inl": 13,
+     "rea": 2,
+     "miss": []
+    },
+    "compact skill": {
+     "inl": 13,
+     "rea": 2,
+     "miss": []
+    },
+    "AGENTS.md index only": {
+     "inl": 12,
+     "rea": 3,
+     "miss": []
+    }
+   }
+  }
+ ]
+}

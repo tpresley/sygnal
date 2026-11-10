@@ -15,6 +15,7 @@ import { stale, topics } from '../scripts/build-llms.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const CORE_BUDGET = 66_600   // bytes of llms.txt (66,500 before SYG637's refresh / invalidate note and the TypeScript topic's index line, 2026-11; 66,000 before the styling topic's index line and wiring rule; 63,963 at the spike; raised from 65,800 when the Sift core/types fixes merged with the fetch fixes, 2026-11: Comp, null views, the block prompt; raised from 64,500 for Temper item 9, 2026-10; from 65,000 for the UI sweep round 2: SYG118 + widget form fields; from 65,100 for the Sift fetch fixes, 2026-11: stream, reset, headers, behaviour-only resource fields)
 const TOPIC_BUDGET = 16_000  // bytes per llms/<topic>.md
+const SKILL_BUDGET = 56_221  // bytes of skills/sygnal-dev/SKILL.md, set at its size on 2026-11-09 (dev-plans/research/agent-docs). It only goes down: PLAN-5's 41.5 KB cap had no test, so the skill grew past it unseen; a new fact goes in a reference, or takes the place of another
 
 describe('llms.txt and its topic files', () => {
   const core = readFileSync(resolve(root, 'llms.txt'))
@@ -25,6 +26,10 @@ describe('llms.txt and its topic files', () => {
 
   it(`the core is at most ${CORE_BUDGET} bytes`, () => {
     expect(core.length).toBeLessThanOrEqual(CORE_BUDGET)
+  })
+
+  it(`the skill is at most ${SKILL_BUDGET} bytes`, () => {
+    expect(readFileSync(resolve(root, 'skills/sygnal-dev/SKILL.md')).length).toBeLessThanOrEqual(SKILL_BUDGET)
   })
 
   it('the core lists every topic file, and every listed one exists', () => {

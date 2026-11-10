@@ -1,0 +1,10 @@
+llms.txt: kind-b prose 33875 B · API names 1204, declared in .d.ts 1099 (91%), named in a JSDoc 1060 (88%) · option-list sentences 127: 23238 B movable, 22749 B of it already explained by JSDoc
+   needs JSDoc 277 hmr | - **run(App, drivers = {}, { mountPoint = '#root', diagnostics, onError })** ret
+   needs JSDoc 282 debounce,throttle,dropRepeats,sampleCombine,other$,flattenConcurrently |  From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms
+   needs JSDoc 299 npx,install,getDevTools | - App graph: `npx --no-install sygnal-check --graph --json` (static), `t.inspect
+skills/sygnal-dev/SKILL.md: kind-b prose 21072 B · API names 821, declared in .d.ts 746 (91%), named in a JSDoc 713 (87%) · option-list sentences 76: 13061 B movable, 11945 B of it already explained by JSDoc
+   needs JSDoc 310 hmr | - **run(App, drivers = {}, { mountPoint = '#root', diagnostics, onError })** ret
+   needs JSDoc 316 debounce,throttle,dropRepeats,sampleCombine,other$,flattenConcurrently |  From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms
+   needs JSDoc 318 createCommand,isSelected,debounce,throttle,dropRepeats,sampleCombine | - **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand m
+   needs JSDoc 393 __sygnal |  `--graph=html` (or `/__sygnal/graph` in the Vite dev server) is the same graph 
+   needs JSDoc 397 jsx |  `src/App.test.js` sits next to `src/App.jsx`.

@@ -1,0 +1,13 @@
+- **SYG101** (Intent action has no model entry): Throw at definition in dev (an action with no reducer is never intended)
+- **SYG105** (EVENTS type selected but never emitted, or emitted but never selected): Raise to warn: an emitted or selected name with no partner is a bug, and the name registry makes it checkable
+- **SYG106** (Parent prop is overwritten by a reserved view argument): Error in dev, as strict mode already makes it
+- **SYG115** (Unknown DOM event shorthand): Throw in dev: `DOM.enter` can never mean anything
+- **SYG116** (EVENTS value has no string type): Make it impossible: a sink function returning an `event()` result is unambiguous, so accept it
+- **SYG132** (Declaration static that is never sent): Make it impossible: a root that declares `route`, `head`, … and has no `initialState` starts from `{}`
+- **SYG143** (Widget tag used as a selector): Make it impossible: `DOM.select(Widget)` resolves to the widget host (controls() already has the machinery)
+- **SYG202** (STATE reducer returned undefined): Decide: treat `undefined` from a root reducer as ABORT, or throw
+- **SYG221** (set() called with a string): Make it work: `set('draft')` means "store the data here", which is what every agent who wrote it meant; or throw at definition, in production too
+- **SYG222** (STATE reducer returned the same object after it was mutated in place): Throw in dev by freezing the state handed to reducers
+- **SYG302** (Default import from 'xstream' or 'xstream/extra/*'): Make it work: the Vite plugin already resolves `xstream`, it can give a default export the shape the app expects
+- **SYG421** (Invalid data (dataset) key): Make it impossible: `data={{ 'task-id': 1 }}` can be normalized to the camelCase key
+- **SYG643** (Declaration static with no driver to take it): Hand-off: the session on driver wiring owns this one

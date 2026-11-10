@@ -1,0 +1,7 @@
+{
+  "description": "agent-docs spike, control with the skill: skills/sygnal-dev as it is today (56 KB + references) and the package as shipped",
+  "sygnal": "branch",
+  "skill": {
+    "dir": "skills/sygnal-dev"
+  }
+}
