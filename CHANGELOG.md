@@ -2,6 +2,39 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.4.1 — 2026-11-09
+
+`sygnal` only. `sygnal-check`, `create-sygnal-app` (its templates' `^7.4.0` range includes this release), the
+VS Code extension and the Claude Code plugin are unchanged.
+
+A smaller bundle, and no slower. Measured impact, on the kanban example's production build with `sygnal/vite`:
+39,630 B gzip in 7.4.0, 35,680 B now (-10.0%). Median latency across the timing harness's operations is 0.937 of
+7.4.0's, with none slower, and the heap after repeated list creation falls from 0.97 MB to 0.93 MB. No public API was
+removed or renamed.
+
+- **Event delegation is rewritten** (about 1 KB gzip, and the largest share of the speed gain).
+- **Production builds use a compact xstream** with the same behaviour (about 0.8 KB gzip), through `sygnal/vite`
+  in client builds only. `xstream` stays a dependency: the dev server, Vitest, SSR, other bundlers and
+  `nativeGlobalThis: false` keep the npm package.
+- **Sygnal's messages are shorter in production builds** (about 1.7 KB gzip). In `vite build` client code a message is
+  now the code, the component name and a link to the error reference:
+  `[Sygnal SYG406] Thrower https://sygnal.js.org/reference/errors#syg406`. A caught error is still passed to the
+  console, a `Diagnostic`'s `message` and `fix` are empty, and `Component.debug` / `SYGNAL_DEBUG` logging is removed.
+  `sygnal({ productionMessages: 'full' })` keeps the previous behaviour. The dev server, Vitest, SSR and bundlers
+  without the plugin are unchanged.
+- **Smaller internals** in the JSX pragma, `run()`, `makeDragDriver` and the diagnostics severity table, which now
+  loads with `sygnal/diagnostics`.
+
+Four edge cases of DOM event delivery differ after the rewrite:
+
+- An event's path is computed once per event, as the DOM does. Before, it was walked again for each phase, so a
+  handler that synchronously removed an element could cut off the ancestors.
+- Non-bubbling streams with the same type, scope and options no longer share a record, so they behave as
+  bubbling streams always have: `stopPropagation()` in one stops the next, and a `preventDefault` predicate runs
+  per stream. Delivery order can differ with three or more streams with mixed options.
+- The root listener for an event type is added when a stream starts, not when `events()` is called.
+- The undocumented `globalThis.Cyclejs.adaptStream` hook no longer applies to DOM sources.
+
 ## 7.4.0 — 2026-11-09
 
 With `sygnal-check` 0.16.0 (SYG637), `create-sygnal-app` 2.14.0 (templates on
