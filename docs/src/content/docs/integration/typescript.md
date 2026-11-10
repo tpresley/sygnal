@@ -290,14 +290,19 @@ Board.model = { ADD: (state) => ({ ...state, lists: [...state.lists, { id: `l${s
 
 The DOM shorthands are typed like `DOM.select(selector).events(name)`: `DOM.keydown('.field')` emits `KeyboardEvent`s (so `.filter((e) => e.key === 'Enter')` checks), `DOM.click('.btn')` `MouseEvent`s, `DOM.input('.name').value()` strings. Custom event names (`DOM['my-event']('.x')`) emit `Event`.
 
+## Where the types live
+
+Keep a component's state type in its own file, next to `initialState`, and export it. A child that needs it uses `import type { AppState } from './App'`: the import is erased at compile time, so it is no import cycle at run time. A separate `types.ts` is for shapes several files share on equal terms, like a `Task`.
+
 ## Typed Events
 
 The `EVENTS` bus is untyped (`any`) until you register your event names and payload types by augmenting the `SygnalEvents` interface. While the registry is empty, TypeScript checks no event names: `event('DOC_SAVE')` and `EVENTS.select('DOC_SAVED')` compile even though the names differ, and the payload is `any`. Register every event your app uses (one `events.ts` file is enough); `npx --no-install sygnal-check` also reports a type that is emitted but never selected, or selected but never emitted ([SYG105](/reference/errors/#syg105)), with or without a registry.
 
-```typescript
-// src/events.ts
-export {}   // keep this: it makes the file a module, so the block below adds to 'sygnal'.
-            // Without it the block replaces the package's types ("has no exported member").
+Declare them next to the code that emits them: the augmentation works in any module, so the event needs no file of its own.
+
+```tsx
+// src/Lane.tsx
+import type { Component } from 'sygnal'
 
 declare module 'sygnal' {
   interface SygnalEvents {
@@ -307,6 +312,8 @@ declare module 'sygnal' {
   }
 }
 ```
+
+A shared `src/events.ts` works too. A file with no other import or export needs an `export {}` line, or the block replaces the package's types ("has no exported member") instead of adding to them.
 
 Once the registry has an entry:
 

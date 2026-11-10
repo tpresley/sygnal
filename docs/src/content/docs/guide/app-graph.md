@@ -139,7 +139,8 @@ Select a card (click it, or press Enter on it) to see:
 - context it provides and reads, and where each field comes from;
 - the EVENTS it emits and selects;
 - its DOM inputs, each marked ✓ (the view renders it), ✗ (it doesn't, or the element is inside a child component) or ? (not known statically);
-- controls, `ELEMENT` commands, timers, `uses` and agent tools.
+- controls, `ELEMENT` commands, timers, `uses` and agent tools;
+- a root's drivers, and whether each comes from its `drivers` static or `run()`'s argument.
 
 Every line number opens your editor at that place. **Copy JSON** copies the component's part of the graph.
 

@@ -44,7 +44,7 @@ describe('dev checks', () => {
     expect(diagnostics('SYG643').map(d => [d.severity, d.component, d.data])).toEqual([
       ['warn', 'Clock', { static: 'timers', driver: 'makeTimerDriver()' }],
     ])
-    expect(diagnostics('SYG643')[0].fix).toBe('Register the driver: run(App, { TIMER: makeTimerDriver() })')
+    expect(diagnostics('SYG643')[0].fix).toBe('Register the driver on the root component: App.drivers = { TIMER: makeTimerDriver() }')
   })
 
   it('SYG643 also for connections and resources without their drivers; none with them', async () => {

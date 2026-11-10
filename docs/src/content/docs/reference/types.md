@@ -201,9 +201,9 @@ type SwitchableProps<PROPS = any> = {
 
 An empty interface you augment to type the EVENTS bus:
 
-```typescript
-// src/events.ts
-export {}   // keep: without it the block below replaces the 'sygnal' types instead of adding to them
+```tsx
+// src/Lane.tsx
+import type { Component } from 'sygnal'
 
 declare module 'sygnal' {
   interface SygnalEvents {
@@ -212,6 +212,8 @@ declare module 'sygnal' {
   }
 }
 ```
+
+Any module file can hold the block, so it can sit next to the component that emits the events. A file with no other import or export needs an `export {}` line.
 
 ### EventName, EventPayload, RegisteredEvent
 

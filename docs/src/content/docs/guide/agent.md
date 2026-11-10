@@ -443,16 +443,15 @@ export default TodoApp
 
 The demo starts its assistant from `BOOTSTRAP` only so it has something to show; a real assistant waits for the user.
 
-In an app, `main.js` gives the chat driver a transport to a model. Locally, an Ollama model:
+In an app, the root component gives the chat driver a transport to a model. Locally, an Ollama model:
 
 ```js
-import { run } from 'sygnal'
+// TodoApp.jsx
 import { makeChatDriver, openResponses } from 'sygnal/ai'
-import TodoApp from './TodoApp.jsx'
 
-run(TodoApp, {
+TodoApp.drivers = {
   LLM: makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'qwen3:8b' }) }),
-})
+}
 ```
 
 In production the provider key belongs on your server: `makeChatDriver({ transport: uiMessageStream('/api/chat') })` talks to an AI SDK route. Pick a model that is good at tool calls; the smallest local models often aren't.

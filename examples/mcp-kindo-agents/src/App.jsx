@@ -7,8 +7,9 @@
 // run is followed with a long poll (kindo_wait_run answers when the status or a step changes),
 // and a one-second timer keeps the elapsed time live. When the run ends, the model is told
 // (updateModelContext, for hosts that pass it on; get_agent_run for the others).
-import { ABORT, classes } from 'sygnal'
+import { ABORT, classes, makeTimerDriver } from 'sygnal'
 import { markdown } from './markdown.jsx'
+import { makeMcpAppDriver } from 'sygnal/ai'
 
 const STEP_ICON = { pass: '✓', fail: '✕', not_evaluated: '–', unknown: '?', pending: '…' }
 const RUN_LABEL = { in_progress: 'Running', success: 'Succeeded', failure: 'Failed', cancelled: 'Cancelled' }
@@ -134,6 +135,14 @@ function App({ state }) {
       {state.phase !== 'idle' && runPanel(state)}
     </main>
   )
+}
+
+// MCP: the bridge to the host (the ui/initialize handshake, the tool's input and result as
+// actions, { callTool } / { message } / { updateModelContext } / { displayMode } requests).
+// TIMER: the one-second tick of the elapsed time while a run is in progress.
+App.drivers = {
+  MCP: makeMcpAppDriver({ appInfo: { name: 'sygnal-kindo-agents', version: '0.1.0' }, availableDisplayModes: ['inline', 'fullscreen'] }),
+  TIMER: makeTimerDriver(),
 }
 
 App.initialState = {

@@ -100,3 +100,17 @@ resources. To write a reply into an ancestor's resource (the root's `/auth/me` s
 sign-in or a password change), Sift re-declares the identical read in the page so the two share a
 cache entry. That works and is its documented pattern. Revisit with B8-4: `updates` naming a cache
 key or URL, or a `context` resource.
+
+## B8-5: consider a strict code for feature drivers passed to `run()`
+
+Maintainer decision, 2026-11-09: `App.drivers` is the canonical place for feature drivers, and `run(App, {...})` stays for what differs per environment (`dev-plans/PLAN-1-canonical-forms.md` C21; research: `dev-plans/research/files-touched`). There is no strict-mode code for the `run()` form today. This item is to decide whether 8.0 should add one.
+
+The obstacle is telling the two uses apart from the `run()` call alone, since both are `run(App, { NAME: driver })`. What would distinguish an environment override from a feature driver:
+
+- **Overrides a static.** The root's `drivers` declares the same name: an override by definition, never flagged.
+- **Depends on the environment.** The value reads `import.meta.env`, `process.env` or a URL parameter, or sits under a condition. Not flagged.
+- **Depends on the entry point.** The value uses something only `main.js` has: a renderer or worker target (`target.driver`, `host.driver`), the mount point, or a value created there that is also used after `run()` returns (an agent view attached to the app, a Yjs provider that connects when created). Not flagged.
+- **A double.** The driver is imported from a test or fake module, or a `fetch` option is a local fake. A name-based guess, so it needs an ignore comment as an escape.
+- **Otherwise** (a literal factory call with constant options, for a name no static declares): the feature-driver case the code would flag, and `--fix` could move it to the static (the `rootDriverFix` of SYG643/SYG609).
+
+`sygnal-check` can see all of this; the runtime can only see that no static has the name. So it would be static-only, like SYG503. Decide after a release of real use shows how many `run()` arguments land in the "otherwise" case by mistake.

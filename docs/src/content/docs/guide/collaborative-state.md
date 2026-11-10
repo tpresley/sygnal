@@ -154,6 +154,8 @@ const provider = new WebsocketProvider('wss://collab.example.com', 'groceries', 
 run(Board, { SHARED: makeYjsDriver({ doc, provider }) })
 ```
 
+This driver goes in `main.js` rather than on the root's [`drivers` static](/guide/drivers/#adding-drivers) because creating the provider opens the connection, and a static's value is built whenever the module is imported, in tests too.
+
 Any Yjs provider works: y-websocket, Hocuspocus, y-webrtc, Liveblocks' Yjs provider, or y-indexeddb for offline persistence. The driver takes the provider's `awareness` for presence and waits for its first sync before seeding (below).
 
 **`shared(options)`** goes in `uses` under the key it shares: `uses = { board: shared() }` shares `state.board`. Only that key is shared; the rest of the state stays local to each user. Unlike other behaviors, `shared()` adds no state of its own: `state.board` starts from the component's `initialState`.

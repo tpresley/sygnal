@@ -144,7 +144,8 @@ describe('do not guess about writes, composition or intent',()=>{
   expect(guards(source)).toEqual([])
   expect(guards(app(),{ignore:['SYG256']})).toEqual([])
   const file='/virtual/app/App.tsx'
-  const fixed=fixFiles([file],{cwd:'/virtual/app',sources:{[file]:app(),'/virtual/app/node_modules/sygnal/package.json':'{"name":"sygnal","version":"7.0.0"}'}})
+  // with a driver, so SYG609's --fix (App.drivers) has nothing to write
+  const fixed=fixFiles([file],{cwd:'/virtual/app',sources:{[file]:app({entry:'run(App,{HTTP:()=>{}})'}),'/virtual/app/node_modules/sygnal/package.json':'{"name":"sygnal","version":"7.0.0"}'}})
   expect(fixed.files).toEqual([])
   expect(fixed.fixed).toBe(0)
  })

@@ -3,13 +3,13 @@ title: Sockets
 description: WebSocket and server-sent events with makeSocketDriver() and the connections static
 ---
 
-`makeSocketDriver()` handles WebSocket and server-sent events (SSE). A component declares its connections as a function of its state, and their events arrive as the actions it names. Register the driver once in `main.js`:
+`makeSocketDriver()` handles WebSocket and server-sent events (SSE). A component declares its connections as a function of its state, and their events arrive as the actions it names. Register the driver once on the root component:
 
 ```javascript
-import { run, makeSocketDriver } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeSocketDriver } from 'sygnal'
 
-run(App, { WS: makeSocketDriver() })
+App.drivers = { WS: makeSocketDriver() }
 ```
 
 ## Declaring Connections

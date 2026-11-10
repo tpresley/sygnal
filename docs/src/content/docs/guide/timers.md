@@ -13,13 +13,13 @@ Stopwatch.timers = (state) => ({
 
 ## Setup
 
-Timers are run by `makeTimerDriver()`, which you register when you start the app:
+Timers are run by `makeTimerDriver()`, which you register on the root component:
 
 ```jsx
-import { run, makeTimerDriver } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeTimerDriver } from 'sygnal'
 
-run(App, { TIMER: makeTimerDriver() })
+App.drivers = { TIMER: makeTimerDriver() }
 ```
 
 The key is yours to choose (`TIMER` by convention): Sygnal finds the driver by the `timers` static it takes, not by its name. One driver serves every component of the app. A component that declares `timers` in an app without the driver gets [SYG643](/reference/errors/#syg643) in development, since nothing would ever fire.

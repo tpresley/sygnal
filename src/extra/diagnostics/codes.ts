@@ -349,6 +349,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG644: 'Custom element prop hides an HTMLElement member',
   // PLAN-4 GS-12 (D129): View Transitions (checks/viewTransitions.ts; dev entry)
   SYG645: "viewTransitions that can't run",
+  // files-touched study: `drivers` is read on the root only (checks/timers.ts; dev entry)
+  SYG646: 'drivers on a component that is not the root',
   // PLAN-5 W-1: a widget's mount / update / unmount threw (checks/widgets.ts; dev entry)
   SYG660: 'Widget mount threw',
   SYG661: 'Widget update threw or reported an error',
@@ -580,6 +582,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG644: 'warn',
   // PLAN-4 GS-12 (viewTransitions.ts): the static set, but the app's DOM driver isn't makeViewTransitionDOMDriver()
   SYG645: 'warn',
+  SYG646: 'error',
   // PLAN-5 W-1: widgets (checks/widgets.ts, checks/elementCommands.ts; SYG141 static only, listed
   // so the entry knows its title)
   SYG140: 'warn',

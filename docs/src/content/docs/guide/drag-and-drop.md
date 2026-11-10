@@ -227,13 +227,13 @@ The drag-and-drop driver handles native HTML5 drag events at the document level,
 
 ### Setup
 
-Create the driver with `makeDragDriver()` and pass it to `run()`:
+Create the driver with `makeDragDriver()` on the root component:
 
 ```javascript
-import { run, makeDragDriver } from 'sygnal'
-import RootComponent from './RootComponent.jsx'
+// RootComponent.jsx
+import { makeDragDriver } from 'sygnal'
 
-run(RootComponent, { DND: makeDragDriver() })
+RootComponent.drivers = { DND: makeDragDriver() }
 ```
 
 ### Registering Drag Categories

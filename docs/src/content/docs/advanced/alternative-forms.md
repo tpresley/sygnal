@@ -19,6 +19,7 @@ Sygnal 6.0 removed several forms that used to be listed here: `'ACTION | SINK'` 
 | [`Date.now()` / `Math.random()` / `crypto.randomUUID()` in a handler](#the-clock-and-randomness-from-globals) | `(state, data, next, { now, random, uuid })` | SYG509 (SYG258 outside strict mode, STATE reducers) | yes |
 | [Model-sent `{ connections }`](#model-sent-connections) | the `connections` static | — | no |
 | [`driverFromAsync` around `fetch`](#driverfromasync-for-http) | `makeFetchDriver()` | — | no |
+| [A feature's driver in `run()`'s argument](#a-features-driver-in-run) | the root's `drivers` static | — | no |
 | [Controls](#controls-instead-of-class-selectors) (`controls()`, `<Add>`, `DOM.click(Add)`) | class and attribute selectors: `<button className="add">`, `DOM.click('.add')` | — | the other way: `--fix --controls` converts selectors to controls (opt-in) |
 
 ## emit()
@@ -176,19 +177,37 @@ The static is derived from state, so every action that changes the room keeps th
 
 ```jsx
 // Alternative
-// main.js: run(App, { API: driverFromAsync(async (url) => (await fetch(url)).json()) })
+App.drivers = { API: driverFromAsync(async (url) => (await fetch(url)).json()) }
 Quote.model = {
   LOAD:   { API: (state) => ({ value: `/api/quotes/${state.id}`, ok: 'LOADED', error: 'FAILED' }) },
 }
 
 // Canonical
-// main.js: run(App, { HTTP: makeFetchDriver() })
+App.drivers = { HTTP: makeFetchDriver() }
 Quote.model = {
   LOAD:   { HTTP: (state) => ({ url: `/api/quotes/${state.id}`, ok: 'LOADED', error: 'FAILED', latest: true }) },
 }
 ```
 
 `makeFetchDriver()` also turns non-2xx responses into failures with `status` and `body`, handles timeouts, query strings and JSON bodies, and is faked in tests. Keep `driverFromAsync` for promise APIs that aren't HTTP. See [HTTP](/guide/http/).
+
+## A feature's driver in run()
+
+`run()`'s second argument registers any driver, but a feature's driver belongs on the root, in the file the feature edits, so that adding the feature doesn't touch `main.js`:
+
+```jsx
+// Alternative
+// main.js
+run(App, { HTTP: makeFetchDriver() })
+
+// Canonical
+// App.jsx
+App.drivers = { HTTP: makeFetchDriver() }
+// main.js
+run(App)
+```
+
+`run()`'s argument is not deprecated. It is the canonical place for what differs per environment (a test double, a per-deploy `baseUrl`, a renderer target), and it overrides the static by name. See [Drivers](/guide/drivers/#what-differs-per-environment).
 
 ## Controls instead of class selectors
 

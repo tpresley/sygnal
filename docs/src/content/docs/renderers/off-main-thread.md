@@ -109,12 +109,10 @@ export default Editor
 ```
 
 ```js
-// main.js
-import { run } from 'sygnal'
-import Editor from './Editor.jsx'
+// Editor.jsx
 import { makeParseDriver } from './parseDriver.js'
 
-run(Editor, { PARSER: makeParseDriver(new URL('./parse.worker.js', import.meta.url)) })
+Editor.drivers = { PARSER: makeParseDriver(new URL('./parse.worker.js', import.meta.url)) }
 ```
 
 A whole-app worker pays off when the heavy work is spread across the model, the views and big Collections at once.

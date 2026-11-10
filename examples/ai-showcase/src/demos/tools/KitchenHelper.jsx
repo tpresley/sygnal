@@ -4,9 +4,9 @@
 // id. DONE then writes the results into the message with `withToolResults` and, if there were
 // calls, sends the conversation again with `continue: true`, so the next step grows the same
 // assistant message. A turn stops at a reply without calls, at MAX_STEPS requests, or at Stop.
-import { ABORT, classes } from 'sygnal'
+import { ABORT, classes, makeFetchDriver } from 'sygnal'
 import { messageText, withToolResults } from 'sygnal/ai'
-import { modelOf } from '../../shared/providers.js'
+import { modelOf, makeLLM } from '../../shared/providers.js'
 import { providersResource, pickerState, pickerIntent, pickerModel, pickedModel, modelPicker } from '../../shared/picker.jsx'
 import { TOOLS, runTool } from './tools.js'
 
@@ -145,6 +145,11 @@ export default function KitchenHelper({ state }) {
       </div>
     </div>
   )
+}
+
+KitchenHelper.drivers = {
+  LLM: makeLLM(),             // the chat driver: tool calls come back as TOOL actions
+  HTTP: makeFetchDriver(),    // the model list (GET /api/providers)
 }
 
 KitchenHelper.initialState = {

@@ -3,13 +3,13 @@ title: HTTP
 description: HTTP requests with makeFetchDriver() and reply actions, streamed responses and response headers
 ---
 
-For HTTP, use the built-in fetch driver instead of calling `fetch` in a component. Register it once in `main.js`:
+For HTTP, use the built-in fetch driver instead of calling `fetch` in a component. Register it once on the root component:
 
 ```javascript
-import { run, makeFetchDriver } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeFetchDriver } from 'sygnal'
 
-run(App, { HTTP: makeFetchDriver() })
+App.drivers = { HTTP: makeFetchDriver() }
 ```
 
 A model entry sends a request to the `HTTP` sink and names the actions that receive the reply: `ok` for a 2xx response, `error` for everything else. The intent has no line for the reply.
