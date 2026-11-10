@@ -351,3 +351,47 @@ Unknown: `DROPPED`, `willReconnect`
 Headings asked for: `uiMessageStream` ×4, `uid` ×4, `withToolResults` ×4, `ELEMENT` ×3, `SocketReconnect` ×3, `chat` ×3, `data` ×3, `defineWidget` ×3, `keydown` ×3, `makeChatDriver` ×3, `makeSocketDriver` ×3, `messageText` ×3, `undo` ×3, `SocketClose` ×2, `SocketMessage` ×2, `Switchable` ×2, `VirtualCollection` ×2, `event` ×2, `key` ×2, `makeFetchDriver` ×2, `BOOTSTRAP`, `CHILD`, `ChatCall`, `ChatRequest`, `ChatTransport`, `DOM`, `DOM.data`, `DOM.key`, `DOMSelection.data`, `DOMSource.data`, `HEAD`, `INITIALIZE`, `PARENT`, `ROUTER`, `Route`, `RouteName`, `RouterBlocked`, `RouterBlocked.`, `STATE.watch`, `SocketConnection`, `SocketOpen`, `block`, `combobox`, `debounce`, `focus`, `makeHeadDriver`, `makeRouter`, `persist`, `preventDefault`, `previousState`, `renderComponent`, `requests`, `resources`, `respond`, `route`, `scrollToIndex`, `stream`, `submit`, `target`, `value`, `withToolResults.results`
 
 Earlier compact Haiku run (prompt names a skill it does not have) against the new control, on the 5 tasks they share: cost ratio 0.99 (0.88–1.12). Descriptive: it mixes the prompt, the date and the checker version.
+
+## The sentence-only arm (Haiku, no skill)
+
+| Run | Trials | Passed | index.d.ts | Any dist/ (rule) | Built JS or src | Wider: dist/ read | llms/api-facts.md | Any llms/ topic | Failed build/test runs | Cost per trial | Total |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| C (fresh control) | 45 | 45 | 30 | 37 | 23 | 37 | 11 | 44 | 1.73 | $0.0461 | $2.07 |
+| S (sentence) | 45 | 44 | 14 | 27 | 20 | 32 | 23 | 44 | 1.80 | $0.0510 | $2.29 |
+| old control (step 1) | 45 | 43 | 30 | 36 | 20 | 37 | 9 | 45 | 1.80 | $0.0538 | $2.42 |
+| CLI arm (step 1) | 45 | 44 | 9 | 22 | 15 | 26 | 4 | 44 | 1.58 | $0.0411 | $1.85 |
+
+Step 1, cross-night: C has index.d.ts 30/45 (band 21–39) and any dist/ 37/45 (band 28–44): usable.
+
+Step 2: S 14 against C 30 (explains if ≤ 15; does not if ≥ 22): **explains it**.
+
+| Step 3 requirement | Value | |
+|---|---|---|
+| 1. Any dist/ ≤ C − 7 | 27 vs 37 (limit 30) | met |
+| 2. Built JS or src ≤ C + 4 | 20 vs 23 (limit 27) | met |
+| 3. Failed runs, paired difference ≤ +0.25 | +0.07 (-0.47 to 0.53, p 0.881) | met |
+| 4. Cost ratio ≤ 1.05, upper ≤ 1.15 | 1.06 (0.98–1.17, p 0.241) | **not met** |
+| 5. Passes ≥ C − 3 | 44 vs 45 (limit 42) | met |
+| (billed tokens, ratio) | 1.01 (0.92–1.10) | |
+
+### Per task: index.d.ts / any dist/ / api-facts.md (of 3)
+
+| Task | C (fresh control) | S (sentence) | old control (step 1) | CLI arm (step 1) |
+|---|---|---|---|---|
+| 11-search-debounce | 1 / 2 / 0 | 1 / 1 / 1 | 2 / 2 / 0 | 0 / 0 / 0 |
+| 13-course-portal | 3 / 3 / 3 | 1 / 2 / 3 | 2 / 2 / 1 | 0 / 0 / 0 |
+| 22-chat-socket | 3 / 3 / 0 | 3 / 3 / 3 | 3 / 3 / 0 | 2 / 2 / 0 |
+| 23-quote-resource | 2 / 2 / 0 | 0 / 0 / 1 | 2 / 2 / 0 | 0 / 0 / 0 |
+| 24-list-detail-cache | 3 / 3 / 1 | 2 / 3 / 1 | 3 / 3 / 0 | 2 / 2 / 0 |
+| 25-router-spa | 3 / 3 / 1 | 2 / 3 / 3 | 3 / 3 / 2 | 3 / 3 / 1 |
+| 26-autosave-draft | 1 / 3 / 2 | 1 / 3 / 2 | 2 / 2 / 2 | 0 / 2 / 0 |
+| 27-undo-editor | 3 / 3 / 0 | 0 / 2 / 0 | 3 / 3 / 0 | 0 / 2 / 0 |
+| 30-checkout-form | 1 / 1 / 1 | 1 / 1 / 1 | 2 / 2 / 2 | 0 / 2 / 0 |
+| 31-command-menu | 1 / 1 / 3 | 0 / 0 / 3 | 1 / 1 / 2 | 0 / 0 / 3 |
+| 32-sales-chart | 2 / 3 / 0 | 1 / 2 / 1 | 2 / 3 / 0 | 0 / 0 / 0 |
+| 33-virtual-list | 2 / 3 / 0 | 0 / 0 / 3 | 3 / 3 / 0 | 1 / 2 / 0 |
+| 44-streaming-chat | 2 / 2 / 0 | 1 / 3 / 0 | 0 / 3 / 0 | 0 / 3 / 0 |
+| 45-packing-assistant | 2 / 2 / 0 | 1 / 3 / 0 | 1 / 2 / 0 | 1 / 3 / 0 |
+| 46-ticket-triage | 1 / 3 / 0 | 0 / 1 / 1 | 1 / 2 / 0 | 0 / 1 / 0 |
+
+Same variant, two nights (old control → C): index.d.ts 30 → 30, any dist/ 36 → 37, cost ratio 1.01 (0.88–1.16).

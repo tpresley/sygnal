@@ -301,6 +301,49 @@ say('Headings asked for: ' + json.lookup.names.grepHeadings.map(([n, k]) => `\`$
   json.lookup.promptFlaw = e
 }
 
+// The sentence-only arm (README section 10): the rule as it was fixed before the runs. C is the fresh control, S the sentence arm.
+{
+  const BUILT = /dist\/[\w.-]+\.[mc]?js\b|sygnal\/src\b/, API_FACTS = /api-facts\.md/
+  const more = (run, t) => { const cs = calls(run, t.a.trial), read = cs.filter((c) => c.tool !== 'Write' && c.tool !== 'Edit'), inputs = read.map((c) => c.input).join('\n')
+    return { built: BUILT.test(inputs), apiFacts: API_FACTS.test(inputs), llms: /llms\.txt/.test(inputs), topic: /llms\/[\w-]+\.md/.test(inputs), nodeModules: /node_modules\/sygnal\b/.test(inputs), distGrepWide: read.some((c) => DIST_READ_WIDE.test(c.command)) } }
+  const runs = { 'C (fresh control)': 'agent-docs3-compact-ctl-haiku', 'S (sentence)': 'agent-docs3-sentence-haiku', 'old control (step 1)': 'agent-docs2-compact-ctl-haiku', 'CLI arm (step 1)': 'agent-docs2-lookup-haiku' }
+  const s3 = Object.fromEntries(Object.entries(runs).map(([k, run]) => [k, load(run).map((t) => ({ ...usage(run, t), ...more(run, t) }))]))
+  const C = s3['C (fresh control)'], S = s3['S (sentence)']
+  say('## The sentence-only arm (Haiku, no skill)\n')
+  say('| Run | Trials | Passed | index.d.ts | Any dist/ (rule) | Built JS or src | Wider: dist/ read | llms/api-facts.md | Any llms/ topic | Failed build/test runs | Cost per trial | Total |')
+  say('|---|---|---|---|---|---|---|---|---|---|---|---|')
+  for (const [k, ts] of Object.entries(s3)) say(`| ${k} | ${ts.length} | ${num(ts, (t) => t.pass)} | ${num(ts, (t) => t.dts)} | ${num(ts, (t) => t.dist)} | ${num(ts, (t) => t.built)} | ${num(ts, (t) => t.distWide)} | ${num(ts, (t) => t.apiFacts)} | ${num(ts, (t) => t.topic)} | ${mean(ts.map((t) => t.failed)).toFixed(2)} | $${mean(ts.map((t) => t.costUsd)).toFixed(4)} | $${ts.reduce((s, t) => s + t.costUsd, 0).toFixed(2)} |`)
+  say()
+  const c = { dts: num(C, (t) => t.dts), dist: num(C, (t) => t.dist), built: num(C, (t) => t.built), pass: num(C, (t) => t.pass) }
+  const s = { dts: num(S, (t) => t.dts), dist: num(S, (t) => t.dist), built: num(S, (t) => t.built), pass: num(S, (t) => t.pass) }
+  const step1 = c.dts >= 21 && c.dts <= 39 && c.dist >= 28 && c.dist <= 44
+  const step2 = s.dts <= c.dts / 2 && s.dts <= 17 ? 'explains it' : s.dts >= c.dts - 8 ? 'does not' : 'partly'
+  const failed = pairedDiff(C, S, (t) => t.failed), cost = pairedEffect(C, S, (t) => t.costUsd), tokens = pairedEffect(C, S, (t) => t.tokens)
+  const req = [
+    ['1. Any dist/ ≤ C − 7', `${s.dist} vs ${c.dist} (limit ${c.dist - 7})`, s.dist <= c.dist - 7],
+    ['2. Built JS or src ≤ C + 4', `${s.built} vs ${c.built} (limit ${c.built + 4})`, s.built <= c.built + 4],
+    ['3. Failed runs, paired difference ≤ +0.25', `${failed.diff >= 0 ? '+' : ''}${failed.diff.toFixed(2)} (${failed.low.toFixed(2)} to ${failed.high.toFixed(2)}, p ${failed.p.toFixed(3)})`, failed.diff <= 0.25],
+    ['4. Cost ratio ≤ 1.05, upper ≤ 1.15', `${cost.ratio.toFixed(2)} (${cost.low.toFixed(2)}–${cost.high.toFixed(2)}, p ${cost.p.toFixed(3)})`, cost.ratio <= 1.05 && cost.high <= 1.15],
+    ['5. Passes ≥ C − 3', `${s.pass} vs ${c.pass} (limit ${c.pass - 3})`, s.pass >= c.pass - 3],
+  ]
+  say(`Step 1, cross-night: C has index.d.ts ${c.dts}/45 (band 21–39) and any dist/ ${c.dist}/45 (band 28–44): ${step1 ? 'usable' : '**not usable**'}.\n`)
+  say(`Step 2: S ${s.dts} against C ${c.dts} (explains if ≤ ${Math.min(c.dts / 2, 17)}; does not if ≥ ${c.dts - 8}): **${step2}**.\n`)
+  say('| Step 3 requirement | Value | |')
+  say('|---|---|---|')
+  for (const [n, v, ok] of req) say(`| ${n} | ${v} | ${mark(ok)} |`)
+  say(`| (billed tokens, ratio) | ${tokens.ratio.toFixed(2)} (${tokens.low.toFixed(2)}–${tokens.high.toFixed(2)}) | |`)
+  say()
+  say('### Per task: index.d.ts / any dist/ / api-facts.md (of 3)\n')
+  say('| Task | ' + Object.keys(s3).join(' | ') + ' |')
+  say('|---|' + Object.keys(s3).map(() => '---').join('|') + '|')
+  for (const task of byTask(C).keys()) say(`| ${task} | ` + Object.values(s3).map((ts) => { const g = ts.filter((t) => t.task === task); return `${num(g, (t) => t.dts)} / ${num(g, (t) => t.dist)} / ${num(g, (t) => t.apiFacts)}` }).join(' | ') + ' |')
+  say()
+  // Night-to-night: the same variant on two nights, paired by task.
+  const old = s3['old control (step 1)'], night = pairedEffect(old, C, (t) => t.costUsd)
+  say(`Same variant, two nights (old control → C): index.d.ts ${num(old, (t) => t.dts)} → ${c.dts}, any dist/ ${num(old, (t) => t.dist)} → ${c.dist}, cost ratio ${night.ratio.toFixed(2)} (${night.low.toFixed(2)}–${night.high.toFixed(2)}).\n`)
+  json.sentence = { counts: Object.fromEntries(Object.entries(s3).map(([k, ts]) => [k, { trials: ts.length, pass: num(ts, (t) => t.pass), dts: num(ts, (t) => t.dts), dist: num(ts, (t) => t.dist), built: num(ts, (t) => t.built), distWide: num(ts, (t) => t.distWide), apiFacts: num(ts, (t) => t.apiFacts), topic: num(ts, (t) => t.topic), failed: mean(ts.map((t) => t.failed)), cost: mean(ts.map((t) => t.costUsd)) }])), step1, step2, step3: req.map(([n, v, ok]) => ({ n, v, ok })), failed, cost, tokens, night }
+}
+
 fs.writeFileSync(path.join(here, '../data/results.md'), out.join('\n'))
 fs.writeFileSync(path.join(here, '../data/results.json'), JSON.stringify(json, null, 1) + '\n')
 console.log(out.join('\n'))

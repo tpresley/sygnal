@@ -13,7 +13,7 @@
 | 1 | Replace the core `llms.txt` with the **compact core** (21.7 KB, ⅓ of today), everything removed moved verbatim to on-demand topic files. | Fact coverage: 97.4% of what the 49 reference solutions use is inline, 100% within one read (today 99% / 100%). | **Run done: ship it for the no-skill path** (section 9). A pass-rate loss under about 20 pp cannot be ruled out. |
 | 2 | **Generate the skill from the same source** (22.4 KB against 56.2 KB). | The two files carry the same facts in two wordings: only 28–34% shares exact wording, 652 of the 1,064 distinct API names are in both, and no skill trial needs both. | **Run done: generate it, and ship it together with #1** (section 9). Cost 0.78× today's skill; 30/30 passes against 29/30. Two trials per task cannot rule out a pass-rate loss under about 30 pp. |
 | 3 | Put the **trigger index in `AGENTS.md`** (7.0 KB; passive, always in context). | Vercel: 100% against 53–79% for a skill; here the llms-context core index found the right topic in 36/40 trials. | **Run done: do not adopt.** Cost ratio to #1 alone 0.97 (0.90–1.06), so it fails the section 7 rule, though it reached the right topic in 42 of 42 trials. |
-| 4 | Keep **option lists out of the core**, reachable by symbol: the types already answer them. Ship `sygnal-check docs <Symbol\|sygnal/x\|dir>`. | 88% of the API names in reference prose already sit in a JSDoc; about 23 KB of `llms.txt` is option-list sentences. `dist/index.d.ts` is 390 KB, so agents need a lookup, not more JSDoc. | **Built, then failed its rule on Haiku** (section 10): the CLI was used in 7 of 45 trials and the grep form missed the `dist/`-read and failed-run limits. Do not ship either as built. |
+| 4 | Keep **option lists out of the core**, reachable by symbol: the types already answer them. Ship `sygnal-check docs <Symbol\|sygnal/x\|dir>`. | 88% of the API names in reference prose already sit in a JSDoc; about 23 KB of `llms.txt` is option-list sentences. `dist/index.d.ts` is 390 KB, so agents need a lookup, not more JSDoc. | **Built, then failed its rule on Haiku** (section 10): the CLI was used in 7 of 45 trials and the grep form missed the `dist/`-read and failed-run limits. Do not ship either as built. The sentence-only arm explained most of the CLI arm's drop in `index.d.ts` reads, but missed its cost limit, so the row stays as measured (section 10, "Final recommendation for 7.5"). |
 | 5 | Drop the **47 trap sentences whose diagnostic already says the fix** (6.5 KB in `llms.txt`, 4.8 KB in the skill), after raising SYG105 from info to warn. | Section 4. | None. |
 | 6 | Take the **13 traps in section 4's list** to the 8.0 backlog as throw-or-impossible candidates. | Section 4. | 8.0 work; I did not edit the backlog. |
 | 7 | Rule: **a subpath gets one line in the core**. The cost was smaller than expected, so this is hygiene: experimental subpaths are about 1.6 KB of `llms.txt`. | Section 5. | None. |
@@ -740,6 +740,63 @@ cd /Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnals-features-show
 ```bash
 cd /Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnals-features-showcase-5a7f2b && node evals/agent-ergonomics/orchestrate.mjs --run agent-docs3-sentence-haiku --variant agent-docs-sentence --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5
 ```
+
+### Results of the sentence-only arm (Haiku, no skill, 2026-11-10)
+
+Both runs completed, 45 trials each, $4.36 in all. `tools/results.mjs` applies the rule above unchanged (section "The sentence-only arm" of `data/results.md`). Read counts are trials of 45.
+
+| Run | Passed | `index.d.ts` | Any `dist/` (rule) | Built JS or src | `llms/api-facts.md` | Failed build/test runs | Cost per trial |
+|---|---|---|---|---|---|---|---|
+| C, fresh control | 45 | 30 | 37 | 23 | 11 | 1.73 | $0.046 |
+| S, sentence | 44 | 14 | 27 | 20 | 23 | 1.80 | $0.051 |
+| Old control (step 1) | 43 | 30 | 36 | 20 | 9 | 1.80 | $0.054 |
+| CLI arm (step 1) | 44 | 9 | 22 | 15 | 4 | 1.58 | $0.041 |
+
+**Step 1: usable.** C has `index.d.ts` 30 (band 21–39) and any `dist/` 37 (band 28–44). The same variant gave 30 and 36 on the earlier night, and its cost ratio across nights is 1.01 (0.88–1.16). The read share was stable between nights, so S can sit beside the CLI arm.
+
+**Step 2: explains it, at the edge.** S is 14 against C's 30. The limit was 15 (C/2), so one more trial would have made it "partly". Beside the CLI arm (9), the sentence accounts for most of that arm's drop. The rest, 5 trials, is within one night's noise.
+
+**Step 3: requirement 4 missed.**
+
+| # | Requirement | Result | |
+|---|---|---|---|
+| 1 | Any `dist/` ≤ C − 7 | 27 against 37 (limit 30) | met |
+| 2 | Built JS or src ≤ C + 4 | 20 against 23 (limit 27) | met |
+| 3 | Failed runs, paired ≤ +0.25 | +0.07 (−0.47 to +0.53) | met |
+| 4 | Cost ratio ≤ 1.05, upper ≤ 1.15 | **1.06 (0.98–1.17)** | **not met** |
+| 5 | Passes ≥ C − 3 | 44 against 45 (limit 42) | met |
+
+Billed tokens were 1.01 (0.92–1.10). The cost miss is small: about half a cent per trial. Most of it is task 44 (1.68×; leaving that task out gives 1.03) and tasks 27, 45 and 24. The interval includes 1.0, so the sentence arm being more expensive is not shown either. The rule was written so that a miss of this size counts, and it does.
+
+**Outcome: "explains it, a requirement missed".** The row does not change. The sentence moved reads, but it did not show it was free.
+
+**What the sentence-arm trials did instead of `dist/`.**
+- **More of them read `llms/api-facts.md`:** 23 against 11.
+  - 11 S trials read it and never opened `dist/` (C: 3).
+  - 10 read it and then opened `dist/` anyway (C: 5).
+  - 15 opened `dist/` without ever reading it (C: 29).
+- **Reading moved partly to the package's TypeScript source.** Unfavourable, and hidden by the combined measure. Trials reading `node_modules/sygnal/src` rose from 7 to 16. Built JS under `dist/` fell from 20 to 15, so "built JS or src" still fell, 23 to 20. "Not `dist/*`" did not stop agents reading code; it moved some of them to `src/`. Examples: `src/extra/socketDriver.ts` (task 22), `src/extra/testing.ts` (13, 22, 26), `src/extra/undo.ts` (27), `src/extra/ai/chat/driver.ts` (44).
+- **Less was read from those files:** 10.8 KB per trial on the files the rule counts, against 16.5 KB.
+- **7 S trials read neither `dist/` nor `api-facts.md`** (C: 5). They worked from the topic files and the guide pages under `dist/guide/`. All 7 passed, at 0–4 failed runs.
+- **The one failure** (33-virtual-list, trial 3) read `api-facts.md` and no `dist/`. In the control that task passed 3 of 3 with `dist/` reads in all three trials. One trial is not evidence either way.
+
+**What this does not show.**
+- The rule counts trials that open a file, not what they take from it. The `src/` shift means "fewer `dist/` reads" overstates the change in how much code agents read.
+- Only Haiku, no skill, 15 tasks.
+- Task 44's cost ratio is one task with three trials on each side.
+
+### Final recommendation for 7.5 (the whole spike)
+
+| # | Item | Do | Evidence |
+|---|---|---|---|
+| 1 | Compact core as `llms.txt`, with the topic files | **Ship** | Section 9. Sonnet cost 0.86× (0.78–0.94), 45/45 against 44/45 passes. Haiku 0.79× on 5 tasks. Met its pre-set rule. A pass-rate loss under about 20 pp is not ruled out |
+| 2 | Skill generated from the compact core | **Ship, in the same change as #1** | "The skill arms". Cost 0.78× today's skill (0.73–0.83), peak context 0.75×, 30/30 against 29/30. Unfavourable: failed build/test runs 0.8 against 0.4 per trial (p 0.063), and it loses today's skill's failed-run saving. If failed builds matter more than cost for 7.5, keep today's skill until the $29 Sonnet run settles that |
+| 3 | The `api-facts` row | **Keep the compact core's row as measured** ("`llms/api-facts.md`, or grep the name in `dist/index.d.ts` · one symbol, not the whole file") | This section. "Not `dist/*`" halved `index.d.ts` reads (30 → 14) but missed the cost limit (1.06, upper 1.17) and pushed reads into `src/` (7 → 16) |
+| 4 | `sygnal-check docs` and `dist/reference.{json,md}` | **Do not ship** (3.4 MB) | Step 1. The CLI was used in 7/45 trials; the grep form missed the `dist/` and failed-run limits. The CLI arm's fall in `index.d.ts` reads came mostly from its sentence (step 2 here), not the tool |
+| 5 | `AGENTS.md` index | **Do not ship** | Section 9. Cost 0.97× the compact core (0.90–1.06), failing its rule |
+| 6 | `App.drivers` wording | **Apply to the compact core if `App.drivers` ships in 7.5**, as listed in "Where `App.drivers` would go" | Not measured by any eval. It follows from the canonical-forms rule: the docs must show the canonical form. +399 B (about 110 tokens, 1.8% of the core). The skill picks it up when generated. The 14 topic-file lines need review. It cannot ship before the release that has the static |
+
+Items 5–7 of the spike's proposal (trap sentences, the 8.0 backlog list, one line per subpath) were not tested by any run, and stand as written in the table at the top.
 
 ## Appendix A: every trap the context mentions
 

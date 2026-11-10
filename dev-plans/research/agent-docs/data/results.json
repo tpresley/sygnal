@@ -2542,5 +2542,122 @@
    "min": 0.7896044308395757,
    "max": 1.19369127969557
   }
+ },
+ "sentence": {
+  "counts": {
+   "C (fresh control)": {
+    "trials": 45,
+    "pass": 45,
+    "dts": 30,
+    "dist": 37,
+    "built": 23,
+    "distWide": 37,
+    "apiFacts": 11,
+    "topic": 44,
+    "failed": 1.7333333333333334,
+    "cost": 0.046084346888888884
+   },
+   "S (sentence)": {
+    "trials": 45,
+    "pass": 44,
+    "dts": 14,
+    "dist": 27,
+    "built": 20,
+    "distWide": 32,
+    "apiFacts": 23,
+    "topic": 44,
+    "failed": 1.8,
+    "cost": 0.0509899468888889
+   },
+   "old control (step 1)": {
+    "trials": 45,
+    "pass": 43,
+    "dts": 30,
+    "dist": 36,
+    "built": 20,
+    "distWide": 37,
+    "apiFacts": 9,
+    "topic": 45,
+    "failed": 1.8,
+    "cost": 0.053765354
+   },
+   "CLI arm (step 1)": {
+    "trials": 45,
+    "pass": 44,
+    "dts": 9,
+    "dist": 22,
+    "built": 15,
+    "distWide": 26,
+    "apiFacts": 4,
+    "topic": 44,
+    "failed": 1.5777777777777777,
+    "cost": 0.04105716355555557
+   }
+  },
+  "step1": true,
+  "step2": "explains it",
+  "step3": [
+   {
+    "n": "1. Any dist/ ≤ C − 7",
+    "v": "27 vs 37 (limit 30)",
+    "ok": true
+   },
+   {
+    "n": "2. Built JS or src ≤ C + 4",
+    "v": "20 vs 23 (limit 27)",
+    "ok": true
+   },
+   {
+    "n": "3. Failed runs, paired difference ≤ +0.25",
+    "v": "+0.07 (-0.47 to 0.53, p 0.881)",
+    "ok": true
+   },
+   {
+    "n": "4. Cost ratio ≤ 1.05, upper ≤ 1.15",
+    "v": "1.06 (0.98–1.17, p 0.241)",
+    "ok": false
+   },
+   {
+    "n": "5. Passes ≥ C − 3",
+    "v": "44 vs 45 (limit 42)",
+    "ok": true
+   }
+  ],
+  "failed": {
+   "diff": 0.06666666666666668,
+   "low": -0.46666666666666673,
+   "high": 0.5333333333333333,
+   "p": 0.880859375
+  },
+  "cost": {
+   "ratio": 1.0604910567297325,
+   "low": 0.9752372732309362,
+   "high": 1.1657460943876699,
+   "p": 0.24127197265625,
+   "tasks": 15,
+   "down": 6,
+   "min": 0.8142731538291108,
+   "max": 1.6794889394192425
+  },
+  "tokens": {
+   "ratio": 1.0100284097978809,
+   "low": 0.9238897601894108,
+   "high": 1.1021579014920317,
+   "p": 0.83123779296875,
+   "tasks": 15,
+   "down": 7,
+   "min": 0.7456431140774056,
+   "max": 1.3938422306373575
+  },
+  "night": {
+   "ratio": 1.009685575558643,
+   "low": 0.8821117180710506,
+   "high": 1.1632048909604433,
+   "p": 0.89569091796875,
+   "tasks": 15,
+   "down": 7,
+   "min": 0.6295270158945051,
+   "max": 1.8876929985218618
+  }
  }
 }
