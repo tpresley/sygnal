@@ -2043,6 +2043,13 @@ export type Component<
    */
   persist?: Persist<STATE>;
   /**
+   * The drivers this root component needs, next to the code that uses them:
+   * `App.drivers = { HTTP: makeFetchDriver() }`. Root component only (a child's is ignored). run()'s
+   * second argument overrides it by name (`run(App, { HTTP: makeFetchDriver({ baseUrl }) })`).
+   * renderComponent() ignores it.
+   */
+  drivers?: Record<string, CycleDriver<any, any>>;
+  /**
    * PLAN-4 GS-12: actions whose state change animates as a View Transition:
    * `Board.viewTransitions = ['MOVE']`, `App.viewTransitions = ['ROUTE']` (the router's reply
    * action) for route changes. The DOM patch that the action's STATE reducer causes runs inside

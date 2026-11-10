@@ -139,12 +139,17 @@ function fileApps(project, file) {
       const [root, drivers] = n.arguments
       const r = root && resolveExpr(project, file, root)
       const ref = r?.node && isFunction(r.node) ? { file: r.file, node: r.node } : null
+      const rootComp = ref ? project.componentForFunction(ref.node) || null : null
+      // the root's `drivers` static is wired too (run()'s argument overrides it by name)
+      const own = rootComp?.staticProps?.drivers
+      const ownFile = rootComp?.file
+      const union = (a, b) => (a && b ? new Set([...a, ...b]) : null)
       apps.push({
         call: n,
         file,
-        root: ref ? project.componentForFunction(ref.node) || null : null,
-        statics: drivers?.type === 'SpreadElement' ? null : driverStatics(project, file, drivers),
-        drivers: driverNames(project, file, drivers),
+        root: rootComp,
+        statics: union(drivers?.type === 'SpreadElement' ? null : driverStatics(project, file, drivers), driverStatics(project, ownFile, own)),
+        drivers: union(driverNames(project, file, drivers), driverNames(project, ownFile, own)),
         components: ref ? reachable(project, ref) : new Set(),
       })
       return true
