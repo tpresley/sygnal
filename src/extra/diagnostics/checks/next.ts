@@ -31,6 +31,7 @@ import {checkRequest} from './replies'
 import {check as checkFetch} from './fetch'
 import {checkSentCommand} from './elementCommands'
 import {audited} from './timingAudit'
+import {guardedHandler, patchView} from './effects'
 import {checkCollection} from './collections'
 import {eventEmitted, actionListener as recentActions} from './inspect'
 import {actionHooks} from './actionLog'
@@ -470,6 +471,7 @@ export function nextHooks(_api: any): any {
   return {
     onCreate(iv: any) {
       live.set(iv.id, iv)
+      patchView(iv)
       if (iv.isRoot) statelessRoot(_api, iv, on)
       if (!on()) return
       log.onCreate(iv)
@@ -527,6 +529,8 @@ export function nextHooks(_api: any): any {
       if (on() && sink != 'STATE' && typeof h == 'function') h = audited(fac(iv), type, sink, h)
       // SYG222: the STATE reducers, wrapped (today the check rewrote the instance's model)
       if (on() && sink == 'STATE' && typeof fn == 'function') h = watchMutation(fac(iv), type, h)
+      // SYG265 / SYG266 at run time (checks/effects.ts)
+      if (on() && sink != 'EFFECT' && typeof fn == 'function') h = guardedHandler(fac(iv), type, sink, h)
       return h === fn ? undefined : h
     },
     onSink(iv: any, type: string | null, sink: string, v: any) {

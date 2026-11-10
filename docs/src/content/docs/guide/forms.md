@@ -84,7 +84,7 @@ Signup.model = {
 }
 ```
 
-`main.js` runs it with `run(Signup, { HTTP: makeFetchDriver() })`. There is no intent per field: the two intent entries are the row buttons.
+On the root: `Signup.drivers = { HTTP: makeFetchDriver() }`. There is no intent per field: the two intent entries are the row buttons.
 
 ## What the form does
 

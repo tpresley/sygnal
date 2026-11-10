@@ -1,0 +1,6 @@
+[
+  { "id": "a-effect-fetch", "title": "The same leak, written with fetch() in an EFFECT" },
+  { "id": "b-helper-fetch", "title": "The same leak, fetch() in an imported helper called from a STATE reducer" },
+  { "id": "c-view-beacon", "title": "The same leak, navigator.sendBeacon() in the view" },
+  { "id": "d-spread-defaults", "title": "The drafts leak, writes hidden behind a spread of a module constant" }
+]

@@ -74,4 +74,6 @@ Tasks.model = {
   BACK: { ROUTER: { back: true } },
 }
 
-export const start = (mountPoint, uid) => run(Tasks, { ROUTER: router.driver }, { mountPoint, uid })
+Tasks.drivers = { ROUTER: router.driver }
+
+export const start = (mountPoint, uid) => run(Tasks, {}, { mountPoint, uid })

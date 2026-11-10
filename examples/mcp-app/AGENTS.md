@@ -36,7 +36,7 @@ t.expectNoDiagnostics(); t.dispose()                // fails on any Sygnal warni
 - `CHILD.select('Name')` with a string: write `CHILD.select(ChildComponent)`.
 - Positional views `function C(props, state)`: write `function C({ state, context, ...props })`.
 - Side effects inside a STATE reducer or a view: use `ACTION: { EFFECT: (state, data, next) => { ... } }` or a driver.
-- `fetch` in a component or EFFECT, or `HTTP.select('x')` reading back your own request: register `run(App, { HTTP: makeFetchDriver() })` and name the reply actions, `LOAD: { HTTP: (state, id) => ({ url: '/api/items/' + id, ok: 'LOADED', error: 'FAILED' }) }` with `LOADED: (state, body) => ...` and `FAILED: (state, { status }) => ...`. Tests answer it with `await t.respond('HTTP', body, 'LOADED')`. WebSocket/SSE: a `connections` static with `makeSocketDriver()` (see llms.txt).
+- `fetch` in a component or EFFECT, or `HTTP.select('x')` reading back your own request: register `App.drivers = { HTTP: makeFetchDriver() }` on the root and name the reply actions, `LOAD: { HTTP: (state, id) => ({ url: '/api/items/' + id, ok: 'LOADED', error: 'FAILED' }) }` with `LOADED: (state, body) => ...` and `FAILED: (state, { status }) => ...`. Tests answer it with `await t.respond('HTTP', body, 'LOADED')`. WebSocket/SSE: a `connections` static with `makeSocketDriver()` (see llms.txt).
 
 ## Wiring rules that fail silently
 - A component's intent only sees its own JSX. A parent can't select `.remove` rendered by a child or a Collection item: handle it in the child and send it up with `PARENT` (parent: `CHILD.select(Child)`) or `EVENTS`.
@@ -47,7 +47,7 @@ t.expectNoDiagnostics(); t.dispose()                // fails on any Sygnal warni
 - "No change" is `return ABORT`. Returning nothing is SYG202, and a reducer that mutates `state` and returns it changes nothing (the same object means "no change"; SYG222): return a new object.
 
 ## This project: an MCP App
-- `src/App.jsx` is the view of the `get_forecast` tool. The host (Claude, ChatGPT, VS Code, ...) shows it in a sandboxed iframe; `src/main.js` runs it with `makeMcpAppDriver()` from `sygnal/ai` as the `MCP` driver.
+- `src/App.jsx` is the view of the `get_forecast` tool. The host (Claude, ChatGPT, VS Code, ...) shows it in a sandboxed iframe; its `App.drivers` registers `makeMcpAppDriver()` from `sygnal/ai` as the `MCP` driver.
 - Host → view: `MCP.select('tool-input' | 'tool-input-partial' | 'tool-result' | 'tool-cancelled' | 'host-context-changed' | 'teardown')` in the intent.
 - View → host: model entries that return `{ callTool, args, ok, error }` (a server tool; reply actions like `makeFetchDriver`), `{ updateModelContext }`, `{ message }`, `{ openLink }` or `{ displayMode }` on the `MCP` sink.
 - `server/server.js` registers the tool with `_meta.ui.resourceUri` and the `ui://` resource (MIME type `text/html;profile=mcp-app`) that serves `dist/index.html`. Rebuild (`npm run build`) after changing the view.

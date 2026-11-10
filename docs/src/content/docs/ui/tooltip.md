@@ -24,13 +24,13 @@ Toolbar.uses = { saveTip: tooltip({ trigger: '.save', tip: '.tip' }) }
 ```
 
 ```js
-import { run, makeTimerDriver } from 'sygnal'
-import Toolbar from './Toolbar.jsx'
+// Toolbar.jsx
+import { makeTimerDriver } from 'sygnal'
 
-run(Toolbar, { TIMER: makeTimerDriver() })
+Toolbar.drivers = { TIMER: makeTimerDriver() }
 ```
 
-The delays need the timer driver in `run()`. Tests don't: [fake timers](/guide/timers/#testing) drive them.
+The delays need the timer driver on the root component. Tests don't: [fake timers](/guide/timers/#testing) drive them.
 
 ## Options
 

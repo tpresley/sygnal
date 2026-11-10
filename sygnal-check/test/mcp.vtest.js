@@ -61,7 +61,7 @@ describe('sygnal-check mcp (stdio)', () => {
     expect((await s.request('ping')).result).toEqual({})
 
     const list = await s.request('tools/list', {})
-    expect(list.result.tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'docs'])
+    expect(list.result.tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'report'])
     for (const t of list.result.tools) {
       expect(t.inputSchema.type).toBe('object')
       expect(typeof t.description).toBe('string')

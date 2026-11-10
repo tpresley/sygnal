@@ -485,6 +485,10 @@ export function analyzeModel(project, file, modelNode) {
         addReplies(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), vfile, shared?.bind)
         res.sinkValues.push({ action, sink: sname, node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), keyNode: sp.key, file: vfile })
       }
+    } else if (value?.type === 'CallExpression' && isSygnalImport(mfile, value.callee, 'emit')) {
+      // `SAVE: emit('SAVED', fn)` is the entry `{ EVENTS: event('SAVED', fn) }`, not a reducer
+      sinks = ['EVENTS']
+      res.sinkValues.push({ action, sink: 'EVENTS', node: value, keyNode: p.key, file: mfile })
     } else {
       sinks = ['STATE']
       stateValue = { node: value, file: mfile }

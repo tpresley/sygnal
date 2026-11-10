@@ -64,7 +64,7 @@ describe('G-656: the SDK client over stdio', () => {
       if (era === 'modern') expect(client.getDiscoverResult()).toMatchObject({ supportedVersions: SUPPORTED_VERSIONS, capabilities: { tools: {} } })
 
       const { tools } = await client.listTools()
-      expect(tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'docs'])
+      expect(tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'report'])
 
       const check = await client.callTool({ name: 'check', arguments: { paths: ['test/fixtures/bad/selector-typo.jsx'] } })
       expect(check.isError).toBe(false)
@@ -143,7 +143,7 @@ describe('G-656: 2026-07-28 on the wire (stdio)', () => {
     })
     const list = await s.request('tools/list', { _meta: modernMeta() })
     expect(list.result).toMatchObject({ resultType: 'complete', ttlMs: 3_600_000, cacheScope: 'private', _meta: { [META + 'serverInfo']: { name: 'sygnal-check' } } })
-    expect(list.result.tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'docs'])
+    expect(list.result.tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'report'])
     const call = await s.request('tools/call', { name: 'explain', arguments: { code: '104' }, _meta: modernMeta() })
     expect(call.result).toMatchObject({ resultType: 'complete', isError: false, structuredContent: getExplanation('SYG104') })
     expect(call.result).not.toHaveProperty('ttlMs')

@@ -1,6 +1,5 @@
-import { run, makeFetchDriver, xs } from 'sygnal'
+import { run, xs } from 'sygnal'
 import { agentTools } from 'sygnal/ai'
-import { makeLLM } from '../../shared/providers.js'
 import SmartHome from './SmartHome.jsx'
 import './assistant.css'
 import homeSrc from './SmartHome.jsx?raw'
@@ -30,11 +29,7 @@ function makeAgentViewDriver() {
 
 export function start(mountPoint, uid) {
   const AGENT = makeAgentViewDriver()
-  const app = run(SmartHome, {
-    LLM: makeLLM(),             // the chat driver; the routed transport picks the provider per request
-    HTTP: makeFetchDriver(),    // the model list (GET /api/providers)
-    AGENT,
-  }, { mountPoint, uid })
+  const app = run(SmartHome, { AGENT }, { mountPoint, uid })
   return AGENT.attach(app)
 }
 

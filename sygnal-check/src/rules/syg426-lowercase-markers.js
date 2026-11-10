@@ -34,7 +34,7 @@ export const LOWERCASE_MARKERS = {
  * The edits that make `name` (exported by `mod`) usable at `at`: [] when it is already imported
  * from there, null when the name is bound to something else.
  */
-function ensureImport(file, name, mod, at) {
+export function ensureImport(file, name, mod, at) {
   const b = findBinding(file, name, at)
   if (b) return b.kind === 'import' && b.source === mod && b.imported === name ? [] : null
   const body = file.ast.program.body

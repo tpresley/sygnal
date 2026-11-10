@@ -280,12 +280,12 @@ export async function handle(request: Request) {
 }
 ```
 
-```js title="main.js"
-import { run, makeFetchDriver, makeSocketDriver } from 'sygnal'
+```js title="App.jsx"
+import { makeFetchDriver, makeSocketDriver } from 'sygnal'
 import { contractFetch } from 'sygnal/api'
 
 const fetch = contractFetch({ onSkew: () => showReloadBanner() })
-run(App, { HTTP: makeFetchDriver({ fetch }), WS: makeSocketDriver({ fetch }) })
+App.drivers = { HTTP: makeFetchDriver({ fetch }), WS: makeSocketDriver({ fetch }) }
 ```
 
 - **`contractHash(contract)`** hashes the procedures' ids, routes, input and output JSON Schemas (from the schemas' Standard JSON Schema support; zod 4 has it) and error codes. Any other value, such as an OpenAPI document, is hashed as its stable JSON. The hash is for detecting change only; it isn't cryptographic.

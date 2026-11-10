@@ -617,13 +617,11 @@
   "sel": "div",
   "text": "<undef>"
  },
- "dataset key (not a module)": {
+ "dataset key (an element: the data module)": {
   "children": [],
   "data": {
-   "props": {
-    "dataset": {
-     "a": 1
-    }
+   "dataset": {
+    "a": 1
    }
   },
   "elm": "<undef>",

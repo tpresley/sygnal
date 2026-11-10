@@ -449,7 +449,7 @@ await t.respond('HTTP', { n: 2 }, { nth: 1 })
 - **Isolation** is the driver's own. A reply action reaches only its sender, so a parent and a child can both use `ok: 'LOADED'`. Two Collection items can be answered by URL: `t.respond('HTTP', detail, { url: '/items/2' })`. Plain replies keep the scoped `select()`/`errors()` behaviour: each instance sees the replies to its own and its descendants' requests, and the root sees every reply.
 - **`t.requests(name)` vs `t.sinkValues(name)`.** `t.requests(name)` is the live list of requests, each as an object: a string request is listed as `{ url }`, so `expect(t.requests('HTTP')[0]).toMatchObject({ url: '/api/quote' })` works for either form, and a resource fetch is listed with its name (below). `t.sinkValues(name)` is every value the sink was sent, as sent: strings, the `{ abort }` commands, and the `{ resources }` and `{ refresh }` values. After a clear that aborts a search, `t.requests('HTTP')` still lists only the search.
 - **Timers.** `timeoutMs` runs on the test's timers, so under `vi.useFakeTimers()` a request fails with a `TimeoutError` when the clock passes it, and is no longer pending.
-- The fake can't see options given to the real driver in `main.js`: a `makeFetchDriver({ latest: true })` there doesn't apply in tests. Write `latest: true` on the request itself (the canonical form).
+- The fake can't see options given to the real driver: a `makeFetchDriver({ latest: true })` doesn't apply in tests. Write `latest: true` on the request itself (the canonical form).
 - A plain reply that nothing selects fails the test with an explanation (a category typo, or no `errors()` handler for a failure).
 
 ### Resources

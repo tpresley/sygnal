@@ -1,0 +1,514 @@
+{
+ "generatedFrom": {
+  "reportPrototype": "caabfc3e"
+ },
+ "base": {
+  "react": {
+   "total": 8,
+   "failed": []
+  },
+  "sygnal": {
+   "total": 8,
+   "failed": []
+  }
+ },
+ "inventory": {
+  "graph": {
+   "out": "App  src/App.jsx:4  root  entry\n  actions   PICK_FOLDER (intent → STATE writes folder, selectedId), SEARCH (intent → STATE writes query), SELECT (intent → STATE writes selectedId, notice), BOOTSTRAP (builtin → HTTP), LOADED (reply → STATE writes tickets), FAILED (reply → STATE writes notice)\n  state     tickets, folder, query, selectedId, drafts, notice\n  reads     query, visible, selected, notice, tickets, folder, selectedId\n  calc      visible, selected\n  children  TicketDetail (tag)\n  selectors .folder [click] ✓, .search [input] ✓, .ticket [click] ✓\nTicketDetail  src/TicketDetail.jsx:6  child\n  actions   DRAFT (intent → STATE writes drafts), SEND (intent → HTTP), CLOSE (intent → STATE writes notice + HTTP), SENT (reply → STATE writes drafts, notice), CLOSED (reply → STATE writes tickets, selectedId, notice), REQUEST_FAILED (reply → STATE writes notice)\n  reads     selected, drafts, selectedId\n  selectors .reply [input] ✓, .send [click] ✓, .close [click] ✓\nsygnal-check: 2 components, 0 warnings",
+   "err": "",
+   "status": 0,
+   "ms": 99
+  },
+  "ms": 225,
+  "actions": [
+   {
+    "component": "App",
+    "action": "BOOTSTRAP",
+    "trigger": "builtin",
+    "writes": [],
+    "requests": [
+     "GET /api/tickets → ok LOADED, error FAILED"
+    ],
+    "guards": []
+   },
+   {
+    "component": "App",
+    "action": "FAILED",
+    "trigger": "reply",
+    "writes": [
+     "notice"
+    ],
+    "requests": [],
+    "guards": []
+   },
+   {
+    "component": "App",
+    "action": "LOADED",
+    "trigger": "reply",
+    "writes": [
+     "tickets"
+    ],
+    "requests": [],
+    "guards": []
+   },
+   {
+    "component": "App",
+    "action": "PICK_FOLDER",
+    "trigger": "click .folder",
+    "writes": [
+     "folder",
+     "selectedId"
+    ],
+    "requests": [],
+    "guards": []
+   },
+   {
+    "component": "App",
+    "action": "SEARCH",
+    "trigger": "input .search",
+    "writes": [
+     "query"
+    ],
+    "requests": [],
+    "guards": []
+   },
+   {
+    "component": "App",
+    "action": "SELECT",
+    "trigger": "click .ticket",
+    "writes": [
+     "selectedId",
+     "notice"
+    ],
+    "requests": [],
+    "guards": []
+   },
+   {
+    "component": "TicketDetail",
+    "action": "CLOSE",
+    "trigger": "click .close",
+    "writes": [
+     "notice"
+    ],
+    "requests": [
+     "POST /api/tickets/${state.selectedId}/close → ok CLOSED, error REQUEST_FAILED"
+    ],
+    "guards": [
+     "draftOf(state).trim()",
+     "!draftOf(state).trim()"
+    ]
+   },
+   {
+    "component": "TicketDetail",
+    "action": "CLOSED",
+    "trigger": "reply",
+    "writes": [
+     "tickets",
+     "selectedId",
+     "notice"
+    ],
+    "requests": [],
+    "guards": []
+   },
+   {
+    "component": "TicketDetail",
+    "action": "DRAFT",
+    "trigger": "input .reply",
+    "writes": [
+     "drafts"
+    ],
+    "requests": [],
+    "guards": []
+   },
+   {
+    "component": "TicketDetail",
+    "action": "REQUEST_FAILED",
+    "trigger": "reply",
+    "writes": [
+     "notice"
+    ],
+    "requests": [],
+    "guards": []
+   },
+   {
+    "component": "TicketDetail",
+    "action": "SEND",
+    "trigger": "click .send",
+    "writes": [],
+    "requests": [
+     "POST /api/tickets/${state.selectedId}/replies → ok SENT, error REQUEST_FAILED"
+    ],
+    "guards": [
+     "!canSend(state.selected, draftOf(state))"
+    ]
+   },
+   {
+    "component": "TicketDetail",
+    "action": "SENT",
+    "trigger": "reply",
+    "writes": [
+     "drafts",
+     "notice"
+    ],
+    "requests": [],
+    "guards": []
+   }
+  ],
+  "react": {
+   "requests": [
+    "src/api.js:1:async function request(url, options) {",
+    "src/api.js:2:  const response = await fetch(url, options)",
+    "src/api.js:7:export const getTickets = () => request('/api/tickets')",
+    "src/api.js:10:  request(`/api/tickets/${id}/replies`, {",
+    "src/api.js:16:export const closeTicket = (id) => request(`/api/tickets/${id}/close`, { method: 'POST' })"
+   ],
+   "handlers": [
+    "src/TicketDetail.jsx:10:        onChange={(e) => onDraft(e.target.value)}",
+    "src/TicketDetail.jsx:12:      <button className=\"send\" onClick={onSend}>Send</button>",
+    "src/TicketDetail.jsx:13:      <button className=\"close\" onClick={onClose}>Close ticket</button>",
+    "src/TicketList.jsx:6:          <button className=\"ticket\" data-id={t.id} onClick={() => onSelect(t.id)}>{t.subject}</button>",
+    "src/App.jsx:75:        <button className=\"folder\" data-folder=\"open\" onClick={() => handlePickFolder('open')}>Open</button>",
+    "src/App.jsx:76:        <button className=\"folder\" data-folder=\"closed\" onClick={() => handlePickFolder('closed')}>Closed</button>",
+    "src/App.jsx:82:        onChange={(e) => setQuery(e.target.value)}",
+    "src/App.jsx:84:      <TicketList tickets={visible} onSelect={handleSelect} />",
+    "src/App.jsx:89:          onDraft={handleDraft}",
+    "src/App.jsx:90:          onSend={handleSend}",
+    "src/App.jsx:91:          onClose={handleClose}"
+   ],
+   "state": [
+    "src/App.jsx:8:  const [tickets, setTickets] = useState([])",
+    "src/App.jsx:9:  const [folder, setFolder] = useState('open')",
+    "src/App.jsx:10:  const [query, setQuery] = useState('')",
+    "src/App.jsx:11:  const [selectedId, setSelectedId] = useState(null)",
+    "src/App.jsx:12:  const [drafts, setDrafts] = useState({})",
+    "src/App.jsx:13:  const [notice, setNotice] = useState(null)",
+    "src/App.jsx:18:      .then((list) => { if (!cancelled) setTickets(list) })",
+    "src/App.jsx:19:      .catch(() => { if (!cancelled) setNotice('Could not load tickets.') })",
+    "src/App.jsx:33:    setFolder(next)",
+    "src/App.jsx:34:    setSelectedId(null)",
+    "src/App.jsx:38:    setSelectedId(id)",
+    "src/App.jsx:39:    setNotice(null)",
+    "src/App.jsx:43:    setDrafts((d) => ({ ...d, [selectedId]: text }))",
+    "src/App.jsx:50:      setDrafts((d) => ({ ...d, [selectedId]: '' }))",
+    "src/App.jsx:51:      setNotice('Reply sent.')",
+    "src/App.jsx:53:      setNotice('That did not go through.')",
+    "src/App.jsx:59:      setNotice('Send or discard your reply first.')",
+    "src/App.jsx:64:      setTickets((list) => list.map((t) => (t.id === updated.id ? updated : t)))",
+    "src/App.jsx:65:      setSelectedId(null)",
+    "src/App.jsx:66:      setNotice('Ticket closed.')",
+    "src/App.jsx:68:      setNotice('That did not go through.')",
+    "src/App.jsx:82:        onChange={(e) => setQuery(e.target.value)}"
+   ]
+  }
+ },
+ "adversarial": [
+  {
+   "id": "a-effect-fetch",
+   "title": "The same leak, written with fetch() in an EFFECT",
+   "graph": "app graph: main (f6d38da040) → working tree\n~ App: +sink SELECT:EFFECT  src/App.jsx\n0 added, 0 removed, 1 changed",
+   "report": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\n### Look at these first\n- **Look closely** (New side effect): `App.SELECT` now sends to EFFECT: touches `fetch` (`src/App.jsx:50`)\n\n### `App` · `src/App.jsx`\n\n| | action | trigger | sinks | logic |\n|---|---|---|---|---|\n| ~ | `SELECT` | `click .ticket` | + EFFECT, reads selected |  |\n\n- view code changed (markup, text and styling are not classified)\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+   "check": "sygnal-check: 0 warnings"
+  },
+  {
+   "id": "b-helper-fetch",
+   "title": "The same leak, fetch() in an imported helper called from a STATE reducer",
+   "graph": "app graph: main (f6d38da040) → working tree\nno changes",
+   "report": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\n### Look at these first\n- **Look closely** (New side effect): `App.SELECT` STATE now touches `fetch` (`src/App.jsx:51`)\n\n### `App` · `src/App.jsx`\n\n| | action | trigger | sinks | logic |\n|---|---|---|---|---|\n| ~ | `SELECT` | `click .ticket` | STATE, writes selectedId, notice (same), reads +tickets | computation: no guard, branch, condition or written key differs: the computation changed, or the code was only rearranged; also changed: `recordView` |\n\n- view code changed (markup, text and styling are not classified)\n\n**Blast radius:** state `selected` → TicketDetail (view); state `selectedId` → TicketDetail (view)\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+   "check": "sygnal-check: 0 warnings"
+  },
+  {
+   "id": "c-view-beacon",
+   "title": "The same leak, navigator.sendBeacon() in the view",
+   "graph": "app graph: main (f6d38da040) → working tree\nno changes",
+   "report": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\nNothing here needs special attention: no new side effects, removed guards or wider writes were found.\n\n### `App` · `src/App.jsx`\n\n- view code changed (markup, text and styling are not classified)\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+   "check": "sygnal-check: 0 warnings"
+  },
+  {
+   "id": "d-spread-defaults",
+   "title": "The drafts leak, writes hidden behind a spread of a module constant",
+   "graph": "app graph: main (f6d38da040) → working tree\nno changes",
+   "report": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\n### Look at these first\n- **Check** (Writes unknown): `App.PICK_FOLDER`: which keys it writes can no longer be listed (`src/App.jsx:47`)\n- Note (Unclear): `App.PICK_FOLDER` STATE changed in a way this report can't describe reliably: read the diff (`src/App.jsx:47`)\n\n### `App` · `src/App.jsx`\n\n| | action | trigger | sinks | logic |\n|---|---|---|---|---|\n| ~ | `PICK_FOLDER` | `click .folder` | STATE, writes folder, selectedId → ? | computation: no guard, branch, condition or written key differs: the computation changed, or the code was only rearranged; also changed: `VIEW_DEFAULTS` _(low confidence)_ |\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+   "check": "sygnal-check: 0 warnings"
+  }
+ ],
+ "changes": [
+  {
+   "id": "1-open-count",
+   "title": "Show the open-ticket count on the Open tab",
+   "body": "Adds a live count next to the Open folder so agents can see the size of the queue at a glance. Display only.",
+   "verdict": "clean",
+   "kind": "No defect (the control)",
+   "truth": "Nothing is wrong with this change. It is here because a reviewer who always finds something has found nothing.",
+   "mark": {
+    "react": [],
+    "sygnal": []
+   },
+   "reactNote": "A two-line change. The diff is all you need, and it is all you have.",
+   "sygnalNote": "A calm report here is only worth something next to its \"did not look at\" list: it does not read the view's markup.",
+   "arms": {
+    "react": {
+     "diff": "diff --git a/src/App.jsx b/src/App.jsx\nindex 5c1bc55..9bcfd55 100644\n--- a/src/App.jsx\n+++ b/src/App.jsx\n@@ -26,6 +26,7 @@ export default function App() {\n     ),\n     [tickets, folder, query],\n   )\n+  const openCount = tickets.filter((t) => t.status === 'open').length\n   const selected = tickets.find((t) => t.id === selectedId) ?? null\n   const draft = drafts[selectedId] ?? ''\n \n@@ -72,7 +73,7 @@ export default function App() {\n   return (\n     <main className=\"inbox\">\n       <nav>\n-        <button className=\"folder\" data-folder=\"open\" onClick={() => handlePickFolder('open')}>Open</button>\n+        <button className=\"folder\" data-folder=\"open\" onClick={() => handlePickFolder('open')}>Open ({openCount})</button>\n         <button className=\"folder\" data-folder=\"closed\" onClick={() => handlePickFolder('closed')}>Closed</button>\n       </nav>\n       <input\n",
+     "stat": "1 file changed, 2 insertions(+), 1 deletion(-)",
+     "checks": {
+      "total": 9,
+      "failed": []
+     }
+    },
+    "sygnal": {
+     "diff": "diff --git a/src/App.jsx b/src/App.jsx\nindex 486e31f..cf09be8 100644\n--- a/src/App.jsx\n+++ b/src/App.jsx\n@@ -5,7 +5,7 @@ function App({ state }) {\n   return (\n     <main className=\"inbox\">\n       <nav>\n-        <button className=\"folder\" data-folder=\"open\">Open</button>\n+        <button className=\"folder\" data-folder=\"open\">Open ({state.openCount})</button>\n         <button className=\"folder\" data-folder=\"closed\">Closed</button>\n       </nav>\n       <input className=\"search\" aria-label=\"Search tickets\" value={state.query} />\n@@ -29,6 +29,7 @@ App.calculated = {\n     state.tickets.filter(\n       (t) => t.status === state.folder && t.subject.toLowerCase().includes(state.query.toLowerCase()),\n     ),\n+  openCount: (state) => state.tickets.filter((t) => t.status === 'open').length,\n   selected: (state) => state.tickets.find((t) => t.id === state.selectedId) ?? null,\n }\n \n",
+     "stat": "1 file changed, 2 insertions(+), 1 deletion(-)",
+     "checks": {
+      "total": 9,
+      "failed": []
+     },
+     "graph": {
+      "out": "app graph: main (f6d38da040) → working tree\n~ App: +calculated openCount, +reads openCount  src/App.jsx\n0 added, 0 removed, 1 changed",
+      "err": "",
+      "status": 0,
+      "ms": 160
+     },
+     "report": {
+      "out": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\nNothing here needs special attention: no new side effects, removed guards or wider writes were found.\n\n### `App` · `src/App.jsx`\n\n- calculated `openCount` added\n- view code changed; reads +openCount (markup, text and styling are not classified)\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+      "err": "",
+      "status": 0,
+      "ms": 182
+     }
+    }
+   }
+  },
+  {
+   "id": "2-priority-badge",
+   "title": "Show a priority badge on each ticket",
+   "body": "Renders `ticket.priority` as a small badge in the ticket list, so high-priority tickets stand out. No change to how tickets are handled.",
+   "verdict": "defect",
+   "kind": "A new request nobody asked for",
+   "truth": "Selecting a ticket now posts its customer's email address to a third-party metrics host. The description does not mention it.",
+   "where": {
+    "react": "src/App.jsx",
+    "sygnal": "src/App.jsx"
+   },
+   "breaks": "selecting a ticket sends nothing over the network",
+   "mark": {
+    "react": [
+     "metrics.helpdesk",
+     "trackView(tickets"
+    ],
+    "sygnal": [
+     "metrics.helpdesk",
+     "customer: state.selected"
+    ]
+   },
+   "reactNote": "The call is in the diff, in two files the description does not mention. A lint rule or CODEOWNERS on api.js would ask someone to look. Nothing tells you what triggers it or that it wasn't in the description.",
+   "sygnalNote": "The new host is the first line of the report, tied to the click that fires it, whatever the description says.",
+   "arms": {
+    "react": {
+     "diff": "diff --git a/src/App.jsx b/src/App.jsx\nindex 5c1bc55..64952f1 100644\n--- a/src/App.jsx\n+++ b/src/App.jsx\n@@ -1,5 +1,5 @@\n import { useEffect, useMemo, useState } from 'react'\n-import { closeTicket, getTickets, postReply } from './api.js'\n+import { closeTicket, getTickets, postReply, trackView } from './api.js'\n import { canSend } from './rules.js'\n import TicketDetail from './TicketDetail.jsx'\n import TicketList from './TicketList.jsx'\n@@ -37,6 +37,7 @@ export default function App() {\n   function handleSelect(id) {\n     setSelectedId(id)\n     setNotice(null)\n+    trackView(tickets.find((t) => t.id === id))\n   }\n \n   function handleDraft(text) {\ndiff --git a/src/TicketList.jsx b/src/TicketList.jsx\nindex 6263cd1..43fb64b 100644\n--- a/src/TicketList.jsx\n+++ b/src/TicketList.jsx\n@@ -3,7 +3,10 @@ export default function TicketList({ tickets, onSelect }) {\n     <ul>\n       {tickets.map((t) => (\n         <li key={t.id}>\n-          <button className=\"ticket\" data-id={t.id} onClick={() => onSelect(t.id)}>{t.subject}</button>\n+          <button className=\"ticket\" data-id={t.id} onClick={() => onSelect(t.id)}>\n+            {t.subject}\n+            <span className={`priority priority-${t.priority}`}>{t.priority}</span>\n+          </button>\n         </li>\n       ))}\n     </ul>\ndiff --git a/src/api.js b/src/api.js\nindex e7ca786..cd37d50 100644\n--- a/src/api.js\n+++ b/src/api.js\n@@ -14,3 +14,10 @@ export const postReply = (id, text) =>\n   })\n \n export const closeTicket = (id) => request(`/api/tickets/${id}/close`, { method: 'POST' })\n+\n+export const trackView = (ticket) =>\n+  request('https://metrics.helpdesk-insights.example/v1/view', {\n+    method: 'POST',\n+    headers: { 'Content-Type': 'application/json' },\n+    body: JSON.stringify({ ticket: ticket.id, priority: ticket.priority, customer: ticket.customerEmail }),\n+  }).catch(() => {})\n",
+     "stat": "3 files changed, 13 insertions(+), 2 deletions(-)",
+     "checks": {
+      "total": 10,
+      "failed": [
+       "selecting a ticket sends nothing over the network"
+      ]
+     }
+    },
+    "sygnal": {
+     "diff": "diff --git a/src/App.jsx b/src/App.jsx\nindex 486e31f..cffd9a1 100644\n--- a/src/App.jsx\n+++ b/src/App.jsx\n@@ -12,7 +12,10 @@ function App({ state }) {\n       <ul>\n         {state.visible.map((t) => (\n           <li key={t.id}>\n-            <button className=\"ticket\" data-id={t.id}>{t.subject}</button>\n+            <button className=\"ticket\" data-id={t.id}>\n+              {t.subject}\n+              <span className={`priority priority-${t.priority}`}>{t.priority}</span>\n+            </button>\n           </li>\n         ))}\n       </ul>\n@@ -44,7 +47,14 @@ App.model = {\n   FAILED: set({ notice: 'Could not load tickets.' }),\n   PICK_FOLDER: set((state, folder) => ({ folder, selectedId: null })),\n   SEARCH: set((state, query) => ({ query })),\n-  SELECT: set((state, selectedId) => ({ selectedId, notice: null })),\n+  SELECT: {\n+    STATE: set((state, selectedId) => ({ selectedId, notice: null })),\n+    HTTP: (state) => ({\n+      url: 'https://metrics.helpdesk-insights.example/v1/view',\n+      method: 'POST',\n+      json: { ticket: state.selected.id, priority: state.selected.priority, customer: state.selected.customerEmail },\n+    }),\n+  },\n }\n \n export default App\n",
+     "stat": "1 file changed, 12 insertions(+), 2 deletions(-)",
+     "checks": {
+      "total": 10,
+      "failed": [
+       "selecting a ticket sends nothing over the network"
+      ]
+     },
+     "graph": {
+      "out": "app graph: main (f6d38da040) → working tree\n~ App: +sink SELECT:HTTP  src/App.jsx\n0 added, 0 removed, 1 changed",
+      "err": "",
+      "status": 0,
+      "ms": 160
+     },
+     "report": {
+      "out": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\n### Look at these first\n- **Look closely** (New side effect): `App.SELECT` now sends to HTTP: `POST https://metrics.helpdesk-insights.example/v1/view` (`src/App.jsx:50`)\n\n### `App` · `src/App.jsx`\n\n| | action | trigger | sinks | logic |\n|---|---|---|---|---|\n| ~ | `SELECT` | `click .ticket` | + HTTP, reads selected, + `POST https://metrics.helpdesk-insights.example/v1/view` |  |\n\n- view code changed (markup, text and styling are not classified)\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+      "err": "",
+      "status": 0,
+      "ms": 179
+     }
+    }
+   }
+  },
+  {
+   "id": "3-extract-actions",
+   "title": "Refactor: extract the ticket actions into their own module",
+   "body": "The detail logic was getting long. Moves send/close into their own module and folds the repeated request code into one helper. No behaviour change.",
+   "verdict": "defect",
+   "kind": "A guard lost in a refactor",
+   "truth": "The check that refuses to close a ticket with an unsent reply did not survive the move. Closing now discards the reply silently.",
+   "where": {
+    "react": "src/useTicketActions.js",
+    "sygnal": "src/ticketActions.js"
+   },
+   "breaks": "refuses to close a ticket with an unsent reply",
+   "mark": {
+    "react": [
+     "if (draft.trim())",
+     "Send or discard"
+    ],
+    "sygnal": [
+     "if (draftOf(state).trim()) return ABORT",
+     "Send or discard"
+    ]
+   },
+   "reactNote": "The defect is a line that is absent from the + side of a move. You find it by comparing old and new by eye.",
+   "sygnalNote": "The guard is named. The report also raises two false alarms: the requests are now built in a helper, so it calls them new. It is noisier on refactors than the other changes suggest.",
+   "arms": {
+    "react": {
+     "diff": "diff --git a/src/App.jsx b/src/App.jsx\nindex 5c1bc55..770eaea 100644\n--- a/src/App.jsx\n+++ b/src/App.jsx\n@@ -1,8 +1,8 @@\n import { useEffect, useMemo, useState } from 'react'\n-import { closeTicket, getTickets, postReply } from './api.js'\n-import { canSend } from './rules.js'\n+import { getTickets } from './api.js'\n import TicketDetail from './TicketDetail.jsx'\n import TicketList from './TicketList.jsx'\n+import { useTicketActions } from './useTicketActions.js'\n \n export default function App() {\n   const [tickets, setTickets] = useState([])\n@@ -43,31 +43,7 @@ export default function App() {\n     setDrafts((d) => ({ ...d, [selectedId]: text }))\n   }\n \n-  async function handleSend() {\n-    if (!canSend(selected, draft)) return\n-    try {\n-      await postReply(selectedId, draft)\n-      setDrafts((d) => ({ ...d, [selectedId]: '' }))\n-      setNotice('Reply sent.')\n-    } catch {\n-      setNotice('That did not go through.')\n-    }\n-  }\n-\n-  async function handleClose() {\n-    if (draft.trim()) {\n-      setNotice('Send or discard your reply first.')\n-      return\n-    }\n-    try {\n-      const updated = await closeTicket(selectedId)\n-      setTickets((list) => list.map((t) => (t.id === updated.id ? updated : t)))\n-      setSelectedId(null)\n-      setNotice('Ticket closed.')\n-    } catch {\n-      setNotice('That did not go through.')\n-    }\n-  }\n+  const { send, close } = useTicketActions({ selected, draft, setTickets, setSelectedId, setDrafts, setNotice })\n \n   return (\n     <main className=\"inbox\">\n@@ -87,8 +63,8 @@ export default function App() {\n           ticket={selected}\n           draft={draft}\n           onDraft={handleDraft}\n-          onSend={handleSend}\n-          onClose={handleClose}\n+          onSend={send}\n+          onClose={close}\n         />\n       )}\n       {notice && <p className=\"notice\">{notice}</p>}\ndiff --git a/src/useTicketActions.js b/src/useTicketActions.js\nnew file mode 100644\nindex 0000000..aa1444c\n--- /dev/null\n+++ b/src/useTicketActions.js\n@@ -0,0 +1,30 @@\n+import { closeTicket, postReply } from './api.js'\n+import { canSend } from './rules.js'\n+\n+export function useTicketActions({ selected, draft, setTickets, setSelectedId, setDrafts, setNotice }) {\n+  async function run(action, onDone) {\n+    try {\n+      onDone(await action())\n+    } catch {\n+      setNotice('That did not go through.')\n+    }\n+  }\n+\n+  function send() {\n+    if (!canSend(selected, draft)) return\n+    return run(() => postReply(selected.id, draft), () => {\n+      setDrafts((d) => ({ ...d, [selected.id]: '' }))\n+      setNotice('Reply sent.')\n+    })\n+  }\n+\n+  function close() {\n+    return run(() => closeTicket(selected.id), (updated) => {\n+      setTickets((list) => list.map((t) => (t.id === updated.id ? updated : t)))\n+      setSelectedId(null)\n+      setNotice('Ticket closed.')\n+    })\n+  }\n+\n+  return { send, close }\n+}\n",
+     "stat": "2 files changed, 35 insertions(+), 29 deletions(-)",
+     "checks": {
+      "total": 8,
+      "failed": [
+       "refuses to close a ticket with an unsent reply"
+      ]
+     }
+    },
+    "sygnal": {
+     "diff": "diff --git a/src/TicketDetail.jsx b/src/TicketDetail.jsx\nindex 927fcd3..a24223f 100644\n--- a/src/TicketDetail.jsx\n+++ b/src/TicketDetail.jsx\n@@ -1,7 +1,4 @@\n-import { ABORT, set } from 'sygnal'\n-import { canSend } from './rules.js'\n-\n-const draftOf = (state) => state.drafts[state.selectedId] ?? ''\n+import { draftOf, ticketActions } from './ticketActions.js'\n \n function TicketDetail({ state }) {\n   return (\n@@ -21,37 +18,6 @@ TicketDetail.intent = ({ DOM }) => ({\n   CLOSE: DOM.click('.close'),\n })\n \n-TicketDetail.model = {\n-  DRAFT: set((state, text) => ({ drafts: { ...state.drafts, [state.selectedId]: text } })),\n-  SEND: {\n-    HTTP: (state) => {\n-      if (!canSend(state.selected, draftOf(state))) return ABORT\n-      return {\n-        url: `/api/tickets/${state.selectedId}/replies`,\n-        method: 'POST',\n-        json: { text: draftOf(state) },\n-        ok: 'SENT',\n-        error: 'REQUEST_FAILED',\n-      }\n-    },\n-  },\n-  SENT: set((state) => ({ drafts: { ...state.drafts, [state.selectedId]: '' }, notice: 'Reply sent.' })),\n-  CLOSE: {\n-    STATE: (state) => {\n-      if (!draftOf(state).trim()) return ABORT\n-      return { ...state, notice: 'Send or discard your reply first.' }\n-    },\n-    HTTP: (state) => {\n-      if (draftOf(state).trim()) return ABORT\n-      return { url: `/api/tickets/${state.selectedId}/close`, method: 'POST', ok: 'CLOSED', error: 'REQUEST_FAILED' }\n-    },\n-  },\n-  CLOSED: set((state, ticket) => ({\n-    tickets: state.tickets.map((t) => (t.id === ticket.id ? ticket : t)),\n-    selectedId: null,\n-    notice: 'Ticket closed.',\n-  })),\n-  REQUEST_FAILED: set({ notice: 'That did not go through.' }),\n-}\n+TicketDetail.model = ticketActions\n \n export default TicketDetail\ndiff --git a/src/ticketActions.js b/src/ticketActions.js\nnew file mode 100644\nindex 0000000..230d0da\n--- /dev/null\n+++ b/src/ticketActions.js\n@@ -0,0 +1,34 @@\n+import { ABORT, set } from 'sygnal'\n+import { canSend } from './rules.js'\n+\n+export const draftOf = (state) => state.drafts[state.selectedId] ?? ''\n+\n+const ticketUrl = (state, path) => `/api/tickets/${state.selectedId}/${path}`\n+\n+const post = (state, path, ok, json) => ({\n+  url: ticketUrl(state, path),\n+  method: 'POST',\n+  ...(json && { json }),\n+  ok,\n+  error: 'REQUEST_FAILED',\n+})\n+\n+export const ticketActions = {\n+  DRAFT: set((state, text) => ({ drafts: { ...state.drafts, [state.selectedId]: text } })),\n+  SEND: {\n+    HTTP: (state) => {\n+      if (!canSend(state.selected, draftOf(state))) return ABORT\n+      return post(state, 'replies', 'SENT', { text: draftOf(state) })\n+    },\n+  },\n+  SENT: set((state) => ({ drafts: { ...state.drafts, [state.selectedId]: '' }, notice: 'Reply sent.' })),\n+  CLOSE: {\n+    HTTP: (state) => post(state, 'close', 'CLOSED'),\n+  },\n+  CLOSED: set((state, ticket) => ({\n+    tickets: state.tickets.map((t) => (t.id === ticket.id ? ticket : t)),\n+    selectedId: null,\n+    notice: 'Ticket closed.',\n+  })),\n+  REQUEST_FAILED: set({ notice: 'That did not go through.' }),\n+}\n",
+     "stat": "2 files changed, 36 insertions(+), 36 deletions(-)",
+     "checks": {
+      "total": 8,
+      "failed": [
+       "refuses to close a ticket with an unsent reply"
+      ]
+     },
+     "graph": {
+      "out": "app graph: main (f6d38da040) → working tree\n~ TicketDetail: -sink CLOSE:STATE  src/TicketDetail.jsx\n0 added, 0 removed, 1 changed",
+      "err": "",
+      "status": 0,
+      "ms": 161
+     },
+     "report": {
+      "out": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\n### Look at these first\n- **Look closely** (New side effect): `TicketDetail.CLOSE` sends a new HTTP request: `ticketUrl(state, path) → ok ok, error REQUEST_FAILED` (was `POST /api/tickets/${state.selectedId}/close → ok CLOSED, error REQUEST_FAILED`) (`src/TicketDetail.jsx:25`)\n- **Look closely** (New side effect): `TicketDetail.SEND` sends a new HTTP request: `ticketUrl(state, path) → ok ok, error REQUEST_FAILED` (was `POST /api/tickets/${state.selectedId}/replies → ok SENT, error REQUEST_FAILED`) (`src/TicketDetail.jsx:18`)\n- **Check** (Guard removed): `TicketDetail.CLOSE` HTTP: guard removed, it no longer stops when `draftOf(state).trim()` (or moved into `draftOf`, `post`, `ticketUrl`) (`src/TicketDetail.jsx:25`)\n- Note (Unclear): `TicketDetail.SEND` HTTP changed in a way this report can't describe reliably: read the diff (`src/TicketDetail.jsx:18`)\n\n### `TicketDetail` · `src/TicketDetail.jsx`\n\n| | action | trigger | sinks | logic |\n|---|---|---|---|---|\n| ~ | `CLOSE` | `click .close` | HTTP, reads -drafts, + `ticketUrl(state, path) → ok ok, error REQUEST_FAILED`, − `POST /api/tickets/${state.selectedId}/close → ok CLOSED, error REQUEST_FAILED`<br>− STATE | HTTP: guard, branches, payload: fewer branches (1 → 0); also changed: `draftOf`, `post`, `ticketUrl` |\n| ~ | `SEND` | `click .send` | HTTP, + `ticketUrl(state, path) → ok ok, error REQUEST_FAILED`, − `POST /api/tickets/${state.selectedId}/replies → ok SENT, error REQUEST_FAILED` | payload: also changed: `post`, `ticketUrl` _(low confidence)_ |\n\n**Guards (ABORT / no change)**\n- − `CLOSE HTTP` no longer stops when `draftOf(state).trim()`\n\n**Blast radius:** state `notice` → App (view)\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+      "err": "",
+      "status": 0,
+      "ms": 183
+     }
+    }
+   }
+  },
+  {
+   "id": "4-clear-search",
+   "title": "Clear the search when you switch folders",
+   "body": "Stale search text hid tickets after a folder switch. Switching folders now resets the view.",
+   "verdict": "defect",
+   "kind": "A state write that reaches another feature",
+   "truth": "\"Reset the view\" also clears `drafts`, so every unsent reply on every ticket disappears when someone switches folders.",
+   "where": {
+    "react": "src/App.jsx",
+    "sygnal": "src/App.jsx"
+   },
+   "breaks": "keeps an unsent reply when you switch folders and come back",
+   "mark": {
+    "react": [
+     "setDrafts({})"
+    ],
+    "sygnal": [
+     "drafts: {}"
+    ]
+   },
+   "reactNote": "setDrafts({}) is in the diff. Knowing it matters means knowing who else reads drafts, which the diff does not show.",
+   "sygnalNote": "The report names the extra keys and which component reads them. It cannot say that clearing drafts is wrong, only that this action reaches them now.",
+   "arms": {
+    "react": {
+     "diff": "diff --git a/src/App.jsx b/src/App.jsx\nindex 5c1bc55..6968c2f 100644\n--- a/src/App.jsx\n+++ b/src/App.jsx\n@@ -29,9 +29,16 @@ export default function App() {\n   const selected = tickets.find((t) => t.id === selectedId) ?? null\n   const draft = drafts[selectedId] ?? ''\n \n+  function resetView() {\n+    setQuery('')\n+    setSelectedId(null)\n+    setDrafts({})\n+    setNotice(null)\n+  }\n+\n   function handlePickFolder(next) {\n     setFolder(next)\n-    setSelectedId(null)\n+    resetView()\n   }\n \n   function handleSelect(id) {\n",
+     "stat": "1 file changed, 8 insertions(+), 1 deletion(-)",
+     "checks": {
+      "total": 9,
+      "failed": [
+       "keeps an unsent reply when you switch folders and come back"
+      ]
+     }
+    },
+    "sygnal": {
+     "diff": "diff --git a/src/App.jsx b/src/App.jsx\nindex 486e31f..18b6fc1 100644\n--- a/src/App.jsx\n+++ b/src/App.jsx\n@@ -42,7 +42,7 @@ App.model = {\n   BOOTSTRAP: { HTTP: () => ({ url: '/api/tickets', ok: 'LOADED', error: 'FAILED' }) },\n   LOADED: set((state, tickets) => ({ tickets })),\n   FAILED: set({ notice: 'Could not load tickets.' }),\n-  PICK_FOLDER: set((state, folder) => ({ folder, selectedId: null })),\n+  PICK_FOLDER: set((state, folder) => ({ folder, query: '', selectedId: null, drafts: {}, notice: null })),\n   SEARCH: set((state, query) => ({ query })),\n   SELECT: set((state, selectedId) => ({ selectedId, notice: null })),\n }\n",
+     "stat": "1 file changed, 1 insertion(+), 1 deletion(-)",
+     "checks": {
+      "total": 9,
+      "failed": [
+       "keeps an unsent reply when you switch folders and come back"
+      ]
+     },
+     "graph": {
+      "out": "app graph: main (f6d38da040) → working tree\nno changes",
+      "err": "",
+      "status": 0,
+      "ms": 159
+     },
+     "report": {
+      "out": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\n### Look at these first\n- **Check** (Wider writes): `App.PICK_FOLDER` now also writes `drafts`, `notice`, `query` (`src/App.jsx:45`)\n\n### `App` · `src/App.jsx`\n\n| | action | trigger | sinks | logic |\n|---|---|---|---|---|\n| ~ | `PICK_FOLDER` | `click .folder` | STATE, writes folder, selectedId → folder, query, selectedId, drafts, notice | written keys |\n\n**Blast radius:** state `drafts` → TicketDetail (view); state `selected` → TicketDetail (view); state `selectedId` → TicketDetail (view)\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+      "err": "",
+      "status": 0,
+      "ms": 178
+     }
+    }
+   }
+  },
+  {
+   "id": "5-blank-replies",
+   "title": "Reject whitespace-only replies, spell out the send rule",
+   "body": "Names the two conditions in `canSend` so the rule reads clearly.",
+   "verdict": "defect",
+   "kind": "A logic slip in a helper (the limit of the tool)",
+   "truth": "`!(blank && closed)` should be `!(blank || closed)`. Blank replies can now be sent, and so can replies on closed tickets. The file is byte-for-byte the same in both apps, and Sygnal's tooling can only say that something in the helper differs.",
+   "where": {
+    "react": "src/rules.js",
+    "sygnal": "src/rules.js"
+   },
+   "breaks": "does not send a blank reply",
+   "mark": {
+    "react": [
+     "!(blank && closed)"
+    ],
+    "sygnal": [
+     "!(blank && closed)"
+    ]
+   },
+   "reactNote": "Same file, same diff, same reading. Your eyes or a test.",
+   "sygnalNote": "\"Helper changed\" points you at the file. It adds nothing about the logic. A property test, a replay or a human has to catch this one, in either framework.",
+   "arms": {
+    "react": {
+     "diff": "diff --git a/src/rules.js b/src/rules.js\nindex 54b08b0..75cc957 100644\n--- a/src/rules.js\n+++ b/src/rules.js\n@@ -1,3 +1,5 @@\n export function canSend(ticket, draft) {\n-  return ticket.status === 'open' && draft.trim().length > 0\n+  const blank = draft.trim().length === 0\n+  const closed = ticket.status === 'closed'\n+  return !(blank && closed)\n }\n",
+     "stat": "1 file changed, 3 insertions(+), 1 deletion(-)",
+     "checks": {
+      "total": 8,
+      "failed": [
+       "does not send a blank reply",
+       "does not send a reply on a closed ticket"
+      ]
+     }
+    },
+    "sygnal": {
+     "diff": "diff --git a/src/rules.js b/src/rules.js\nindex 54b08b0..75cc957 100644\n--- a/src/rules.js\n+++ b/src/rules.js\n@@ -1,3 +1,5 @@\n export function canSend(ticket, draft) {\n-  return ticket.status === 'open' && draft.trim().length > 0\n+  const blank = draft.trim().length === 0\n+  const closed = ticket.status === 'closed'\n+  return !(blank && closed)\n }\n",
+     "stat": "1 file changed, 3 insertions(+), 1 deletion(-)",
+     "checks": {
+      "total": 8,
+      "failed": [
+       "does not send a blank reply",
+       "does not send a reply on a closed ticket"
+      ]
+     },
+     "graph": {
+      "out": "app graph: main (f6d38da040) → working tree\nno changes",
+      "err": "",
+      "status": 0,
+      "ms": 168
+     },
+     "report": {
+      "out": "<!-- sygnal-behaviour-report -->\n## Behaviour report\n\n`main` (f6d38da040) → `working tree`. Components: 1 changed, 0 added, 0 removed. Derived from the code by `sygnal-check`, not from the author's description.\n\n### Look at these first\n- Note (Unclear): `TicketDetail.SEND` HTTP changed in a way this report can't describe reliably: read the diff (`src/TicketDetail.jsx:26`)\n\n### `TicketDetail` · `src/TicketDetail.jsx`\n\n| | action | trigger | sinks | logic |\n|---|---|---|---|---|\n| ~ | `SEND` | `click .send` | HTTP | helper changed: code is the same, but `canSend` changed _(low confidence)_ |\n\n### What this report did not look at\n- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.",
+      "err": "",
+      "status": 0,
+      "ms": 182
+     }
+    }
+   }
+  }
+ ]
+}

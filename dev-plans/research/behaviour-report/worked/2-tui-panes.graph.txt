@@ -1,0 +1,4 @@
+app graph: d3b10f54~1 (531261de9d) → d3b10f54
+~ IssueRow: +action DETAIL, +action MOVE, +context tabStop  examples/tui-tracker/src/app.jsx
+~ Tracker: +action TO_DETAIL, +action TO_LIST, +provides tabStop, +selector .detail  examples/tui-tracker/src/app.jsx
+0 added, 0 removed, 2 changed

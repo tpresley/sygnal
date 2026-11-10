@@ -72,13 +72,13 @@ export default App
 ```
 
 ```js
-// main.js
-import { run } from 'sygnal'
+// App.jsx
 import { makeMcpAppDriver } from 'sygnal/ai'
-import App from './App.jsx'
 
-run(App, { MCP: makeMcpAppDriver({ appInfo: { name: 'forecast', version: '1.0.0' } }) })
+App.drivers = { MCP: makeMcpAppDriver({ appInfo: { name: 'forecast', version: '1.0.0' } }) }
 ```
+
+`main.js` is `run(App)`.
 
 The driver does the `ui/initialize` handshake with the host when the app starts. Requests made before it completes wait for it; with no host (the page opened directly, or server rendering) every request gets its `error` action.
 
@@ -209,17 +209,12 @@ A host may also keep a tool's view (the `ui://` resource) and the tool list for 
 
 The model sees the server's tools. With `tools: agentTools`, the view also offers its components' [`agent` declarations](/guide/agent/) to the host as tools of its own, so the model can operate the view while it is shown: select a day, change units, open a detail. Calls go through the same [call rules](/guide/agent/#the-call-rules) as any agent's.
 
-```js
-// main.js
-import { run } from 'sygnal'
-import { makeMcpAppDriver, agentTools } from 'sygnal/ai'
-import App from './App.jsx'
-
-run(App, { MCP: makeMcpAppDriver({ tools: agentTools }) })
-```
-
 ```jsx
 // App.jsx
+import { makeMcpAppDriver, agentTools } from 'sygnal/ai'
+
+App.drivers = { MCP: makeMcpAppDriver({ tools: agentTools }) }
+
 // what the model may do in the view
 import { z } from 'zod'
 
@@ -251,8 +246,8 @@ npm create sygnal-app@latest my-tool -- --template mcp-app
 (`--ts` for TypeScript.) The starter needs Sygnal 6.1 or later (`makeMcpAppDriver` is in `sygnal/ai` since 6.1.0). To try it against an unreleased Sygnal change, point it at a local build: `npm run build` in a Sygnal checkout, then `npm install /path/to/sygnal` in the project (its README has the steps).
 
 ```text
-src/App.jsx          the view (the forecast card above, with theme and full screen)
-src/main.js          run(App, { MCP: makeMcpAppDriver() })
+src/App.jsx          the view (the forecast card above, with theme and full screen) and App.drivers = { MCP: makeMcpAppDriver() }
+src/main.js          run(App)
 server/server.js     the MCP server: the get_forecast tool and the ui:// resource that serves the view
 server/forecast.js   made-up weather (replace it with a real API)
 ```

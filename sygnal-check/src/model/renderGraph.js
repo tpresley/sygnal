@@ -134,6 +134,8 @@ export function renderGraph(project) {
   const units = [...comps]
   const viewOnly = new Map() // function node → unit
   const scannedComp = new Set(comps)
+  const usagesByUnit = new Map()
+  let usagesDone = false
   const unitOf = (ref) => {
     if (!ref?.node) return null
     const c = project.componentForFunction(ref.node)
@@ -148,10 +150,11 @@ export function renderGraph(project) {
     viewOnly.set(ref.node, u)
     units.push(u)
     u.viewInfo = project.viewOf(ref)
+    // (a unit first reached after the walk below: buildGraph's CHILD.select(Fn) of a function no view renders)
+    if (usagesDone) usagesByUnit.set(u, viewUsages(u.viewInfo))
     return u
   }
   const entryUnits = new Set(entries.refs.map(unitOf).filter(Boolean))
-  const usagesByUnit = new Map()
   for (let i = 0; i < units.length; i++) {
     const c = units[i]
     const usages = viewUsages(c.viewInfo)
@@ -161,6 +164,7 @@ export function renderGraph(project) {
       if (u?.viewOnly && !u.name) u.name = usage.name
     }
   }
+  usagesDone = true
   for (const u of viewOnly.values()) if (!u.name) u.name = path.basename(u.file.path).replace(/\.[^.]+$/, '')
 
   const renderedAs = new Map()

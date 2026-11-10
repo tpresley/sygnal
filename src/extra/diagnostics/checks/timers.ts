@@ -9,6 +9,8 @@
  *          happens and nothing else says so. Also closes PLAN-3's "connections without a driver
  *          report nothing" gap. (`route` and `head` are left out: renderComponent asks for the
  *          router itself, and `head` is also collected by renderToString without a driver.)
+ * SYG646 — a `drivers` static on a component that isn't the root: start() reads it on the root only,
+ *          so the driver is never registered. Under Vike's Layout/Wrapper shell the page is not the root.
  * SYG422 — a timer spec makeTimerDriver() can't run (non-positive `every`, negative `after`,
  *          `every` with `after`, no action, `frame` that isn't an action name, a frame's `step` that
  *          isn't a positive number or `keys` that isn't an object): it isn't started.
@@ -69,6 +71,15 @@ export const timersCheck: DiagnosticCheck = {
   onModel(component) {
     const sources = component?.sources, view = component?.view
     if (!sources || typeof sources != 'object' || !view) return
+    if (view.drivers && component.isSubComponent && once('SYG646:' + nameOf(component))) {
+      const name = nameOf(component), vike = sources.__vike
+      devReport('SYG646', {
+        component,
+        message: `${name}.drivers is set, but ${name} is not the root component${vike ? " (it renders in Vike's Layout/Wrapper shell)" : ''}, so its drivers are never registered (drivers works on the root only)`,
+        fix: vike ? 'Register the drivers in the page config: `drivers` in +config' : `Move drivers to the root component (the one passed to run())`,
+        data: {drivers: Object.keys(view.drivers), ...(vike && {vike: true})},
+      })
+    }
     const names = component.sourceNames || Object.keys(sources)
     for (const k in NEEDS) {
       if (view[k] == null) continue
@@ -78,7 +89,7 @@ export const timersCheck: DiagnosticCheck = {
       devReport('SYG643', {
         component,
         message: `${name} declares ${name}.${k}, but no ${NEEDS[k]} driver is registered, so ${k == 'timers' ? 'its timers never run' : k == 'connections' ? 'its connections never open' : k == 'browser' ? 'its browser sources never start' : 'its resources are never fetched'}`,
-        fix: `Register the driver: run(App, { ${KEY[k]}: ${NEEDS[k]} })`,
+        fix: `Register the driver on the root component: App.drivers = { ${KEY[k]}: ${NEEDS[k]} }`,
         data: {static: k, driver: NEEDS[k]},
       })
     }

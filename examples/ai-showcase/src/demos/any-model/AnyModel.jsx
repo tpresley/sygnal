@@ -5,9 +5,9 @@
 // The picked model is `route::model` (shared/providers.js): the driver's routed transport sends
 // it to Ollama, to Kindo as Open Responses, Chat Completions or Anthropic Messages, or to
 // Chrome's on-device model. Nothing here knows which.
-import { ABORT, classes } from 'sygnal'
+import { ABORT, classes, makeFetchDriver, driverFromAsync } from 'sygnal'
 import { messageText } from 'sygnal/ai'
-import { ROUTES, routeOf, modelOf } from '../../shared/providers.js'
+import { ROUTES, routeOf, modelOf, makeLLM } from '../../shared/providers.js'
 import { providersResource, pickerState, pickerIntent, pickerModel, pickedModel, modelPicker } from '../../shared/picker.jsx'
 
 const EXAMPLES = [
@@ -98,6 +98,12 @@ export default function AnyModel({ state }) {
       </form>
     </div>
   )
+}
+
+AnyModel.drivers = {
+  LLM: makeLLM(),                 // one chat driver; the routed transport picks the provider per request
+  HTTP: makeFetchDriver(),        // the model list (GET /api/providers)
+  CHROME: driverFromAsync(() => ROUTES.chrome.transport.status()),
 }
 
 AnyModel.initialState = {

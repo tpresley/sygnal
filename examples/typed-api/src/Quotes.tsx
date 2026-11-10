@@ -2,7 +2,8 @@
 // feed (an event iterator). No URL, route or reply type is written here: they come from the contract
 // (src/contract.ts) and, for Suggest, from a function-first module (src/ideas.server.ts).
 import type { Component, Resource, FetchRequest, FetchSource, SocketSource, ActionsOf, IntentSources } from 'sygnal'
-import { isContractSkew } from 'sygnal/api'
+import { makeFetchDriver, makeSocketDriver } from 'sygnal'
+import { isContractSkew, contractFetch } from 'sygnal/api'
 import type { Output, ApiFailure } from 'sygnal/api'
 import { api } from './api'
 import { suggest } from './ideas.server'
@@ -56,6 +57,10 @@ export const Quotes: Component<State, {}, Drivers, Actions> = ({ state }) => (
     <ul className="live">{state.live.map((q) => <li>{q.text} ({q.addedAt.slice(11, 19)})</li>)}</ul>
   </main>
 )
+// contractFetch notices a CONTRACT_SKEW answer (the tab is older than the server's API)
+const fetch = contractFetch({ onSkew: () => console.info('The API changed since this page loaded.') })
+Quotes.drivers = { HTTP: makeFetchDriver({ fetch }), WS: makeSocketDriver({ fetch }) }
+
 Quotes.initialState = { tag: 'calm', draft: '', message: '', quotes: { status: 'idle' }, live: [] }
 Quotes.intent = intent
 

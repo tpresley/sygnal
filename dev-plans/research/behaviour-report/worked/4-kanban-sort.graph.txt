@@ -1,0 +1,4 @@
+app graph: 916e23e7~1 (4a8cbc95ad) → 916e23e7
+~ LaneComponent: +context draggingLaneId  examples/kanban/src/LaneComponent.jsx
+~ RootComponent: +action BOOTSTRAP, +action LANE_DRAG_END, +action LANE_DRAG_START, +action LANE_DROP, +state draggingLane, +reads draggingLane, +provides draggingLaneId  examples/kanban/src/RootComponent.jsx
+0 added, 0 removed, 2 changed

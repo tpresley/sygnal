@@ -65,7 +65,6 @@ The commands below use `npx --no-install`, which runs only the copy installed in
 | `npx --no-install sygnal-check --graph --json --base main` | What a branch changed in the app graph, as JSON: components added, removed and changed (with the changed fields), and event types added and removed |
 | `npx --no-install sygnal-check --graph=html` | The [app graph](/guide/app-graph/) as an interactive page, for people (`--watch`: live) |
 | `npx --no-install sygnal-check explain SYG104` | What a code means and how to fix it (`--json`, `--all`) |
-| `npx --no-install sygnal-check docs FetchRequest` | The signature, options and an example for anything Sygnal defines (`--json`) |
 | `npx --no-install sygnal-check --json` | Findings as JSON |
 | `npx --no-install sygnal-check mcp` | Start the [MCP server](#mcp-server) |
 

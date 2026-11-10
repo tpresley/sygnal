@@ -102,6 +102,8 @@
  *                triggers? } (target: the control's key or the selector; null when dynamic;
  *                triggers: the intent actions listening on the target for a native event the
  *                command causes, e.g. close → DOM.close(Dialog); omitted when none; PLAN-4 GS-2)
+ *   drivers      a root's drivers: { name, driver, from: 'static' | 'run', line, column, file? } (omitted
+ *                when none): its `drivers` static and run()'s argument, which overrides it by name
  *   timers       the `timers` static's literal specs: { name, every?, after?, frame?, action?,
  *                background? } (omitted when none; PLAN-4 GS-7). Timer actions are in `actions`
  *                with trigger 'reply' (the timer driver dispatches them as reply actions)
@@ -126,6 +128,7 @@ import { BUILTIN_ACTIONS } from './model/modelEntries.js'
 import { listenedControls } from './rules/syg124-controls.js'
 import { behaviorActions } from './model/behaviors.js'
 import { specFields } from './model/timers.js'
+import { rootDrivers } from './model/apps.js'
 import { CAUSED_EVENTS } from './model/elementCommands.js'
 import { agentName } from './model/agent.js'
 import { contextNames, contextReads } from './model/context.js'
@@ -149,7 +152,9 @@ export function graphFiles(files, options = {}) {
   let diags = runRules(project, rules)
   if (options.extraDiagnostics?.length) diags = [...options.extraDiagnostics, ...diags]
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
-  return buildGraph(project, sortDiagnostics(diags))
+  const g = buildGraph(project, sortDiagnostics(diags))
+  options.onProject?.(project, g) // the behaviour report's facts need the model's AST nodes
+  return g
 }
 
 const contains = (outer, inner) => !!outer && !!inner && inner.start >= outer.start && inner.end <= outer.end
@@ -425,6 +430,11 @@ export function buildGraph(project, diagnostics = []) {
     if (c.timers?.specs.length) {
       node.timers = c.timers.specs.filter(s => s.node.type === 'ObjectExpression').map(s => ({ name: s.name, ...specFields(s.node), ...at(s.nameNode || s.node, s.file, c.file) }))
       if (!node.timers.length) delete node.timers
+    }
+    // the drivers a root is wired with: the grant, visible to a reviewer
+    {
+      const drivers = rootDrivers(project, c).map(d => ({ name: d.name, driver: d.driver, from: d.from, ...at(d.node, d.file, c.file) }))
+      if (drivers.length) node.drivers = drivers
     }
     // PLAN-6 K-1: the `agent` declaration (sygnal/ai)
     if (c.agent) {

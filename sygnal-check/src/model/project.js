@@ -90,7 +90,7 @@ import { analyzeCommands } from './elementCommands.js'
 
 // isolatedState: PLAN-4 4-G2 (static SYG405)
 // agent: PLAN-6 K-1 (model/agent.js)
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser', 'agent']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser', 'agent', 'drivers']
 
 function parseSuppressions(ast) {
   const map = new Map()

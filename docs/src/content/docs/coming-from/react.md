@@ -225,7 +225,7 @@ A reducer always receives the current state, so there are no stale closures and 
 
 ## 3. Side effects are sinks, not hooks
 
-A React component reaches the outside world from effects. A Sygnal component never does: it *declares* what it needs, or returns a request from a model entry, and a **driver** does the work and sends the result back as an action. Drivers are set up once in `run(App, drivers)`; on this page the demos get an `HTTP` and a `TIMER` driver automatically.
+A React component reaches the outside world from effects. A Sygnal component never does: it *declares* what it needs, or returns a request from a model entry, and a **driver** does the work and sends the result back as an action. Drivers are set up once on the root component, `App.drivers = { ... }`; on this page the demos get an `HTTP` and a `TIMER` driver automatically.
 
 ### Fetching data
 

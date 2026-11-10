@@ -19,17 +19,17 @@ Nothing beyond Sygnal and a schema library for the structured output:
 npm install sygnal zod
 ```
 
-`main.js` registers both drivers: the fetch driver for decisions, the chat driver for the escalations.
+The root registers both drivers: the fetch driver for decisions, the chat driver for the escalations.
 
 ```js
-import { run, makeFetchDriver } from 'sygnal'
+// Inbox.jsx
+import { makeFetchDriver } from 'sygnal'
 import { makeChatDriver, uiMessageStream } from 'sygnal/ai'
-import Inbox from './Inbox.jsx'
 
-run(Inbox, {
+Inbox.drivers = {
   HTTP: makeFetchDriver(),
   LLM: makeChatDriver({ transport: uiMessageStream('/api/chat') }),
-})
+}
 ```
 
 `decide()` posts to `/api/decide` and the chat driver to `/api/chat`: your server's routes, which hold the keys ([decisions](/guide/ai-decisions/#keys-stay-on-the-server), [chat](/guide/ai-chat/#shipping-it)). In development, point them at a local Ollama instead.

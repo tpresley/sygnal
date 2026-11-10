@@ -1,4 +1,4 @@
-import { ABORT, Collection, set } from 'sygnal'
+import { ABORT, Collection, makeDragDriver, set } from 'sygnal'
 import LaneComponent from './LaneComponent.jsx'
 
 function withPositions(lanes) {
@@ -55,6 +55,8 @@ RootComponent.context = {
   draggingTaskId: state => state.dragging?.taskId ?? null,
   draggingLaneId: state => state.draggingLane ?? null,
 }
+
+RootComponent.drivers = { DND: makeDragDriver() }
 
 RootComponent.intent = ({ DOM, DND, EVENTS }) => ({
   ADD_LANE:        DOM.click('.add-lane-btn'),

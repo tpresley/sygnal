@@ -161,6 +161,18 @@ describe('GS-4: SYG222 (dev entry) — the same object returned after an in-plac
     expect(diagnostics('SYG222')).toEqual([])
   })
 
+  it('a NaN field is not a change (it is not === itself); a field that becomes NaN is', async () => {
+    function App({ state }) { return h('div', null, String(state.ratio)) }
+    App.initialState = { ratio: NaN, count: 0 }
+    App.model = { SAME: (state) => state, BREAK: (state) => { state.count = NaN; return state } }
+    t = renderComponent(App)
+    await t.ready()
+    t.simulateAction('SAME'); await t.settle()
+    expect(diagnostics('SYG222')).toEqual([])
+    t.simulateAction('BREAK'); await t.settle()
+    expect(diagnostics('SYG222').map(d => [d.data.action, d.data.keys])).toEqual([['BREAK', ['count']]])
+  })
+
   it('reports once per component and action', async () => {
     function App({ state }) { return h('div', null, String(state.count)) }
     App.initialState = { count: 0 }

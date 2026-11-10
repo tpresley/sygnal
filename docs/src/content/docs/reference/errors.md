@@ -1379,6 +1379,26 @@ A `<shapes items={…}>` data layer of `sygnal/canvas` got a new array in which 
 
 **Fix:** Replace only the nodes that change and keep the others: `shapes.map(s => s.id === id ? { ...s, x } : s)`, or patch by index. For a selection, look the ids up in a `Set` and return the untouched objects as they are.
 
+### SYG265
+
+**Network request outside a declared output**
+
+Severity: `warn` at runtime, `error` in sygnal-check · Reported by: `sygnal-check`, the dev checks (`sygnal/diagnostics`)
+
+A view, a STATE reducer, another sink's handler (HTTP, EVENTS, PARENT, a custom driver's), a calculated field, a context entry, a declaration static (`resources`, `timers`, `connections`, `head`, `route`, `persist`, `browser`, `uses`, `agent`, `initialState`), an intent, a component file's top-level code, or a helper one of these calls, makes a network request: `fetch`, `XMLHttpRequest`, `navigator.sendBeacon`, `WebSocket`, `EventSource`, `new Image()`, `import()` of a URL, or a call into an HTTP or telemetry package (axios, ky, posthog-js, @sentry/*, ...). Every effect of a Sygnal component is meant to be a declared output of a model entry, which is what lets a tool list what an app or a change sends; a request made here is on no such list, and it runs whenever the view or reducer does. `sygnal-check` reports it as an error, following aliases (`const f = fetch`), `window.` / `globalThis.`, foldable computed names, helpers in this file and through relative imports, and getters on literals. It can't see inside other packages or code reached through a parameter. In development the `sygnal/diagnostics` entry also reports it, as a warning, when a view or a non-EFFECT handler really makes the call while it runs, whichever way it was written. To turn it off for one line, put `// sygnal-ignore SYG265` above the call or above the effect in the helper.
+
+**Fix:** Return the request from an HTTP sink: `ACTION: { HTTP: (state, data) => ({ url, method: 'POST', json, ok: 'SAVED' }) }` with `makeFetchDriver()`, or declare a `resources` entry for data the component shows. A WebSocket or EventSource goes in the `connections` static with `makeSocketDriver()`. Any other kind of output gets a driver of its own, so it appears as a sink.
+
+### SYG266
+
+**Side effect outside a declared output**
+
+Severity: `warn` · Reported by: `sygnal-check`, the dev checks (`sygnal/diagnostics`)
+
+The same places as SYG265 run another kind of side effect: a storage write (`localStorage.setItem`, `sessionStorage`, `indexedDB`, `document.cookie =`), a navigation (`location` assignment, `location.assign`, `history.pushState`, `window.open`), a timer (`setTimeout`, `setInterval`, `requestAnimationFrame`, `queueMicrotask`), a message (`postMessage`, `BroadcastChannel`, `new Worker`), a DOM write or listener on something rooted in `document`, `window` or an event's target (`document.title =`, `el.focus()`, `window.addEventListener`), a device API (clipboard write, `navigator.share`), `eval` / `new Function`, or a computed property of `window` / `globalThis` the checker can't fold. Reads (`location.href`, `localStorage.getItem`) and `console` are not reported. Top-level code of a component file is checked for storage, navigation and messages only. These run with every render or action, and no tool reading the model can list them. It is a warning, because a timer or a DOM write in a view is usually a bug rather than a data leak, and the checker can see less of a DOM value's origin than of a global call.
+
+**Fix:** Storage: the `persist` static, or an EFFECT entry. Navigation: `ROUTER: (state, data) => ({ to: '/path' })` with `makeRouter()`. Timers: the `timers` static or `next('ACTION', data, delayMs)`. DOM: an `ELEMENT` command (focus, blur, scrollIntoView, select, click), the `head` static for the title, `DOM.select('document').events(...)` or the `browser` static for listeners, `<Portal>` for content outside the root. Anything else belongs in an EFFECT entry or a driver sink: `ACTION: { EFFECT: (state, data) => { ... } }`.
+
 ## SYG3xx: Streams
 
 ### SYG301
@@ -2322,6 +2342,26 @@ Strict mode only (`renderComponent(C, { strict: true })` or `configureStrict(tru
 
 **Fix:** Assert the current state, `expect(t.state).toMatchObject({ ... })`, or wait for a new state, `await t.next(pred)`. To wait for a state an input will cause, call `t.next(pred)` before the input, or await the input and read `t.state`.
 
+### SYG511
+
+**Network request in an EFFECT handler**
+
+Severity: `warn` · Reported by: `sygnal-check` · Strict mode only
+
+Strict mode only (`sygnal-check --strict`). An EFFECT handler, or a helper it calls, makes a network request directly (`fetch`, `XMLHttpRequest`, `navigator.sendBeacon`, `WebSocket`, `EventSource`, or an HTTP or telemetry package). EFFECT is the declared escape hatch, so the effect is visible to tools, but the request bypasses the HTTP driver: it isn't aborted when superseded, has no reply actions, can't be answered from a test with `t.respond`, and the URL doesn't appear in an app's inventory of requests. Storage, timers and DOM work in an EFFECT are not reported.
+
+**Fix:** Return the request from the entry's HTTP sink instead: `ACTION: { HTTP: (state, data) => ({ url, method: 'POST', json, ok: 'SAVED', error: 'FAILED' }) }`, with `makeFetchDriver()`. `init: { keepalive: true }` covers what `sendBeacon` is used for. A socket goes in `connections`. If a third-party SDK must run here, put `// sygnal-ignore SYG511` above it, or give it a driver.
+
+### SYG512
+
+**Module-level variable written outside a declared output**
+
+Severity: `warn` · Reported by: `sygnal-check` · Strict mode only
+
+Strict mode only (`sygnal-check --strict`). A view, a reducer, another sink's handler, a calculated field, a context entry, a declaration static or an intent, or a helper it calls, writes a variable declared at the top level of a file: an assignment or `++`, a property of a module-level object (also one imported from a relative path), or a mutating method on a module-level array, Map or Set. That is state outside the state tree: it is shared by every instance, a reader of the model can't see it, replaying the actions doesn't reproduce it, and two components can talk through it unseen. A Map or Set that the same function reads with `.get` or `.has` is treated as a memo and not reported. An alias made through a parameter or a local variable is not followed, so this check is good but not complete.
+
+**Fix:** Keep the value in component state, or in a `calculated` field. A counter for ids: `uuid()` from the handler's 4th argument, or a counter in state. If it really is a pure cache (the result is the same without it), add `// sygnal-ignore SYG512` above the write and say so.
+
 ## SYG6xx: Drivers, sources and component setup
 
 ### SYG601
@@ -2488,7 +2528,7 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-
 
 A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with "Cannot read properties of undefined". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`), so a test suite can pass while the app drops every request. sygnal-check reports both before the app runs: a model sink, or a source the intent reads (`({ HTTP }) => …`, `sources.HTTP`), of a component that a `run()` call renders, when that call's drivers are an object literal (or absent) without that name. It says nothing when no `run()` call is in the checked files (Vike, Astro, a library), when the drivers can't be listed (a variable from another module, a spread, a computed key), for the sinks the core handles itself (`STATE`, `EFFECT`, `EVENTS`, `PARENT`, `READY`, `DOM`, `CHILD`, `ELEMENT`, `PERSIST`, `LOG`), or for the sources every intent gets (`DOM`, `STATE`, `CHILD`, `EVENTS`, `LOG`, `dispose$`, `props$`, `children$`, `commands$`).
 
-**Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `run(App, { LLM: makeChatDriver({ transport: openResponses({ baseURL, model }) }) })` (from `sygnal/ai`) for an LLM chat sink, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
+**Fix:** Register the driver on the root component under exactly that name: `App.drivers = { HTTP: makeFetchDriver() }` for HTTP requests, `{ LLM: makeChatDriver({ transport: openResponses({ baseURL, model }) }) }` (from `sygnal/ai`) for an LLM chat sink, `driverFromAsync(fn)` for any promise-returning function, or your own driver. `run()`'s second argument registers one too, for what differs per environment. Check the spelling against the drivers you register.
 
 ### SYG610
 
@@ -2648,7 +2688,7 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-
 
 A component declares `timers`, `connections`, `resources` or `browser`, but no registered driver takes that static, so nothing happens and nothing else says so: the timers never fire, the connections never open, the resources stay idle, the browser sources never start. The core sends each of these statics to the source of the driver that asks for it (`makeTimerDriver()`, `makeSocketDriver()`, `makeFetchDriver()`, `makeBrowserDriver()`), and the driver is opt-in: `run()` doesn't register it for you. `renderComponent` provides fakes for all four (the timer fake runs the real driver, the browser fake the real driver over fake sources), so the warning only appears under `run()`. sygnal-check reports it statically when it finds the app's `run(App, drivers)` call, its drivers are an object literal it can read, and the component is rendered by `App`; otherwise it says nothing.
 
-**Fix:** Register the driver when you start the app: `run(App, { TIMER: makeTimerDriver() })` for `timers`, `run(App, { WS: makeSocketDriver() })` for `connections`, `run(App, { HTTP: makeFetchDriver() })` for `resources`, `run(App, { BROWSER: makeBrowserDriver() })` for `browser` (the key is yours to choose; the core finds the driver by the static it takes).
+**Fix:** Register the driver on the root component: `App.drivers = { TIMER: makeTimerDriver() }` for `timers`, `{ WS: makeSocketDriver() }` for `connections`, `{ HTTP: makeFetchDriver() }` for `resources`, `{ BROWSER: makeBrowserDriver() }` for `browser` (the key is yours to choose; the core finds the driver by the static it takes). `run()`'s second argument registers one too, for what differs per environment; `sygnal-check --fix` writes that line for a driver with no options.
 
 ### SYG644
 
@@ -2669,6 +2709,16 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 A component declares `viewTransitions` (for example `Board.viewTransitions = ['MOVE']`), but the app's DOM driver can't run View Transitions, so those actions patch the page at once, without the animation, and nothing else says so. The static only asks: the transition is run by the DOM driver from `makeViewTransitionDOMDriver()`, which is opt-in so that apps without View Transitions don't ship it, and `run()`'s default DOM driver is the plain one. Reported once per component when it starts. Not reported under `renderComponent` (the mock DOM and the `dom: 'real'` container don't animate). Browsers without the API and `prefers-reduced-motion: reduce` also patch at once, silently: that is the intended fallback, not this warning. The same code reports a `viewTransitions` static that is not an array (`Board.viewTransitions = true`, or a single string): it lists no action, so nothing animates (the core tolerates the value instead of throwing in every reducer; a string is matched as a substring, which is never what was meant).
 
 **Fix:** Give `run()` the View Transition DOM driver: `run(App, { DOM: makeViewTransitionDOMDriver('#root') })` with `import { makeViewTransitionDOMDriver } from 'sygnal'` (use the same mount point as before). Or remove the `viewTransitions` static. For a value that isn't an array, list the action names in one: `Board.viewTransitions = ['MOVE']`.
+
+### SYG646
+
+**drivers on a component that is not the root**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A root component can name the drivers it needs with `App.drivers = { HTTP: makeFetchDriver() }`, next to the code that uses them. `run()` reads that static on the component it is given and nowhere else, because drivers exist before any component is created. On any other component the static does nothing, so the driver is never registered and the sinks and declarations that rely on it do nothing either.
+
+**Fix:** Move `drivers` to the root component. A child that needs a driver just uses it: the root registers it for the whole app. In a Vike Layout/Wrapper shell, set `drivers` in the page config instead.
 
 ### SYG660
 

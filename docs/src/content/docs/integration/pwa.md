@@ -10,20 +10,20 @@ Sygnal provides three PWA helpers that integrate with the reactive driver archit
 `makeServiceWorkerDriver` creates a Cycle.js driver that registers a service worker and exposes its lifecycle as reactive streams.
 
 ```jsx
-import { run, makeServiceWorkerDriver } from 'sygnal'
-import App from './App'
+// App.jsx
+import { makeServiceWorkerDriver } from 'sygnal'
 
-run(App, {
+App.drivers = {
   SW: makeServiceWorkerDriver('/sw.js', { scope: '/' }),
-})
+}
 ```
 
 A service worker caches the app, so it shouldn't run on a dev server. `enabled: import.meta.env.PROD` keeps the driver (the intent can still read `SW` and the model send to it) but registers nothing in development: its streams never emit and its commands are ignored.
 
 ```jsx
-run(App, {
+App.drivers = {
   SW: makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD }),
-})
+}
 ```
 
 ### Receiving Lifecycle Events

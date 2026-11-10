@@ -202,6 +202,11 @@ describe('--base: the CLI on a git repository', () => {
 })
 
 describe('diff.js: pure', () => {
+  it('graphDiff: a diagnostic whose message names a line is the same finding after the code moves', () => {
+    const at = (n) => G([comp('A', 'a.jsx', 1, { diagnostics: [{ code: 'SYG701', message: `listens on a <div> (line ${n}) with no role` }, { code: 'SYG124', message: `already declared on line ${n}` }] })])
+    expect(graphDiff(at(64), at(68)).changed).toEqual([])
+  })
+
   it('graphDiff: scalars as { base, head }, sinks only of kept actions, selectors and diagnostics without lines', () => {
     const base = G([comp('A', 'a.jsx', 1, { kind: 'root', actions: [{ name: 'X', sinks: ['STATE'] }, { name: 'Y', sinks: ['STATE'] }], selectors: [{ selector: '.x', line: 3 }], diagnostics: [{ code: 'SYG110', message: 'm', line: 4 }] })])
     const head = G([comp('A', 'a.jsx', 9, { kind: 'child', actions: [{ name: 'X', sinks: ['STATE', 'EFFECT'] }, { name: 'Z', sinks: ['EVENTS'] }], selectors: [{ selector: '.x', line: 12 }, { control: 'Add', selector: '[data-control="Add"]' }], diagnostics: [{ code: 'SYG110', message: 'm', line: 40 }] })])

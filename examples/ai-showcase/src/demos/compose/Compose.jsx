@@ -5,13 +5,14 @@
 // The `compose` behavior holds the composition in `state.page`; `catalog.render()` draws it. The
 // backend is the only difference between a decision model and a chat model, so the view, intent
 // and model are written once and used by two components, one per kind (backends.js).
-import { ABORT, Switchable, classes } from 'sygnal'
+import { ABORT, Switchable, classes, makeFetchDriver } from 'sygnal'
 import { compose } from 'sygnal/ai'
 import { providersResource, pickerState, pickerIntent, pickerModel } from '../../shared/picker.jsx'
 import { catalog } from './catalog.js'
 import { LAUNCH } from './parts.jsx'
 import { modelChoices, pickedChoice, decisionsBackend, llmBackend } from './backends.js'
 import { howItDecided } from './HowItDecided.jsx'
+import { makeLLM } from '../../shared/providers.js'
 
 const EXAMPLES = [
   'Active users, revenue and conversion side by side, then the traffic chart for the quarter',
@@ -152,6 +153,11 @@ export default function Compose({ state }) {
       {choice?.kind === 'decisions' && choice.model !== 'jev-latest' && <p className="compose-note">{choice.label} runs on this machine: a few seconds per step, and weaker than Jev on rows and edits.</p>}
     </div>
   )
+}
+
+Compose.drivers = {
+  HTTP: makeFetchDriver(),   // the model list, and compose.decisions()' decide() requests
+  LLM: makeLLM(),            // compose.llm()'s structured-output requests, routed to the picked model
 }
 
 Compose.initialState = {

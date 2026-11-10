@@ -30,4 +30,6 @@ Toolbar.uses = {
   shareTip: tooltip({ trigger: '.share', tip: '.share-tip', showDelay: 0, hideDelay: 300 }),
 }
 
-export const start = (mountPoint, uid) => run(Toolbar, { TIMER: makeTimerDriver() }, { mountPoint, uid })
+Toolbar.drivers = { TIMER: makeTimerDriver() }
+
+export const start = (mountPoint, uid) => run(Toolbar, {}, { mountPoint, uid })

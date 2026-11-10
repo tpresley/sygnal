@@ -7,19 +7,18 @@ Chrome can run a small language model on the user's device, through the [Prompt 
 
 Not every visitor has it: other browsers don't, and Chrome needs a capable device and a one-time model download. So the feature must **degrade**: where the model is unavailable, the component shows a plain excerpt instead.
 
-## main.js
+## The driver
 
 ```js
-import { run } from 'sygnal'
+// Article.jsx
 import { makeChatDriver, chromePrompt } from 'sygnal/ai'
-import Article from './Article.jsx'
 
-run(Article, { LLM: makeChatDriver({ transport: chromePrompt() }) })
+Article.drivers = { LLM: makeChatDriver({ transport: chromePrompt() }) }
 ```
 
-Where the browser has no `LanguageModel`, or the device can't run it, every request fails at once with an Error whose `status` is `'unavailable'`. The component's `error` action handles that like any failure, so `main.js` needs no check.
+Where the browser has no `LanguageModel`, or the device can't run it, every request fails at once with an Error whose `status` is `'unavailable'`. The component's `error` action handles that like any failure, so the app needs no check.
 
-To use a hosted model where the on-device one is missing, choose the transport before `run()` with `status()`:
+To use a hosted model where the on-device one is missing, choose the transport in `main.js` with `status()`, and give it to `run()`, which overrides the static for what differs per browser:
 
 ```js
 import { run } from 'sygnal'
@@ -37,12 +36,12 @@ run(Article, { LLM: makeChatDriver({ transport }) })
 A component can show the status too, for example to say "Summaries need a one-time download" before the first click. A promise can't be read in a view, so give `status` to [`driverFromAsync`](/guide/custom-drivers/) and ask for it like any request:
 
 ```js
-import { run, driverFromAsync } from 'sygnal'
+// Article.jsx
+import { driverFromAsync } from 'sygnal'
 import { makeChatDriver, chromePrompt } from 'sygnal/ai'
-import Article from './Article.jsx'
 
 const onDevice = chromePrompt()
-run(Article, { LLM: makeChatDriver({ transport: onDevice }), MODEL: driverFromAsync(onDevice.status) })
+Article.drivers = { LLM: makeChatDriver({ transport: onDevice }), MODEL: driverFromAsync(onDevice.status) }
 ```
 
 ```js

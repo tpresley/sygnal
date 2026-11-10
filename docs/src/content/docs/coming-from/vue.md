@@ -282,7 +282,7 @@ Mutating `state` and returning it does nothing: Sygnal compares the returned obj
 
 ## 3. Watchers and side effects become actions
 
-In Vue, side effects run in watchers and lifecycle hooks. A Sygnal component never calls the outside world itself: it *declares* what it needs, or returns a request from a model entry, and a **driver** does the work and sends the result back as an action. Drivers are set up once in `run(App, drivers)`; on this page the demos get an `HTTP` and a `TIMER` driver automatically.
+In Vue, side effects run in watchers and lifecycle hooks. A Sygnal component never calls the outside world itself: it *declares* what it needs, or returns a request from a model entry, and a **driver** does the work and sends the result back as an action. Drivers are set up once on the root component, `App.drivers = { ... }`; on this page the demos get an `HTTP` and a `TIMER` driver automatically.
 
 ### Fetching data
 
