@@ -71,6 +71,11 @@ describe('--report: side effects', () => {
     expect(items(r)[0].text).toContain('new HTTP request: `POST /api/v2/save → ok A` (was `POST /api/v1/save → ok A`)')
   })
 
+  it('the same address with other reply names is not a new request', () => {
+    const http = (o) => app(`{ ADD: (s) => s, SAVE: { HTTP: () => ({ url: '/a', method: 'POST', ok: ${o} }) }, A: (s) => s }`, { extra: 'const NAMES = { ok: "A" }' })
+    expect(kinds(report(http("NAMES.ok"), http("'A'")))).not.toContain('side-effect')
+  })
+
   it('a new EFFECT and the globals it touches', () => {
     const r = report(
       app(`{ ADD: (s) => s, SAVE: (s) => s }`),
@@ -226,6 +231,37 @@ describe('--report: reads, writes, reducer logic', () => {
     expect(sink(r, 'ADD').logic.kinds).toEqual(['helper', 'value'])
     expect(sink(r, 'ADD').logic.notes[0]).toContain('`bump`')
     expect(r.coverage).toMatchObject({ explained: ['src/bump.js'], unexplained: [] })
+  })
+
+  it('of a large object used as `api.x`, only the keys used count', () => {
+    const v = (a, b) => ({ 'src/App.jsx': app(`{ ADD: { HTTP: () => api.get(1) }, SAVE: (s) => s }`, { head: `import { api } from './api.js'` }), 'src/api.js': `export const api = { get: (i) => ({ url: '/a/' + i + '${a}', ok: 'X' }), other: () => '${b}' }\n` })
+    expect(report(v('', 1), v('', 2), ['src/api.js']).components).toEqual([])
+    const r = report(v('', 1), v('x', 1), ['src/api.js'])
+    expect(sink(r, 'ADD', 'HTTP').logic.kinds).toContain('helper')
+    expect(sink(r, 'ADD', 'HTTP').logic.notes[0]).toContain('`api.get`')
+    expect(r.coverage.explained).toEqual(['src/api.js'])
+  })
+
+  it('a helper several components reach is one line, and they fold away', () => {
+    const v = (x) => ({
+      'src/h.js': `export const h = (s) => ({ ...s, n: ${x} })\n`,
+      'src/A.jsx': `import { h } from './h.js'\nexport function A() { return <p className="a">a</p> }\nA.initialState = {}\nA.intent = ({ DOM }) => ({ GO: DOM.click('.a') })\nA.model = { GO: (s) => h(s) }\n`,
+      'src/B.jsx': `import { h } from './h.js'\nexport function B() { return <p className="b">b</p> }\nB.initialState = {}\nB.intent = ({ DOM }) => ({ GO: DOM.click('.b') })\nB.model = { GO: (s) => g(s) }\nconst g = (s) => { return h(s) }\n`,
+    })
+    const r = report(v(1), v(2), ['src/h.js'])
+    expect(sink(r, 'GO').logic.kinds).toContain('value')
+    const w = (x) => ({ 'src/h.js': `const p = (s) => s + ${x}\nexport const h = (s, d) => { return [p, s, d] }\n`, 'src/A.jsx': `import { h } from './h.js'\nexport function A() { return <p className="a">a</p> }\nA.initialState = {}\nA.intent = ({ DOM }) => ({ GO: DOM.click('.a') })\nA.model = { GO: { EFFECT: (s) => h(s, 1) } }\n`, 'src/B.jsx': `import { h } from './h.js'\nexport function B() { return <p className="b">b</p> }\nB.initialState = {}\nB.intent = ({ DOM }) => ({ GO: DOM.click('.b') })\nB.model = { GO: { EFFECT: (s) => h(s, 2) } }\n` })
+    const f = report(w(1), w(2), ['src/h.js'])
+    expect(f.sharedHelpers[0]).toMatchObject({ name: 'p', components: ['A', 'B'], sinks: 2 })
+    expect(f.components.every(c => c.folded)).toBe(true)
+    const md = formatReport(f)
+    expect(md).toContain('`p` reaches 2 components')
+    expect(md).not.toContain('### `A`')
+  })
+
+  it("a driver sink that differs: the request differs, even with the arguments in a spread", () => {
+    const v = (b) => app(`{ ADD: (s) => s, SAVE: { HTTP: () => ({ ...api.create({ body: '${b}' }), ok: 'ADD' }) } }`, { head: `import { api } from 'client'` })
+    expect(sink(report(v('a'), v('b')), 'SAVE', 'HTTP').logic.kinds).toEqual(['payload'])
   })
 
   it('may remove its Collection item', () => {

@@ -199,7 +199,7 @@ function perKey(literals) {
   return out
 }
 
-function requestsOf(project, file, value) {
+function requestsOf(project, file, value, sink) {
   const out = []
   for (const o of returnedObjects(project, file, value)) {
     const { props } = requestProps(project, o.node, o.file, o.bind)
@@ -207,7 +207,7 @@ function requestsOf(project, file, value) {
     const show = (x) => { if (!x) return null; const s = stringValue(x.p.value); return s ?? textOf(x.file, x.p.value).replace(/^`|`$/g, '') }
     const url = show(get('url'))
     const replies = ['ok', 'error', 'chunk', 'delta', 'tool'].map(k => [k, show(get(k))]).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ')
-    const what = url != null ? `${url.startsWith('/') || /^https?:/.test(url) || url.includes('${') ? (show(get('method')) || 'GET') + ' ' : ''}${url}`
+    const what = url != null ? `${sink === 'HTTP' ? (show(get('method')) || 'GET') + ' ' : ''}${url}`
       : props.length ? `{ ${[...new Set(props.map(({ p }) => propName(p)).filter(Boolean))].slice(0, 6).join(', ')} }` : null
     if (what) out.push(replies ? `${what} → ${replies}` : what)
   }
@@ -262,7 +262,7 @@ function sinkFacts(project, entry, sink, value, vfile, stateKeys) {
     const t = eventSinkTypes(project, vfile, value)
     out.events = [...new Set([...(form.eventType ? [form.eventType] : []), ...t.types.map(x => x.type)])].sort()
   } else if (!NON_REPLY_SINKS.has(sink) && sink !== 'LOG') {
-    out.requests = requestsOf(project, vfile, value)
+    out.requests = requestsOf(project, vfile, value, sink)
   }
   return out
 }

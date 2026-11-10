@@ -7,7 +7,8 @@
  *   fingerprint(project, file, node, opts?) → { own, deps: { name: { file, h } }, opaque: [name], touches: [path] }
  *     own      hash of the node's canonical form
  *     deps     the module-level functions / consts it uses (this file or imported, transitively,
- *              5 levels): a change there is a change here even when `own` is equal
+ *              5 levels; of an object used only as `api.x`, each key used: 'api.x'): a change
+ *              there is a change here even when `own` is equal
  *     opaque   names it uses that can't be followed (a relative import the checker can't load)
  *     touches  the globals it calls or uses that aren't plain computation ('localStorage.setItem')
  *     opts     strip: object literals whose `...<first param>` spread is dropped and keys sorted
@@ -78,6 +79,7 @@ function serNode(file, n, ctx) {
       if (!n.expressions.length) return JSON.stringify(n.quasis[0].value.cooked)
       return '`' + n.quasis.map((q, i) => q.value.cooked + (n.expressions[i] ? '${' + s(n.expressions[i]) + '}' : '')).join('') + '`'
     case 'MemberExpression': case 'OptionalMemberExpression':
+      if (!n.computed && bare(n.object)?.type === 'Identifier') ctx.viaMember?.set(bare(n.object), n.property.name)
       return `${s(n.object)}${n.optional ? '?.' : '.'}${n.computed ? `[${s(n.property)}]` : n.property.name ?? s(n.property)}`
     case 'ObjectProperty': return `${n.computed ? `[${s(n.key)}]` : propName(n) ?? s(n.key)}:${s(n.value)}`
     case 'ObjectExpression': {
@@ -141,10 +143,13 @@ function ident(file, n, ctx) {
   }
   if (b.kind === 'import' && !/^[./]/.test(b.source)) return `${b.source}:${b.imported}`
   ctx.free?.set(n.name, n)
+  // what of it is used: `api.get_run` depends on that entry, not on all of `api`
+  if (ctx.viaMember?.has(n)) (ctx.members[n.name] ||= new Set()).add(ctx.viaMember.get(n))
+  else ctx.whole.add(n.name)
   return n.name
 }
 
-const newCtx = (root, opts = {}) => ({ root: isFunction(root) ? root : null, scope: opts.root ?? root ?? null, locals: new Map(), free: new Map(), globals: new Set(), depth: 0, inlining: new Set(), ...opts })
+const newCtx = (root, opts = {}) => ({ root: isFunction(root) ? root : null, scope: opts.root ?? root ?? null, locals: new Map(), free: new Map(), viaMember: new Map(), members: {}, whole: new Set(), globals: new Set(), depth: 0, inlining: new Set(), ...opts })
 
 export function canonOf(file, node, root, opts = {}) {
   return hash(canonText(file, node, root, opts))
@@ -192,8 +197,8 @@ export function fingerprint(project, file, node, opts = {}) {
   if (root) touchesOf(file, root, touches)
   const seen = new Set()
   const comps = project.reportComponents ??= new Set(project.components.flatMap(c => [c.node, c.view]))
-  const follow = (free, f, depth) => {
-    for (const [name, id] of free) {
+  const follow = (c0, f, depth) => {
+    for (const [name, id] of c0.free) {
       if (seen.has(name)) continue
       seen.add(name)
       const r = resolveExpr(project, f, id)
@@ -207,12 +212,26 @@ export function fingerprint(project, file, node, opts = {}) {
         opaque.push(name)
         continue
       }
+      // an object used only as `name.key`: one dependency per key used
+      const obj = r.node.type === 'ObjectExpression' && !c0.whole.has(name) && c0.members[name] && !r.node.properties.some(p => p.type === 'SpreadElement')
+        ? [...c0.members[name]].map(k => [k, r.node.properties.find(p => propName(p) === k)]) : null
+      if (obj && obj.every(([, p]) => p)) {
+        for (const [k, p] of obj) {
+          const v = p.type === 'ObjectMethod' ? p : p.value
+          const c = newCtx(v)
+          deps[`${name}.${k}`] = { file: project.relPath(r.file.path), h: hash(ser(r.file, v, c)) }
+          touchesOf(r.file, v, touches)
+          if (depth < 5) follow(c, r.file, depth + 1)
+        }
+        seen.delete(name) // another reader may use other keys
+        continue
+      }
       const c = newCtx(r.node)
       deps[name] = { file: project.relPath(r.file.path), h: hash(ser(r.file, r.node, c)) }
       touchesOf(r.file, r.node, touches)
-      if (depth < 5) follow(c.free, r.file, depth + 1)
+      if (depth < 5) follow(c, r.file, depth + 1)
     }
   }
-  follow(ctx.free, file, 0)
+  follow(ctx, file, 0)
   return { own, deps, opaque, touches: [...touches].sort() }
 }

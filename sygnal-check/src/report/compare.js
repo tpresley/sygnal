@@ -14,7 +14,9 @@
  *     notes:     the same shape: everything else worth a line. A new action's side effects are in its table row
  *     components: [{ key, name, file, status: 'added' | 'removed' | 'changed', movedFrom?,
  *       actions: [ActionChange], state: [..], context: [..], calculated: [..], statics: [..],
- *       view: { changed, helpers, reads, children } | null, blast: [..] }],
+ *       view: { changed, own, helpers, reads, children } | null, blast: [..], folded? }],
+ *     sharedHelpers: [{ name, components, sinks }]   a helper that changed and reaches several components with
+ *                nothing else to say about them; those actions and components have `folded: true`
  *     coverage: { files, explained, unexplained, tests, nonCode, partial, parseErrors },
  *   }
  *   ActionChange { name, change: 'added' | 'removed' | 'changed', trigger: TriggerChange | null,
@@ -58,7 +60,7 @@ function triggerDiff(a, b) {
   return { sources: b?.sources ?? [], before: a?.sources ?? [], ...{ added: sources.added, removed: sources.removed }, filters, rewired: some(sources), logic: fp.changed && !some(sources) && !some(filters), helpers: fp.helpers, files: fp.files }
 }
 
-function classify(a, b, fp, writes) {
+function classify(a, b, fp, writes, external) {
   const kinds = [], notes = []
   let dropped = null
   const guardH = (x) => x.guards.map(g => g.h)
@@ -87,6 +89,8 @@ function classify(a, b, fp, writes) {
       if (keys.length) { kinds.push('value'); notes.push(`what it puts in ${keys.map(k => `\`${k}\``).join(', ')} differs${b.mutates || a.mutates ? ' (and it mutates locals, so other keys may too)' : ''}`) }
     }
     if (!sameList(a.shape, b.shape) || some(listDiff(a.requests, b.requests)) || some(listDiff(a.events, b.events))) kinds.push('payload')
+    // a driver sink is nothing but its request: when the code differs, the request does
+    if (!kinds.length && external) { kinds.push('payload'); notes.push('the request differs: read its arguments') }
     if (!kinds.length) { kinds.push('other'); notes.push('no guard, branch, condition or written key differs: the computation changed, or the code was only rearranged') }
     if (fp.own && fp.helpers.length) notes.push(`also changed: ${fp.helpers.map(h => `\`${h}\``).join(', ')}`)
   }
@@ -113,7 +117,7 @@ function sinkDiff(sink, a, b, ga, gb) {
     guards: { added: g.added.map(h => text(b.guards, h)), removed: g.removed.map(h => text(a.guards, h)) },
     requests: listDiff(a.requests, b.requests), events: listDiff(a.events, b.events), touches: listDiff(a.fp.touches, b.fp.touches),
     shape: sameList(a.shape, b.shape) ? null : { base: a.shape ?? null, head: b.shape ?? null },
-    logic: classify(a, b, fp, w), files: fp.files,
+    logic: classify(a, b, fp, w, !INTERNAL_SINKS.has(sink)), files: fp.files,
   }
 }
 
@@ -247,6 +251,7 @@ function attentionFor(comp, ctx) {
   const out = []
   const push = (severity, kind, text, extra = {}) => out.push({ severity, kind, component: comp.name, text, ...extra })
   const label = (a) => `\`${comp.name}.${a.name}\``
+  const touched = new Set() // a global reached through a shared helper is listed once per action
   for (const a of comp.actions) {
     const at = a.at ? `${comp.file}:${a.at}` : comp.file
     if (a.trigger?.filters.removed.length && a.change === 'changed') {
@@ -261,10 +266,15 @@ function attentionFor(comp, ctx) {
       } else if (s.change === 'removed' && external && a.change !== 'removed') {
         push('medium', 'side-effect-removed', `${label(a)} no longer sends to ${s.sink}${s.requests?.removed.length ? `: ${s.requests.removed.map(r => `\`${r}\``).join(', ')}` : ''}`, x)
       } else if (s.change === 'changed') {
-        for (const r of s.requests.added) push('high', 'side-effect', `${label(a)} sends a new ${s.sink} request: \`${r}\`${s.requests.removed.length ? ` (was \`${s.requests.removed.join('`, `')}\`)` : ''}`, x)
-        if (!s.requests.added.length) for (const r of s.requests.removed) push('medium', 'side-effect-removed', `${label(a)} no longer sends \`${r}\` to ${s.sink}`, x)
+        // (the same address with other reply names, or the same names spelled through a const, isn't a new request)
+        const where = (r) => r.split(' → ')[0]
+        const wasSent = new Set(s.requests.removed.map(where)), stillSent = new Set(s.requests.added.map(where))
+        for (const r of s.requests.added.filter(x => !wasSent.has(where(x)))) push('high', 'side-effect', `${label(a)} sends a new ${s.sink} request: \`${r}\`${s.requests.removed.length ? ` (was \`${s.requests.removed.join('`, `')}\`)` : ''}`, x)
+        if (!s.requests.added.length) for (const r of s.requests.removed.filter(x => !stillSent.has(where(x)))) push('medium', 'side-effect-removed', `${label(a)} no longer sends \`${r}\` to ${s.sink}`, x)
         if (external || s.sink === 'STATE') {
           for (const t of s.touches.added) {
+            if (touched.has(`${a.name}:${t}`)) continue
+            touched.add(`${a.name}:${t}`)
             if (CLOCK_GLOBALS.test(t)) push('low', 'clock', `${label(a)} ${s.sink} now reads \`${t}\`: not replayable as written`, x)
             else push('high', 'side-effect', `${label(a)} ${s.sink} now touches \`${t}\``, x)
           }
@@ -287,7 +297,7 @@ function attentionFor(comp, ctx) {
         if (s.removes && !s.removesBefore) push('high', 'removes', `${label(a)} may now remove its Collection item (returns undefined)`, x)
         if (s.shape && (s.sink === 'PARENT' || s.sink === 'EVENTS')) push('medium', 'payload', `${label(a)} ${s.sink} payload changed shape: ${shapeText(s.shape.base)} → ${shapeText(s.shape.head)}; check the receivers`, x)
         if (s.logic?.kinds.includes('condition') && s.logic.dropped && !s.guards.removed.length) push('medium', 'branch-removed', `${label(a)} ${s.sink}: logic that depended on ${s.logic.dropped.map(t => `\`${t}\``).join(', ')} is gone`, x)
-        if (s.logic?.confidence === 'low' && !s.guards.removed.length) push('low', 'unclear', `${label(a)} ${s.sink} changed in a way this report can't describe reliably: read the diff`, x)
+        if (s.logic?.confidence === 'low' && !s.guards.removed.length && !helperOnly(s)) push('low', 'unclear', `${label(a)} ${s.sink} changed in a way this report can't describe reliably: read the diff`, x)
       }
     }
   }
@@ -298,6 +308,8 @@ function attentionFor(comp, ctx) {
   return out
 }
 
+/** Only a shared helper differs, with nothing the sink's own analysis can add: reported once, per helper. */
+const helperOnly = (s) => s.logic?.kinds.length === 1 && s.logic.kinds[0] === 'helper'
 const shapeText = (s) => s ? `{ ${s.join(', ')} }` : 'a value'
 
 function agentDiff(ga, gb) {
@@ -368,7 +380,7 @@ export function behaviourReport(base, head, meta = {}) {
       const v = fpDiff(b.view, h.view)
       fileNote.push(...v.files)
       const fields = fieldsOf.get(key) || {}
-      if (v.changed || fields.stateReads || fields.children || fields.contextConsumes) comp.view = { changed: v.changed, helpers: v.helpers, reads: fields.stateReads ?? null, children: fields.children ?? null, context: fields.contextConsumes ?? null }
+      if (v.changed || fields.stateReads || fields.children || fields.contextConsumes) comp.view = { changed: v.changed, own: v.own, helpers: v.helpers, reads: fields.stateReads ?? null, children: fields.children ?? null, context: fields.contextConsumes ?? null }
     }
     const ctx = { persist: [], events: [], diagnostics: [], agent: [] }
     const pb = b?.persist, ph = h?.persist
@@ -430,12 +442,28 @@ export function behaviourReport(base, head, meta = {}) {
     partial: uniq(Object.values(head.facts).filter(f => !f.known).map(f => f.name)),
     parseErrors: uniq([...(base.parseErrors || []).map(e => `${meta.base ?? 'base'}: ${e}`), ...(head.parseErrors || []).map(e => `${meta.head ?? 'head'}: ${e}`)]),
   }
+  // a helper many components reach is one change, not one per sink: reported once
+  const uses = new Map()
+  const use = (h, comp) => { const u = uses.get(h) || uses.set(h, { name: h, components: new Set(), sinks: 0 }).get(h); u.components.add(comp.name); u.sinks++ }
+  for (const c of components) {
+    for (const a of c.actions) for (const s of a.sinks) if (helperOnly(s)) s.logic.helpers.forEach(h => use(h, c))
+    if (c.view?.changed && !c.view.own) c.view.helpers.forEach(h => use(h, c))
+  }
+  const shared = new Set([...uses.values()].filter(u => u.components.size > 1).map(u => u.name))
+  const sharedHelpers = [...uses.values()].filter(u => shared.has(u.name)).map(u => ({ name: u.name, components: [...u.components].sort(), sinks: u.sinks })).sort((x, y) => y.components.length - x.components.length)
+  const covered = (hs) => hs.length > 0 && hs.every(h => shared.has(h))
+  for (const c of components) {
+    for (const a of c.actions) a.folded = a.change === 'changed' && !a.trigger && a.sinks.length > 0 && a.sinks.every(s => helperOnly(s) && covered(s.logic.helpers))
+    c.folded = c.status === 'changed' && !c.movedFrom && c.actions.every(a => a.folded) && (!c.view || (!c.view.own && covered(c.view.helpers) && !c.view.reads && !c.view.children && !c.view.context)) &&
+      !c.state.length && !c.context.length && !c.calculated.length && !c.statics.length && !c.uses.length && !c.persist
+  }
   const count = (s) => components.filter(c => c.status === s).length
   const out = { base: meta.base ?? 'base', head: meta.head ?? 'working tree' }
   if (meta.commit) out.commit = meta.commit
   out.summary = { added: count('added'), removed: count('removed'), changed: count('changed'), attention: first.length, notes: notes.length }
   out.attention = first
   out.notes = notes
+  out.sharedHelpers = sharedHelpers
   out.components = components
   out.events = d.events
   out.drivers = drivers

@@ -63,12 +63,13 @@ function logicLine(s) {
 }
 
 function actionRows(comp, out) {
-  if (!comp.actions.length) return
+  if (!comp.actions.some(a => !a.folded)) return
   out.push('', '| | action | trigger | sinks | logic |', '|---|---|---|---|---|')
   const mark = { added: '+', removed: '−', changed: '~' }
   for (const a of comp.actions) {
     // a behavior's own wiring: the `behavior added` line says it
     if (a.change === 'added' && a.name.includes('.') && !a.sinks.length && !a.sources.length) continue
+    if (a.folded) continue
     const sinks = a.sinks.map(sinkLine).join('<br>') || a.sinksAfter.join(', ')
     const logic = a.sinks.map(s => s.logic ? `${a.sinks.length > 1 ? `${s.sink}: ` : ''}${logicLine(s)}` : '').filter(Boolean).join('<br>')
     out.push(`| ${mark[a.change]} | ${code(a.name)} | ${esc(triggerLine(a))} | ${esc(sinks)} | ${esc(logic)} |`)
@@ -127,7 +128,12 @@ export function formatReport(r, { max = 6 } = {}) {
   } else if (r.components.length) out.push('', 'No side effect was added to an existing action, and no guard removed or write widened. That is all this line says: read the changes below.')
   if (r.notes.length) out.push('', '### Also changed', ...r.notes.map(item))
   if (!r.components.length) out.push('', 'No difference in component behaviour was found.')
+  if (r.sharedHelpers.length) {
+    out.push('', '### Shared helpers that changed')
+    for (const h of r.sharedHelpers) out.push(`- ${code(h.name)} reaches ${n(h.components.length, 'components')} (${codes(h.components.slice(0, 6))}${h.components.length > 6 ? ', …' : ''}). What it means for each of them isn't analysed: read the helper's diff.`)
+  }
   for (const c of r.components) {
+    if (c.folded) continue
     out.push('', `### ${code(c.name)} ${c.status === 'changed' ? '' : `(${c.status}) `}· \`${c.file}\`${c.movedFrom ? ` (moved from \`${c.movedFrom}\`)` : ''}`)
     actionRows(c, out)
     miscLines(c, out)
