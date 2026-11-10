@@ -125,12 +125,93 @@ Within-task trial spread (pooled log SD): current: costUsd 0.43, billedTokens 0.
 | 23-quote-resource | $0.035 / 70.8k / 2/2 | $0.019 / 45.8k / 2/2 |
 | 24-list-detail-cache | $0.042 / 86.7k / 2/2 | $0.032 / 65.9k / 2/2 |
 
+## skill
+
+| Arm | Trials | Pass | Pass 95% | Hidden tests | Total cost | costUsd mean (median, sd) | billedTokens mean (median, sd) | wallSeconds mean (median, sd) | peakContext mean (median, sd) | outputTokens mean (median, sd) | toolCalls mean (median, sd) | iterations mean (median, sd) | docBytesRead mean (median, sd) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| current-skill | 30 | 29 | 83%–99% | 207/210 | $6.45 | $0.215 ($0.198, $0.049) | 216k (191k, 97k) | 33.3 s (31.0 s, 12.7 s) | 45.9k (45.3k, 7.0k) | 4k (4k, 1.7k) | 5.8 (5.0, 1.7) | 2.1 (2.0, 1.1) | 14.6 KB (13.2 KB, 14.6 KB) |
+| compact-skill | 30 | 30 | 89%–100% | 210/210 | $5.08 | $0.169 ($0.162, $0.049) | 192k (163k, 104k) | 34.7 s (35.0 s, 13.1 s) | 34.7k (34.1k, 7.5k) | 4.2k (4.4k, 1.7k) | 6.8 (6.0, 2.5) | 2.6 (2.0, 1.5) | 10.1 KB (2.2 KB, 13.9 KB) |
+
+Within-task trial spread (pooled log SD): current-skill: costUsd 0.06, billedTokens 0.17, wallSeconds 0.12, peakContext 0.05; compact-skill: costUsd 0.09, billedTokens 0.23, wallSeconds 0.16, peakContext 0.07
+
+### compact-skill / current-skill (paired by task)
+
+| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |
+|---|---|---|---|---|---|
+| costUsd | 0.78 | 0.73–0.83 | 0.0001 | 15/15 | 0.63–1.00 |
+| billedTokens | 0.85 | 0.74–0.99 | 0.0436 | 12/15 | 0.50–1.71 |
+| wallSeconds | 1.04 | 0.96–1.12 | 0.3975 | 8/15 | 0.83–1.36 |
+| peakContext | 0.75 | 0.72–0.78 | 0.0001 | 15/15 | 0.65–0.87 |
+| outputTokens | 1.06 | 0.99–1.13 | 0.1372 | 5/15 | 0.83–1.35 |
+| toolCalls | 1.16 | 1.04–1.30 | 0.0210 | 2/15 | 0.80–1.90 |
+| docBytesRead | (a zero value: not computed) | | | | |
+
+### Per task: mean cost, peak context, passes
+
+| Task | current-skill cost / peak / pass | compact-skill cost / peak / pass |
+|---|---|---|
+| 10-signup-wizard | $0.231 / 43.4k / 2/2 | $0.153 / 30.7k / 2/2 |
+| 11-search-debounce | $0.154 / 37.1k / 2/2 | $0.101 / 24.3k / 2/2 |
+| 13-course-portal | $0.188 / 40.1k / 2/2 | $0.161 / 29.9k / 2/2 |
+| 23-quote-resource | $0.157 / 37.6k / 2/2 | $0.108 / 25.9k / 2/2 |
+| 24-list-detail-cache | $0.187 / 40.7k / 2/2 | $0.136 / 27.4k / 2/2 |
+| 25-router-spa | $0.209 / 42.7k / 2/2 | $0.155 / 29.8k / 2/2 |
+| 30-checkout-form | $0.240 / 49.6k / 1/2 | $0.211 / 38.4k / 2/2 |
+| 31-command-menu | $0.202 / 42.9k / 2/2 | $0.167 / 33.7k / 2/2 |
+| 33-virtual-list | $0.193 / 44.3k / 2/2 | $0.192 / 38.5k / 2/2 |
+| 34-sortable-playlist | $0.189 / 46.1k / 2/2 | $0.152 / 35.8k / 2/2 |
+| 44-streaming-chat | $0.203 / 46.6k / 2/2 | $0.158 / 37.2k / 2/2 |
+| 45-packing-assistant | $0.348 / 63.1k / 2/2 | $0.283 / 50.1k / 2/2 |
+| 46-ticket-triage | $0.275 / 55.3k / 2/2 | $0.214 / 42.7k / 2/2 |
+| 48-dashboard-goals | $0.201 / 47.3k / 2/2 | $0.128 / 31.3k / 2/2 |
+| 49-session-card | $0.251 / 52.3k / 2/2 | $0.223 / 45.0k / 2/2 |
+
+## Skill arms against no-skill arms (Sonnet, paired by task)
+
+### current-skill / current
+
+| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |
+|---|---|---|---|---|---|
+| costUsd | 1.24 | 1.09–1.40 | 0.0071 | 2/15 | 0.76–1.87 |
+| billedTokens | 0.93 | 0.77–1.14 | 0.5258 | 10/15 | 0.39–2.39 |
+| wallSeconds | 0.81 | 0.70–0.92 | 0.0042 | 14/15 | 0.38–1.29 |
+| peakContext | 1.36 | 1.23–1.51 | 0.0002 | 1/15 | 0.95–2.03 |
+| outputTokens | 0.85 | 0.76–0.94 | 0.0049 | 12/15 | 0.50–1.13 |
+| toolCalls | 0.60 | 0.53–0.68 | 0.0001 | 14/15 | 0.33–1.15 |
+| docBytesRead | (a zero value: not computed) | | | | |
+
+### compact-skill / compact
+
+| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |
+|---|---|---|---|---|---|
+| costUsd | 1.12 | 1.04–1.21 | 0.0146 | 4/15 | 0.87–1.56 |
+| billedTokens | 1.03 | 0.88–1.20 | 0.6956 | 6/15 | 0.62–1.96 |
+| wallSeconds | 0.94 | 0.84–1.03 | 0.2451 | 8/15 | 0.56–1.25 |
+| peakContext | 1.15 | 1.07–1.24 | 0.0036 | 3/15 | 0.90–1.51 |
+| outputTokens | 0.96 | 0.88–1.04 | 0.4587 | 9/15 | 0.61–1.29 |
+| toolCalls | 0.82 | 0.72–0.92 | 0.0068 | 11/15 | 0.50–1.19 |
+| docBytesRead | (a zero value: not computed) | | | | |
+
+### compact-skill / current
+
+| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |
+|---|---|---|---|---|---|
+| costUsd | 0.96 | 0.84–1.10 | 0.5786 | 11/15 | 0.58–1.67 |
+| billedTokens | 0.79 | 0.65–0.98 | 0.0557 | 11/15 | 0.42–2.29 |
+| wallSeconds | 0.84 | 0.74–0.95 | 0.0175 | 12/15 | 0.51–1.22 |
+| peakContext | 1.02 | 0.91–1.14 | 0.7790 | 7/15 | 0.64–1.59 |
+| outputTokens | 0.90 | 0.81–1.00 | 0.0777 | 11/15 | 0.63–1.27 |
+| toolCalls | 0.69 | 0.61–0.79 | 0.0004 | 14/15 | 0.50–1.35 |
+| docBytesRead | (a zero value: not computed) | | | | |
+
 ## What the trials opened
 
-| Run | llms.txt | a topic file | a guide page | dist/index.d.ts | built JS or the package src | the task's matching file (14 of the 15 tasks have one) | failed build/test runs, mean |
-|---|---|---|---|---|---|---|---|
-| current, sonnet | 45/45 | 21/45 | 19/45 | 1/45 | 1/45 | 28/42 (67%) | 1.6 |
-| compact, sonnet | 45/45 | 33/45 | 16/45 | 3/45 | 0/45 | 29/42 (69%) | 0.8 |
-| index, sonnet | 21/45 | 45/45 | 31/45 | 4/45 | 0/45 | 42/42 (100%) | 1.4 |
-| current, haiku | 15/15 | 1/15 | 11/15 | 8/15 | 7/15 | 10/15 (67%) | 1.9 |
-| compact, haiku | 15/15 | 15/15 | 7/15 | 11/15 | 6/15 | 14/15 (93%) | 1.3 |
+| Run | called the skill | llms.txt | a topic file | a guide page | dist/index.d.ts | built JS or the package src | the task's matching file (14 of the 15 tasks have one) | failed build/test runs, mean |
+|---|---|---|---|---|---|---|---|---|
+| current, sonnet | 45/45 | 45/45 | 21/45 | 19/45 | 1/45 | 1/45 | 28/42 (67%) | 1.6 |
+| compact, sonnet | 44/45 | 45/45 | 33/45 | 16/45 | 3/45 | 0/45 | 29/42 (69%) | 0.8 |
+| index, sonnet | 45/45 | 21/45 | 45/45 | 31/45 | 4/45 | 0/45 | 42/42 (100%) | 1.4 |
+| current, haiku | 15/15 | 15/15 | 1/15 | 11/15 | 8/15 | 7/15 | 10/15 (67%) | 1.9 |
+| compact, haiku | 15/15 | 15/15 | 15/15 | 7/15 | 11/15 | 6/15 | 14/15 (93%) | 1.3 |
+| current-skill, skill | 30/30 | 3/30 | 10/30 | 14/30 | 0/30 | 0/30 | 20/28 (71%) | 0.4 |
+| compact-skill, skill | 30/30 | 7/30 | 16/30 | 9/30 | 5/30 | 0/30 | 21/28 (75%) | 0.8 |

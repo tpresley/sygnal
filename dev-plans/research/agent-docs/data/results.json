@@ -794,10 +794,381 @@
    }
   }
  },
+ "skill": {
+  "arms": {
+   "current-skill": {
+    "trials": 30,
+    "pass": 29,
+    "wilson": [
+     0.8332924860304112,
+     0.9940915620051425
+    ],
+    "hiddenPassed": 207,
+    "hiddenTotal": 210,
+    "totalCost": 6.4514017,
+    "metrics": {
+     "costUsd": {
+      "mean": 0.21504672333333333,
+      "median": 0.19794415,
+      "sd": 0.049413624484232574,
+      "withinTaskLogSd": 0.06247797698764407
+     },
+     "billedTokens": {
+      "mean": 216298.13333333333,
+      "median": 190794,
+      "sd": 96890.41764503796,
+      "withinTaskLogSd": 0.1726822161737072
+     },
+     "wallSeconds": {
+      "mean": 33.333333333333336,
+      "median": 31,
+      "sd": 12.68540658512312,
+      "withinTaskLogSd": 0.11595758567737041
+     },
+     "peakContext": {
+      "mean": 45941.8,
+      "median": 45261,
+      "sd": 7034.057986093387,
+      "withinTaskLogSd": 0.0501498662927094
+     },
+     "outputTokens": {
+      "mean": 4006.2,
+      "median": 3970.5,
+      "sd": 1664.8256282307148,
+      "withinTaskLogSd": 0.06727963867486401
+     },
+     "toolCalls": {
+      "mean": 5.766666666666667,
+      "median": 5,
+      "sd": 1.69549775690744,
+      "withinTaskLogSd": 0.1275100411352864
+     },
+     "iterations": {
+      "mean": 2.1333333333333333,
+      "median": 2,
+      "sd": 1.1058881072455415,
+      "withinTaskLogSd": null
+     },
+     "docBytesRead": {
+      "mean": 14585.866666666667,
+      "median": 13234,
+      "sd": 14643.691817659053,
+      "withinTaskLogSd": null
+     }
+    }
+   },
+   "compact-skill": {
+    "trials": 30,
+    "pass": 30,
+    "wilson": [
+     0.8864829086095221,
+     1
+    ],
+    "hiddenPassed": 210,
+    "hiddenTotal": 210,
+    "totalCost": 5.0841367,
+    "metrics": {
+     "costUsd": {
+      "mean": 0.16947122333333334,
+      "median": 0.162107,
+      "sd": 0.04858086096078183,
+      "withinTaskLogSd": 0.09374908992188352
+     },
+     "billedTokens": {
+      "mean": 191656.66666666666,
+      "median": 163352,
+      "sd": 104034.14584854717,
+      "withinTaskLogSd": 0.22785160359245385
+     },
+     "wallSeconds": {
+      "mean": 34.666666666666664,
+      "median": 35,
+      "sd": 13.12363840775382,
+      "withinTaskLogSd": 0.1641567682126016
+     },
+     "peakContext": {
+      "mean": 34711.433333333334,
+      "median": 34072.5,
+      "sd": 7462.40666404212,
+      "withinTaskLogSd": 0.07336214385823937
+     },
+     "outputTokens": {
+      "mean": 4227.566666666667,
+      "median": 4433.5,
+      "sd": 1660.4862537373126,
+      "withinTaskLogSd": 0.15295603854046874
+     },
+     "toolCalls": {
+      "mean": 6.8,
+      "median": 6,
+      "sd": 2.455114296096325,
+      "withinTaskLogSd": 0.20448267962110914
+     },
+     "iterations": {
+      "mean": 2.6,
+      "median": 2,
+      "sd": 1.5222487902147745,
+      "withinTaskLogSd": null
+     },
+     "docBytesRead": {
+      "mean": 10055.666666666666,
+      "median": 2172.5,
+      "sd": 13875.246963526473,
+      "withinTaskLogSd": null
+     }
+    }
+   }
+  },
+  "effects": {
+   "compact-skill/current-skill/costUsd": {
+    "ratio": 0.7758669451533864,
+    "low": 0.728691586594036,
+    "high": 0.8274898905841882,
+    "p": 0.00006103515625,
+    "tasks": 15,
+    "down": 15,
+    "min": 0.6346897869502918,
+    "max": 0.996622240233752
+   },
+   "compact-skill/current-skill/billedTokens": {
+    "ratio": 0.8503838729065558,
+    "low": 0.7429545255328054,
+    "high": 0.9864151127946006,
+    "p": 0.0435791015625,
+    "tasks": 15,
+    "down": 12,
+    "min": 0.5028368577411748,
+    "max": 1.7063985990001314
+   },
+   "compact-skill/current-skill/wallSeconds": {
+    "ratio": 1.035942423932227,
+    "low": 0.9616222608669828,
+    "high": 1.1228393807586776,
+    "p": 0.3974609375,
+    "tasks": 15,
+    "down": 8,
+    "min": 0.831209414593633,
+    "max": 1.3584158308233532
+   },
+   "compact-skill/current-skill/peakContext": {
+    "ratio": 0.7471938464975761,
+    "low": 0.715008334947483,
+    "high": 0.78158983219097,
+    "p": 0.00006103515625,
+    "tasks": 15,
+    "down": 15,
+    "min": 0.653671251399052,
+    "max": 0.869497454873898
+   },
+   "compact-skill/current-skill/outputTokens": {
+    "ratio": 1.0560306935022126,
+    "low": 0.9907700909937093,
+    "high": 1.1293872390719741,
+    "p": 0.13720703125,
+    "tasks": 15,
+    "down": 5,
+    "min": 0.83156634376501,
+    "max": 1.349833468698681
+   },
+   "compact-skill/current-skill/toolCalls": {
+    "ratio": 1.157610616294856,
+    "low": 1.0428634067653768,
+    "high": 1.2954671411652954,
+    "p": 0.02099609375,
+    "tasks": 15,
+    "down": 2,
+    "min": 0.8,
+    "max": 1.8973665961010278
+   }
+  }
+ },
+ "across": {
+  "current-skill/current/costUsd": {
+   "ratio": 1.2379007507994229,
+   "low": 1.0888880471393498,
+   "high": 1.3998159055880794,
+   "p": 0.00714111328125,
+   "tasks": 15,
+   "down": 2,
+   "min": 0.7605735812948757,
+   "max": 1.8747056869762164
+  },
+  "current-skill/current/billedTokens": {
+   "ratio": 0.9336692875920006,
+   "low": 0.7657415187399308,
+   "high": 1.1393803049778564,
+   "p": 0.52581787109375,
+   "tasks": 15,
+   "down": 10,
+   "min": 0.39158628806034546,
+   "max": 2.3887296239318907
+  },
+  "current-skill/current/wallSeconds": {
+   "ratio": 0.8115525540421595,
+   "low": 0.7022242574059763,
+   "high": 0.9180158306372949,
+   "p": 0.00421142578125,
+   "tasks": 15,
+   "down": 14,
+   "min": 0.3790464646389553,
+   "max": 1.2892191322648907
+  },
+  "current-skill/current/peakContext": {
+   "ratio": 1.3623338924941417,
+   "low": 1.2331671921424583,
+   "high": 1.5059064228790962,
+   "p": 0.00018310546875,
+   "tasks": 15,
+   "down": 1,
+   "min": 0.9491488923231003,
+   "max": 2.0253756441407718
+  },
+  "current-skill/current/outputTokens": {
+   "ratio": 0.852834067038315,
+   "low": 0.7631334952394573,
+   "high": 0.9376338032959367,
+   "p": 0.00494384765625,
+   "tasks": 15,
+   "down": 12,
+   "min": 0.5025862086549888,
+   "max": 1.1281058785473017
+  },
+  "current-skill/current/toolCalls": {
+   "ratio": 0.5962451751139395,
+   "low": 0.5267458702224793,
+   "high": 0.6769141108335378,
+   "p": 0.0001220703125,
+   "tasks": 15,
+   "down": 14,
+   "min": 0.33025969145802014,
+   "max": 1.1507391653295758
+  },
+  "compact-skill/compact/costUsd": {
+   "ratio": 1.1194111547915062,
+   "low": 1.0368457089567946,
+   "high": 1.2098319464969736,
+   "p": 0.0146484375,
+   "tasks": 15,
+   "down": 4,
+   "min": 0.8693191233471524,
+   "max": 1.5588919266452341
+  },
+  "compact-skill/compact/billedTokens": {
+   "ratio": 1.0329032061935592,
+   "low": 0.8846856782017516,
+   "high": 1.2017497983537493,
+   "p": 0.695556640625,
+   "tasks": 15,
+   "down": 6,
+   "min": 0.6198729005940568,
+   "max": 1.9599128280644698
+  },
+  "compact-skill/compact/wallSeconds": {
+   "ratio": 0.935381863562454,
+   "low": 0.839509509124321,
+   "high": 1.0288207647181646,
+   "p": 0.2451171875,
+   "tasks": 15,
+   "down": 8,
+   "min": 0.5555555555555552,
+   "max": 1.249553873373962
+  },
+  "compact-skill/compact/peakContext": {
+   "ratio": 1.1536166836107913,
+   "low": 1.0684937094970524,
+   "high": 1.2434813833187388,
+   "p": 0.00360107421875,
+   "tasks": 15,
+   "down": 3,
+   "min": 0.8993048190962865,
+   "max": 1.5127780132625812
+  },
+  "compact-skill/compact/outputTokens": {
+   "ratio": 0.9640051244433621,
+   "low": 0.8802409940320762,
+   "high": 1.0435018818635058,
+   "p": 0.458740234375,
+   "tasks": 15,
+   "down": 9,
+   "min": 0.6122071943823083,
+   "max": 1.2890690367485256
+  },
+  "compact-skill/compact/toolCalls": {
+   "ratio": 0.8181054234721182,
+   "low": 0.7169695090341719,
+   "high": 0.9235376171746403,
+   "p": 0.0068359375,
+   "tasks": 15,
+   "down": 11,
+   "min": 0.5026316274194358,
+   "max": 1.1931523830592194
+  },
+  "compact-skill/current/costUsd": {
+   "ratio": 0.9604462739258317,
+   "low": 0.842277947929543,
+   "high": 1.0995762461768985,
+   "p": 0.57861328125,
+   "tasks": 15,
+   "down": 11,
+   "min": 0.5806162426350703,
+   "max": 1.6738371655516384
+  },
+  "compact-skill/current/billedTokens": {
+   "ratio": 0.7939773047963904,
+   "low": 0.6507026978644495,
+   "high": 0.9844102243236994,
+   "p": 0.0556640625,
+   "tasks": 15,
+   "down": 11,
+   "min": 0.41922967418176904,
+   "max": 2.2917780198271283
+  },
+  "compact-skill/current/wallSeconds": {
+   "ratio": 0.8407217199828245,
+   "low": 0.7422482074648227,
+   "high": 0.9455365869476807,
+   "p": 0.0174560546875,
+   "tasks": 15,
+   "down": 12,
+   "min": 0.5149027181831812,
+   "max": 1.2199822881410847
+  },
+  "compact-skill/current/peakContext": {
+   "ratio": 1.017927501346713,
+   "low": 0.9107900456615052,
+   "high": 1.143734753026417,
+   "p": 0.77899169921875,
+   "tasks": 15,
+   "down": 7,
+   "min": 0.6394926297240189,
+   "max": 1.5938182258905598
+  },
+  "compact-skill/current/outputTokens": {
+   "ratio": 0.9006189512567843,
+   "low": 0.8110131779730878,
+   "high": 0.9971558948632774,
+   "p": 0.07769775390625,
+   "tasks": 15,
+   "down": 11,
+   "min": 0.6331088893722919,
+   "max": 1.2737517384170842
+  },
+  "compact-skill/current/toolCalls": {
+   "ratio": 0.6902197446264817,
+   "low": 0.6116876107255469,
+   "high": 0.790600490650145,
+   "p": 0.00042724609375,
+   "tasks": 15,
+   "down": 14,
+   "min": 0.4999554358935017,
+   "max": 1.3493612791269758
+  }
+ },
  "opened": {
   "current-sonnet": {
    "trials": 45,
    "opened": {
+    "called the skill": 45,
     "llms.txt": 45,
     "a topic file": 21,
     "a guide page": 19,
@@ -811,6 +1182,7 @@
   "compact-sonnet": {
    "trials": 45,
    "opened": {
+    "called the skill": 44,
     "llms.txt": 45,
     "a topic file": 33,
     "a guide page": 16,
@@ -824,6 +1196,7 @@
   "index-sonnet": {
    "trials": 45,
    "opened": {
+    "called the skill": 45,
     "llms.txt": 21,
     "a topic file": 45,
     "a guide page": 31,
@@ -837,6 +1210,7 @@
   "current-haiku": {
    "trials": 15,
    "opened": {
+    "called the skill": 15,
     "llms.txt": 15,
     "a topic file": 1,
     "a guide page": 11,
@@ -850,6 +1224,7 @@
   "compact-haiku": {
    "trials": 15,
    "opened": {
+    "called the skill": 15,
     "llms.txt": 15,
     "a topic file": 15,
     "a guide page": 7,
@@ -859,6 +1234,34 @@
    "matched": 14,
    "topical": 15,
    "failedRuns": 1.3333333333333333
+  },
+  "current-skill-skill": {
+   "trials": 30,
+   "opened": {
+    "called the skill": 30,
+    "llms.txt": 3,
+    "a topic file": 10,
+    "a guide page": 14,
+    "dist/index.d.ts": 0,
+    "built JS or the package src": 0
+   },
+   "matched": 20,
+   "topical": 28,
+   "failedRuns": 0.4
+  },
+  "compact-skill-skill": {
+   "trials": 30,
+   "opened": {
+    "called the skill": 30,
+    "llms.txt": 7,
+    "a topic file": 16,
+    "a guide page": 9,
+    "dist/index.d.ts": 5,
+    "built JS or the package src": 0
+   },
+   "matched": 21,
+   "topical": 28,
+   "failedRuns": 0.8333333333333334
   }
  }
 }

@@ -14,6 +14,7 @@ const RUNS = {
   sonnet: { control: 'current', arms: ['current', 'compact', 'index'], run: (a) => `agent-docs-${a}-sonnet` },
   haiku: { control: 'current', arms: ['current', 'compact'], run: (a) => `agent-docs-${a}-haiku` },
   pilot: { control: 'current', arms: ['current', 'compact'], run: (a) => `agent-docs-pilot-${a}-haiku` },
+  skill: { control: 'current-skill', arms: ['current-skill', 'compact-skill'], run: (a) => `agent-docs-${a}-sonnet` },
 }
 const METRICS = {
   costUsd: (t) => t.costUsd, billedTokens: (t) => t.tokens, wallSeconds: (t) => t.wallSeconds,
@@ -122,6 +123,22 @@ for (const [name, cfg] of Object.entries(RUNS)) {
   }
   say()
 }
+// The skill arms against the no-skill arms on the same 15 tasks (3 trials per task without a skill, 2 with).
+say('## Skill arms against no-skill arms (Sonnet, paired by task)\n')
+json.across = {}
+for (const [c, a] of [['current', 'current-skill'], ['compact', 'compact-skill'], ['current', 'compact-skill']]) {
+  const control = load(`agent-docs-${c}-sonnet`), arm = load(`agent-docs-${a}-sonnet`)
+  say(`### ${a} / ${c}\n`)
+  say('| Metric | Ratio | 95% (tasks bootstrapped) | Exact sign-flip p | Tasks lower | Per-task range |')
+  say('|---|---|---|---|---|---|')
+  for (const m of LOG) {
+    if (![...control, ...arm].every((t) => METRICS[m](t) > 0)) { say(`| ${m} | (a zero value: not computed) | | | | |`); continue }
+    const e = pairedEffect(control, arm, METRICS[m])
+    json.across[`${a}/${c}/${m}`] = e
+    say(`| ${m} | ${e.ratio.toFixed(2)} | ${e.low.toFixed(2)}–${e.high.toFixed(2)} | ${e.p.toFixed(4)} | ${e.down}/${e.tasks} | ${e.min.toFixed(2)}–${e.max.toFixed(2)} |`)
+  }
+  say()
+}
 // What each trial opened, from the agents' own tool inputs in the transcripts (the analysis' file list misses
 // `cd node_modules/sygnal; cat llms/x.md`). The transcripts live in the run's trial directory, not in the repository.
 const TRIALS = '/private/tmp/sygnal-evals/trials'
@@ -132,13 +149,13 @@ const TRIGGER = {
   '44': AI, '45': AI, '46': AI, '48': AI, '49': AI,
 }
 const OPENED = {
-  'llms.txt': /llms\.txt/, 'a topic file': /llms\/[a-z-]+\.md|llms\/\*/, 'a guide page': /guide\/[\w/-]+\.md/,
+  'called the skill': /"skill":"sygnal-dev"/, 'llms.txt': /llms\.txt/, 'a topic file': /llms\/[a-z-]+\.md|llms\/\*/, 'a guide page': /guide\/[\w/-]+\.md/,
   'dist/index.d.ts': /index\.d\.ts/, 'built JS or the package src': /dist\/[\w.-]+\.[mc]?js\b|sygnal\/src\b/,
 }
 function toolInputs(run, trial) {
   const lines = fs.readFileSync(`${TRIALS}/${run}/${trial}.transcript.jsonl`, 'utf8').split('\n').filter(Boolean)
   return JSON.stringify(lines.map((l) => { try { return JSON.parse(l) } catch { return null } }).filter((l) => l?.type === 'assistant')
-    .flatMap((l) => (l.message.content ?? []).filter((b) => b.type === 'tool_use').map((b) => b.input)))
+    .flatMap((l) => (l.message.content ?? []).filter((b) => b.type === 'tool_use').map((b) => b.input))).replaceAll('references/', 'llms/')
 }
 say('## What the trials opened\n')
 say('| Run | ' + Object.keys(OPENED).join(' | ') + ' | the task\'s matching file (14 of the 15 tasks have one) | failed build/test runs, mean |')

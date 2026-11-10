@@ -2,7 +2,7 @@
 
 **Question.** The agent context is `llms.txt` (66.5 KB), `SKILL.md` (56.2 KB) and ten topic files (54.5 KB). Sygnal trials carry +32–35k tokens of context over React and cost 1.3–3× more. How much of it has to be there before the first line, and how do the experimental subpaths stop loading it, without moving code out of the package?
 
-**Results (added after the paid runs).** Section 9 has them. The compact core cost 14% less on Sonnet and 21% less on Haiku with no detectable pass-rate loss, on the no-skill path. The `AGENTS.md` index did not beat the compact core on cost. The two skill arms were not run. The table below is the spike's original proposal, with its status updated from those runs.
+**Results (added after the paid runs).** Section 9 has them. The compact core cost 14% less on Sonnet and 21% less on Haiku with no detectable pass-rate loss, on the no-skill path. The `AGENTS.md` index did not beat the compact core on cost. With the skill, the compact form cost 22% less than today's skill and lost no passes in 30 trials, though agents ran more lookups. The table below is the spike's original proposal, with its status updated from those runs.
 
 **Limits of this spike.** The audit, candidates and coverage were done before any paid run. Token counts are bytes ÷ 3.6 (the ratio the llms-context spike measured with cl100k_base). The trap verdicts and paragraph kinds are hand-assigned. The coverage table measures whether API names are present, not whether agents use them well. The root `npm test` gate was not run (other sessions are busy); `test/llms-txt.test.js`, the eval unit tests and the checks named below were.
 
@@ -11,7 +11,7 @@
 | # | Do this | Evidence | Cost |
 |---|---|---|---|
 | 1 | Replace the core `llms.txt` with the **compact core** (21.7 KB, ⅓ of today), everything removed moved verbatim to on-demand topic files. | Fact coverage: 97.4% of what the 49 reference solutions use is inline, 100% within one read (today 99% / 100%). | **Run done: ship it for the no-skill path** (section 9). A pass-rate loss under about 20 pp cannot be ruled out. |
-| 2 | **Generate the skill from the same source** (22.4 KB against 56.2 KB). | The two files carry the same facts in two wordings: only 28–34% shares exact wording, 652 of the 1,064 distinct API names are in both, and no skill trial needs both. | **Not tested: the skill arms were not run.** Hold until they are (section 9). |
+| 2 | **Generate the skill from the same source** (22.4 KB against 56.2 KB). | The two files carry the same facts in two wordings: only 28–34% shares exact wording, 652 of the 1,064 distinct API names are in both, and no skill trial needs both. | **Run done: generate it, and ship it together with #1** (section 9). Cost 0.78× today's skill; 30/30 passes against 29/30. Two trials per task cannot rule out a pass-rate loss under about 30 pp. |
 | 3 | Put the **trigger index in `AGENTS.md`** (7.0 KB; passive, always in context). | Vercel: 100% against 53–79% for a skill; here the llms-context core index found the right topic in 36/40 trials. | **Run done: do not adopt.** Cost ratio to #1 alone 0.97 (0.90–1.06), so it fails the section 7 rule, though it reached the right topic in 42 of 42 trials. |
 | 4 | Keep **option lists out of the core**, reachable by symbol: the types already answer them. Ship `sygnal-check docs <Symbol\|sygnal/x\|dir>`. | 88% of the API names in reference prose already sit in a JSDoc; about 23 KB of `llms.txt` is option-list sentences. `dist/index.d.ts` is 390 KB, so agents need a lookup, not more JSDoc. | Small; a prototype is in the folder. |
 | 5 | Drop the **47 trap sentences whose diagnostic already says the fix** (6.5 KB in `llms.txt`, 4.8 KB in the skill), after raising SYG105 from info to warn. | Section 4. | None. |
@@ -228,9 +228,9 @@ node evals/agent-ergonomics/orchestrate.mjs --run agent-docs-compact-haiku --var
 
 ## 9. Results of the paid runs (2026-11-09)
 
-The maintainer ran the seven commands of section 7, 173 trials for **$23.00** at list price. Full tables, per-task numbers and the method are in `data/results.md` (`tools/results.mjs`); raw results are in `evals/agent-ergonomics/results/agent-docs-*`.
+The maintainer ran the seven commands of section 7, 173 trials for **$23.00** at list price, then the two skill-pair commands, 60 trials for **$11.53**. All nine runs: 233 trials, **$34.53**. Full tables, per-task numbers and the method are in `data/results.md` (`tools/results.mjs`); raw results are in `evals/agent-ergonomics/results/agent-docs-*`.
 
-**Short answer.** On the no-skill path, the compact core cost 14% less on Sonnet and 21% less on Haiku with no pass-rate loss that these runs could detect. The `AGENTS.md` index was not distinguishable from the compact core on cost, so it does not meet the adoption rule. **The two skill arms were not run**, so nothing here says whether the compact skill works, and that is how plugin users get the docs.
+**Short answer.** On the no-skill path, the compact core cost 14% less on Sonnet and 21% less on Haiku with no pass-rate loss that these runs could detect. The `AGENTS.md` index was not distinguishable from the compact core on cost, so it does not meet the adoption rule. On the skill path, which is how plugin users get the docs, the compact skill cost 22% less than today's skill with 30/30 passes against 29/30, at the price of about one more tool call per trial; see "The skill arms" below.
 
 ### What ran and what did not
 
@@ -239,10 +239,10 @@ The maintainer ran the seven commands of section 7, 173 trials for **$23.00** at
 | `agent-docs-current` | 45 | 15 | 4 |
 | `agent-docs-compact` | 45 | 15 | 4 |
 | `agent-docs-index` | 45 | not in the proposal | not in the proposal |
-| `agent-docs-current-skill` | **0, not run** | 0 | 0 |
-| `agent-docs-compact-skill` | **0, not run** | 0 | 0 |
+| `agent-docs-current-skill` | 30 (15 tasks × 2) | 0 | 0 |
+| `agent-docs-compact-skill` | 30 (15 tasks × 2) | 0 | 0 |
 
-The seven commands were steps 1–3 of section 7. The skill pair was optional step 4 and has no commands in that section. Of the five arms asked about, three have data.
+The seven commands were steps 1–3 of section 7; the skill pair was step 4 and ran after them, about an hour after the last no-skill Sonnet run. The subsections up to "Against the decision rule" cover the no-skill arms and were written first.
 
 No run or trial is missing or failed to start: every run scored all its trials, every transcript ended in `success`, none reported an error, and no audit flags or process kills were raised. All runs used the same tarball, git SHA `c86f6d41` and Claude Code 2.1.303, and I confirmed in one trial directory of each main run that the arm received its intended `llms.txt` (66,548 or 21,701 B) and `AGENTS.md` (1,844 or 7,041 B).
 
@@ -340,13 +340,12 @@ In all 165 main trials the final code had no `sygnal-check` diagnostics and no w
 
 1. **Ship the compact core as `llms.txt`, with the topic set**, for projects without the skill. It met its pre-set rule, and the saving is larger than the noise on Sonnet.
 2. **Do not ship the index in `AGENTS.md` on this evidence.** It costs 5.2 KB in every session and did not beat the compact core. Its 100% topic reach is real and worth keeping as a candidate if a harder task set shows topic reach changes pass rate.
-3. **Do not generate the skill from the compact core yet** (recommendation #2 at the top). That arm has no data, and earlier spikes (E5, D235) found a cut can cost more than it saves.
+3. **Generate the skill from the compact core, and ship it in the same change as #1** (recommendation #2 at the top). "The skill arms" below has the evidence and what it leaves open. The compact-skill arm also had the compact `llms.txt`, so the two were measured together.
 4. The remaining recommendations (#4–#7) do not depend on these runs. None was tested by them.
 
 ### What this does not show
 
-- **Anything about the skill**, the main delivery path for plugin users.
-- **A small pass-rate loss.** Section 7 said so in advance; anything under about 20 pp could be missed.
+- **A small pass-rate loss.** Section 7 said so in advance; anything under about 20 pp could be missed without the skill, and more with it (see below).
 - **Tasks outside these 15**, or Haiku beyond 5. Experimental subpaths (`yjs`, `canvas`, `three` and others) were not exercised, so their topic files are untested.
 - **Other models.** Opus was not run.
 - **Long sessions or repeat work in one project.** Each trial is one fresh task.
@@ -355,22 +354,104 @@ In all 165 main trials the final code had no `sygnal-check` diagnostics and no w
 - The prompt says "Use the sygnal-dev skill" even when a variant has none (`prepare.mjs:110`). 164 of the 165 main trials tried it and got `Unknown skill`. That hits all arms alike, so the comparison stands, but every trial spends a failed tool call, and absolute numbers are not those of a clean no-skill project.
 - Section 7's Haiku estimates were far too high: $14 and $54 proposed against $0.25 and $0.98 actual, because the $1.80-per-trial rate behind them was set on the AI tier; Haiku trials cost about $0.03. The Sonnet estimates were right ($7.94 per arm against $6.68–8.15).
 
+### The skill arms (Sonnet, 15 tasks × 2)
+
+**No trial is missing or failed to start.** Both runs scored 30 of 30; every transcript ended in `success`; there were no audit flags or process kills. Every trial's Skill call succeeded (no `Unknown skill`, unlike the no-skill arms). The final code had no `sygnal-check` diagnostics or wiring failures in any of the 60 trials. Both arms used the same tarball and Claude Code 2.1.303, with a 56,221 B `SKILL.md` or a 22,411 B one, as intended.
+
+| Arm | Trials | Pass (95% interval) | Hidden tests | Cost | Billed tokens | Peak context | Wall time | Run total |
+|---|---|---|---|---|---|---|---|---|
+| current-skill | 30 | 29 (83–99%) | 207/210 | $0.215 (0.049) | 216k (97k) | 45.9k (7.0k) | 33.3 s (12.7) | $6.45 |
+| compact-skill | 30 | 30 (89–100%) | 210/210 | $0.169 (0.049) | 192k (104k) | 34.7k (7.5k) | 34.7 s (13.1) | $5.08 |
+
+Mean per trial, SD across trials in brackets. Spread between repeat trials of one task (pooled log SD, from one degree of freedom per task): cost 0.06–0.09, billed tokens 0.17–0.23, wall time 0.12–0.16, peak context 0.05–0.07. The skill arms vary less than the no-skill arms because every trial loads the same file.
+
+**Compact skill ÷ current skill, paired by task.** "Survives" means Holm correction across these four.
+
+| Metric | Ratio | 95% interval | p | Tasks lower | Survives |
+|---|---|---|---|---|---|
+| cost | **0.78** | 0.73–0.83 | 0.0001 | 15/15 | yes |
+| peak context | **0.75** | 0.72–0.78 | 0.0001 | 15/15 | yes |
+| billed tokens | 0.85 | 0.74–0.99 | 0.044 | 12/15 | no |
+| wall time | 1.04 | 0.96–1.12 | 0.40 | 8/15 | no difference shown |
+
+The cost and peak-context differences are larger than the noise and appear on every task. One of those 15 was barely lower (task 33, ratio 1.00 after rounding). Wall time did not improve.
+
+**What the saving cost.** These are secondary measures, not corrected for multiple comparisons.
+
+| Per trial | Current skill | Compact skill | Difference (paired by task) |
+|---|---|---|---|
+| Tool calls | 5.8 | 6.8 | +1.0, p = 0.013; higher on 10 tasks, lower on 2 |
+| Failed build/test runs | 0.4 | 0.8 | +0.43, p = 0.063; higher on 5 tasks, lower on 1 |
+| Build/test iterations | 2.1 | 2.6 | +0.47, p = 0.18 |
+
+The tool-call increase is real, and the failed-run increase is suggestive. A compact skill gives an agent less up front, and it makes up some of that with lookups and test runs. On Sonnet that trade still came out 22% cheaper, because context dominates the bill.
+
+**Pass rate.** Compact − current is +3.3 pp (−8.3 to +16.7). Not larger than the noise.
+
+**The one failure.** Current skill, task 30 t2, 4/7: it used `form()` with a `request`, and the order POST was never sent under the hidden tests. Haiku's no-skill control, also on task 30 t2, failed with the same signature. It is a control-arm failure, so the compact layout did not cause it. I did not trace the cause: other trials with the same `form()` and zod `.transform()` shape passed, so that shape alone does not explain it.
+
+**What agents opened** (a `references/` file counts as a topic file).
+
+| Arm | Called the skill | `llms.txt` | A topic file | A guide page | `dist/index.d.ts` | Built JS or package `src` | The task's matching file |
+|---|---|---|---|---|---|---|---|
+| current-skill | 30/30 | 3/30 | 10/30 | 14/30 | 0/30 | 0/30 | 20/28 (71%) |
+| compact-skill | 30/30 | 7/30 | 16/30 | 9/30 | 5/30 | 0/30 | 21/28 (75%) |
+
+The compact skill sends agents to topic files more often. Unfavourable: `dist/index.d.ts` went from 0 to 5 of 30, which is the 390 KB file a lookup is meant to replace, and 7 of 30 opened `llms.txt`, which repeats what the compact skill already loaded. Both costs are already included in the arm's numbers.
+
+**Against the no-skill arms on the same 15 tasks** (3 trials per task without a skill, 2 with).
+
+| Ratio, paired by task | Cost | Billed tokens | Peak context | Wall time | Tool calls | Failed build/test runs, difference |
+|---|---|---|---|---|---|---|
+| current-skill ÷ current | 1.24 (1.09–1.40), p 0.007 | 0.93 (0.77–1.14) | 1.36 (1.23–1.51), p 0.0002 | 0.81 (0.70–0.92), p 0.004 | 0.60 (0.53–0.68) | −1.16, p 0.009 |
+| compact-skill ÷ compact | 1.12 (1.04–1.21), p 0.015 | 1.03 (0.88–1.20) | 1.15 (1.07–1.24), p 0.004 | 0.94 (0.84–1.03) | 0.82 (0.72–0.92) | −0.01, p 1.0 |
+| compact-skill ÷ current | 0.96 (0.84–1.10) | 0.79 (0.65–0.98) | 1.02 (0.91–1.14) | 0.84 (0.74–0.95), p 0.018 | 0.69 (0.61–0.79) | −0.72, p 0.10 |
+
+- A skill makes a trial more expensive than the same docs without one. It loads the whole file, where no-skill Sonnet agents grep it. Today's skill costs 24% more and the compact skill 12% more.
+- Today's skill buys something for that: 40% fewer tool calls and about one fewer failed build or test per trial. The compact skill keeps the tool-call saving in part (18% fewer) and **loses the failed-run saving** (no difference from compact without a skill). That is the main unfavourable result for the compact skill.
+- The compact skill costs about the same as today's no-skill control (0.96×, not distinguishable) and is the only skill arm that doesn't cost more than it.
+- These comparisons cross runs made at different times and differ in trial count, so wall-time ratios in particular carry that confound. In every no-skill trial the prompt also named a skill that failed to load, which costs them one tool call the skill arms did not pay.
+
+**Against the decision rule** (section 7's compact rule, applied to the skill pair): each task's pass count is within one trial of the control (only task 30 differs, 1/2 against 2/2, in compact's favour), and cost fell by 22%. Met.
+
+**Recommendation on the skill: generate it from the compact source, and ship it with the compact core.**
+- Both layouts then come from one file, which ends the two hand-kept copies. Today, a wording change such as the one below has to be made twice.
+- The candidate here came from `tools/build-candidates.mjs`. Shipping it needs that step moved into `scripts/build-llms.mjs`, and `SKILL_BUDGET` lowered to the new size.
+- If failed builds matter more than cost for a release, keep today's skill until a larger run settles the failed-run difference.
+
+**What 2 trials per task cannot show.**
+- **A pass-rate loss.** At 30 trials per arm and a 98% baseline, Fisher's test has 4% power to catch a drop to 90%, 18% to 85%, 41% to 80%, 63% to 75% and 81% to 70%. At this size only a loss of about 30 pp is caught reliably, so 30/30 says little about smaller ones.
+- **Anything about one task.** Two trials give one degree of freedom per task. Per-task ratios (cost 0.63–1.00) are mostly noise, and the failed-run difference can't be located to a kind of task.
+- **Whether the failed-run difference is real.** p = 0.063 with 6 tasks differing.
+- **Whether agents would pick up the skill by themselves.** Every prompt says "Use the sygnal-dev skill", so triggering from the description was not tested.
+- **Anything on Haiku or Opus with a skill.**
+- **Which change made the difference.** The compact-skill arm changed `SKILL.md` and the package's `llms.txt` together.
+
+### Where `App.drivers` would go (not applied)
+
+The maintainer decided `App.drivers` is the canonical place for feature drivers, with `run(App, {...})` for environment overrides. The text is in `dev-plans/research/files-touched/README.md` on branch `claude/spike-files-touched-89c15d` (commit `062e037a`); that branch is not merged here, and the candidates stay as measured.
+
+In `candidates/compact-core/llms.txt`:
+
+| Line | Today | Change |
+|---|---|---|
+| before 260, the `run(App, drivers = {}, …)` bullet | no driver rule | add the proposed paragraph as a new bullet (369 B) |
+| 171 (HTTP) | `main.js: run(Search, { HTTP: makeFetchDriver() })` | `Search.drivers = { HTTP: makeFetchDriver() }` on the root |
+| 201 (sockets) | `main.js: run(Chat, { WS: makeSocketDriver() })` | `Chat.drivers = { WS: makeSocketDriver() }` on the root |
+| 210 (router) | `main.js: run(App, { ROUTER: router.driver })` | `on the root: App.drivers = { ROUTER: router.driver }` |
+| 220 (head) | `main.js: HEAD: makeHeadDriver()` | `App.drivers: HEAD: makeHeadDriver()` |
+| 250 (timers) | `run(App, { TIMER: makeTimerDriver() })` | `App.drivers = { TIMER: makeTimerDriver() }` |
+
+**Byte cost: +399 B** (369 for the paragraph, +30 net for the five recipes), measured on a scratch copy: the core goes from 21,701 to 22,100 B, about 110 tokens. The skill source needs no separate edit once it is generated, and goes from 22,411 to about 22,810 B.
+
+The topic files have 14 lines naming `main.js` or `run(App, {` across 12 files, each needing review; renderer and test uses stay on `run()`. If the `AGENTS.md` index is ever adopted, its line 21 changes too. The wording can only ship with or after the release containing `App.drivers`, because the static does not exist before it.
+
 ### Next run, if wanted (not started; the maintainer decides)
 
 | Run | Trials | Cost, from these runs' rates | Answers |
 |---|---|---|---|
-| Skill pair on Sonnet, the 15 tasks × 2 | 60 | $10.30 (dry-run estimate, $5.15 per arm) | Recommendation #2 |
+| Sonnet skill pair, 15 tasks × 5 more | 150 | about $29 | The failed-run difference, and a pass-rate loss down to about 15 pp |
 | Haiku, current and compact on all 15 tasks × 3 | 90 | about $3 | Makes Haiku's comparison testable |
-
-Both skill commands pass a literal `--dry-run` (no trial directory was created). Remove the flag to run:
-
-```bash
-node evals/agent-ergonomics/orchestrate.mjs --run agent-docs-current-skill-sonnet --variant agent-docs-current-skill --arms sygnal --tasks 10,11,13,23,24,25,30,31,33,34,44,45,46,48,49 --trials 2 --model claude-sonnet-5-5 --dry-run
-```
-
-```bash
-node evals/agent-ergonomics/orchestrate.mjs --run agent-docs-compact-skill-sonnet --variant agent-docs-compact-skill --arms sygnal --tasks 10,11,13,23,24,25,30,31,33,34,44,45,46,48,49 --trials 2 --model claude-sonnet-5-5 --dry-run
-```
 
 ## Appendix A: every trap the context mentions
 
