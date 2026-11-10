@@ -47,6 +47,7 @@ import { graphHtml } from './graphView/html.js'
 import { buildModel } from './graphView/model.js'
 import { toMermaid } from './graphView/mermaid.js'
 import { getExplanation, listExplanations, formatExplanation, suggestCodes } from './explain.js'
+import { docsMain } from './docs.js'
 import { createLiveProject } from './live.js'
 import { createWatcher } from './watch.js'
 import { createLiveServer } from './liveServer.js'
@@ -56,7 +57,8 @@ import { graphDiff, formatDiff, diffMermaid } from './graphView/diff.js'
 const HELP = `Usage: sygnal-check [paths...] [options]
        sygnal-check explain <code> [--json]     explain a diagnostic code (e.g. SYG104)
        sygnal-check explain --all [--json]      the whole error reference
-       sygnal-check mcp                         run the MCP server (stdio): check, graph, explain
+       sygnal-check docs <symbol> [--json]      the reference for an export, static, option, source, sink or code
+       sygnal-check mcp                         run the MCP server (stdio): check, graph, explain, docs
        sygnal-check lsp                         run the language server (stdio) for editors:
                                                 diagnostics, hover, quick fixes
 
@@ -429,6 +431,7 @@ export function explainMain(argv, { stdout, stderr }) {
  */
 export function main(argv, { stdout = process.stdout, stderr = process.stderr, cwd = process.cwd(), env = process.env, isTTY, openFile = openInBrowser, tmpdir = os.tmpdir() } = {}) {
   if (argv[0] === 'explain') return explainMain(argv.slice(1), { stdout, stderr })
+  if (argv[0] === 'docs') return docsMain(argv.slice(1), { stdout, stderr, cwd })
   if (argv[0] === 'mcp') { stderr.write('sygnal-check: the MCP server runs from the binary: sygnal-check mcp (see runMcpServer in src/mcp.js)\n'); return 2 }
   let opts
   try {

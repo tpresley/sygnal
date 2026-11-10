@@ -48,6 +48,7 @@ import { graphFiles } from './graph.js'
 import { resolveOptions } from './config.js'
 import { createParseCache } from './cache.js'
 import { getExplanation, suggestCodes } from './explain.js'
+import { lookupDocs } from './docs.js'
 
 /** the stateless revisions (per-request `_meta`, no initialize), newest first */
 export const MODERN_VERSIONS = ['2026-07-28']
@@ -55,7 +56,7 @@ export const MODERN_VERSIONS = ['2026-07-28']
 export const LEGACY_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
 export const SUPPORTED_VERSIONS = [...MODERN_VERSIONS, ...LEGACY_VERSIONS]
 const META = 'io.modelcontextprotocol/'
-const INSTRUCTIONS = 'Static checker for Sygnal apps. Use graph to see the app structure, check for wiring diagnostics, explain for any SYG code.'
+const INSTRUCTIONS = 'Static checker for Sygnal apps. Use graph to see the app structure, check for wiring diagnostics, explain for any SYG code, docs for the signature and options of anything Sygnal exports.'
 /** 2026-07-28 cacheable results (tools/list, server/discover): fixed for the life of the process */
 const CACHE = { ttlMs: 3_600_000, cacheScope: 'private' }
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'))
@@ -89,6 +90,17 @@ export const TOOLS = [
       type: 'object',
       properties: { code: { type: 'string', description: "Diagnostic code, e.g. 'SYG104' (also 'syg104' or '104')" } },
       required: ['code'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'docs',
+    title: 'Sygnal reference lookup',
+    description: "The reference for one thing Sygnal defines: an export (makeFetchDriver, FetchRequest), a component static (App.resources, .intent), an option (latest, FormOptions.show), a source or sink (DOM, HTTP, EFFECT), a subpath (sygnal/ui) or a code (SYG643). Returns the signature, its options with one line each, a canonical example and the file to read, for the Sygnal version installed in the project. An unknown name is an error listing the nearest names.",
+    inputSchema: {
+      type: 'object',
+      properties: { symbol: { type: 'string', description: "What to look up, e.g. 'FetchRequest', 'App.resources', 'latest', 'HTTP', 'SYG643'" } },
+      required: ['symbol'],
       additionalProperties: false,
     },
   },
@@ -142,6 +154,12 @@ function callTool(name, args, cwd, cache, session) {
       throw new ToolError(`unknown diagnostic code '${args.code}'` + (near.length ? `; known codes in that range: ${near.join(', ')}` : ''))
     }
     return e
+  }
+  if (name === 'docs') {
+    if (typeof args.symbol !== 'string' || !args.symbol.trim()) throw new ToolError('symbol must be a non-empty string')
+    const r = lookupDocs(args.symbol, { cwd })
+    if (r.status !== 'found') throw new ToolError(r.message)
+    return r.answer
   }
   return undefined
 }

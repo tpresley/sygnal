@@ -487,3 +487,16 @@ test('runTrial + preflight with a variant posture: the CLI sees only the variant
   // Nothing was written under the fake HOME.
   assert.deepEqual(fs.readdirSync(path.join(home, '.claude')), ['skills'])
 })
+
+test('removeAfterInstall deletes package files after the install; skillLine: false is validated', () => {
+  const dest = fs.mkdtempSync(path.join(os.tmpdir(), 'variant-remove-'))
+  fs.mkdirSync(path.join(dest, 'node_modules/sygnal/dist'), { recursive: true })
+  fs.writeFileSync(path.join(dest, 'node_modules/sygnal/dist/reference.md'), 'x')
+  assert.deepEqual(applyAfterInstall(dest, { removeAfterInstall: ['node_modules/sygnal/dist/reference.md', 'not/there'] }), ['-node_modules/sygnal/dist/reference.md', '-not/there'])
+  assert.ok(!fs.existsSync(path.join(dest, 'node_modules/sygnal/dist/reference.md')))
+  fs.rmSync(dest, { recursive: true, force: true })
+  assert.throws(() => validateVariant({ skill: { dir: 'x' }, prompt: { skillLine: false } }), /skill.*none/)
+  assert.throws(() => validateVariant({ skill: 'none', prompt: { skillLine: true } }), /only be false/)
+  assert.throws(() => validateVariant({ overlay: { sygnal: { removeAfterInstall: ['../x'] } } }), /inside the starter/)
+  validateVariant({ skill: 'none', prompt: { skillLine: false, arms: ['sygnal'] } })
+})

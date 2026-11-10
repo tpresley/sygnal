@@ -107,7 +107,9 @@ if (leaks.length) {
 const promptText = applyPrompt(fs.readFileSync(path.join(tasks, task, 'PROMPT.md'), 'utf8').trim(), variant?.prompt)
 const skillLine =
   arm === 'sygnal'
-    ? '\n\nThis app uses the Sygnal framework. Use the sygnal-dev skill.'
+    ? variant?.prompt?.skillLine === false
+      ? '\n\nThis app uses the Sygnal framework.'
+      : '\n\nThis app uses the Sygnal framework. Use the sygnal-dev skill.'
     : ''
 const agentPrompt =
   `${promptText}${skillLine}\n\n` +

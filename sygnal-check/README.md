@@ -9,7 +9,8 @@ npx sygnal-check "src/**/*.tsx" --json
 npx sygnal-check --graph --json  # the app graph: components, actions, events, selectors, findings
 npx sygnal-check --graph=html    # the app graph as an interactive page (--watch: live)
 npx sygnal-check explain SYG104  # what a diagnostic code means and how to fix it
-npx sygnal-check mcp             # MCP server (stdio) with check, graph and explain tools
+npx sygnal-check docs FetchRequest  # the signature, options, an example and the file to read
+npx sygnal-check mcp             # MCP server (stdio) with check, graph, explain and docs tools
 npx sygnal-check lsp             # language server (stdio) for editors
 ```
 
@@ -55,7 +56,7 @@ Flags override the [config file](#configuration). With no paths on the command l
 
 Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` usage error (bad option, no files, unknown code for `explain`).
 
-Subcommands: [`sygnal-check explain <code>`](#explaining-a-code) and [`sygnal-check mcp`](#mcp-server).
+Subcommands: [`sygnal-check explain <code>`](#explaining-a-code), [`sygnal-check docs <symbol>`](#looking-up-the-reference) and [`sygnal-check mcp`](#mcp-server).
 
 ## Configuration
 
@@ -333,6 +334,16 @@ SYG104: Intent selector crosses an isolation boundary
 
 `explain` accepts `SYG104`, `syg104` or `104`; `--json` prints the entry as JSON, and `explain --all [--json]` prints every code. The table covers every code Sygnal reports (runtime, dev checks and static), lives in `src/explanations.js`, and is published as [`explanations.json`](explanations.json) (`import 'sygnal-check/explanations.json'`). It is the source of the docs' error reference page. A drift test keeps it in sync with the runtime registry; after editing the table, regenerate the JSON with `node bin/sygnal-check.js explain --all --json > explanations.json`.
 
+## Looking up the reference
+
+```console
+$ sygnal-check docs FetchRequest
+```
+
+prints one short answer for the Sygnal version installed in the project: the signature, the options with one line each, a usage example when the docs show one, and the file to read. It reads `node_modules/sygnal/dist/reference.json`, so it needs no network.
+
+It takes an export (`makeFetchDriver`), a component static (`App.resources`, `.intent`), an option (`latest`, `FormOptions.show`), a source or sink (`DOM`, `HTTP`, `EFFECT`), a subpath (`sygnal/ui`) or a code (`SYG643`). `--json` prints the parts. An unknown name exits 1 and lists the nearest names; a missing reference exits 2.
+
 ## MCP server
 
 `sygnal-check mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio, so an agent can call the checker as tools. Paths are resolved against the server's working directory (start it in the project root); the default is the [config file](#configuration)'s `paths`, else `["src"]`. `check` and `graph` apply the config file found from that directory (re-read on every call); a tool's `strict` / `a11y` / `paths` arguments win over it.
@@ -342,6 +353,7 @@ SYG104: Intent selector crosses an isolation boundary
 | `check` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | `{ diagnostics, summary: { error, warn, info } }` |
 | `graph` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | the `InspectGraph` |
 | `explain` | `{ code: string }` | `{ code, title, severity, staticSeverity?, strict, reportedBy, explanation, fix, docsUrl }` |
+| `docs` | `{ symbol: string }` | `{ key, kind, title, summary, signature, label, options, example, note, topic, text }`; an unknown name is a tool error listing the nearest names |
 
 Results come back as `structuredContent` and as JSON text. A bad path or an unknown code is a tool result with `isError: true`.
 

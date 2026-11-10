@@ -1,0 +1,296 @@
+---
+name: sygnal-dev
+description: >
+  Build, change, test, and debug apps written with Sygnal, the reactive JSX component
+  framework built on Cycle.js (Model-View-Intent, xstream streams, one state tree,
+  driver-based side effects). Use it whenever a project depends on `sygnal`, imports from
+  'sygnal', uses `.intent` / `.model` / `.initialState` on components, or the user asks to
+  create a Sygnal app, add a feature or component, wire events or drivers, write Sygnal
+  tests, or fix a `[Sygnal SYGnnn]` diagnostic.
+---
+
+# Sygnal
+
+> Reactive component framework (Model-View-Intent, JSX views, xstream streams, one state tree). It is not React: no hooks, no `onClick`. This file is the core: the model, the anatomy, the canonical examples, and an index of what to read when. Write only the forms shown here: `npx --no-install sygnal-check --strict` flags the others.
+
+## Read before you write
+The `references/` files sit next to this file; `dist/` is under `node_modules/sygnal/`. When the task touches one of these, read that file before the first line of that feature. Each is one short read.
+
+| When the task has | Read | Use |
+|---|---|---|
+| a test to write beyond §7's example | `references/testing.md` | `renderComponent`, `t.*` |
+| HTTP: a POST, upload, streaming reply, cancel | `references/http.md` | `makeFetchDriver`, reply actions |
+| data a component shows, cache, refetch, pagination | `references/resources.md` | `resources`, `queryCache` |
+| WebSocket or SSE | `references/sockets.md` | `connections`, `makeSocketDriver` |
+| pages, links, guards, leave prompt, title | `references/router.md` | `makeRouter`, `route`, `head` |
+| a form with validation | `references/forms.md`, then `dist/guide/forms.md` | `form` behavior |
+| shared state + actions, pager, selection, undo | `references/behaviors.md` | `uses`, `defineBehavior` |
+| focus, scroll, dialog method, timers, saved state, parent calling a child | `references/commands.md` | `ELEMENT`, `timers`, `persist`, `createCommand` |
+| chart, date picker, editor, web component | `references/widgets.md` | `defineWidget` |
+| dialog, popover, tooltip, tabs, accordion, toast, menu, select, combobox, drag to reorder, 1,000+ rows, wizard, clipboard, media query | `references/ui.md` | `sygnal/ui`, `sortable`, `<VirtualCollection>`: never hand-roll these |
+| LLM chat, tools for an LLM, decisions, composed UI | `references/ai.md` | `sygnal/ai`: the `chat` behavior; never a provider key in the browser |
+| TypeScript beyond §4's line | `references/typescript.md` | `Comp`, `IntentSources` |
+| CSS Modules, Tailwind | `references/styling.md` | a plain hook class beside the hashed one |
+| a prop, option, signature, source or sink not shown here | `npx --no-install sygnal-check docs <name>` (`FetchRequest`, `App.resources`, `latest`, `HTTP`) | not `dist/*` |
+| the long form of an example, or a rule shortened here | `references/examples.md`, `references/details.md` | |
+| a `[Sygnal SYGnnn]` message | `npx --no-install sygnal-check explain SYGnnn` | the message says the fix |
+
+Experimental subpaths cost nothing here: an import of `sygnal/x` means read the file named for it first. `yjs`: `references/collaboration.md`. `three`, `canvas`: `references/graphics.md`. `api`: `references/typed-apis.md`. `terminal`, `agent-ui`, `react-native`, `primitives`, `host`, `worker`: `references/renderers.md`. `sandbox`, `replay`: their own file. Longer guides: `dist/guide/`.
+
+## 1. Mental model
+- A component is a pure view function plus static properties: `.intent` (WHEN: sources → named action streams), `.model` (WHAT: action → one reducer per sink), `.initialState`.
+- There is one state tree. A child sees its parent's whole state, or a slice with `state="key"` (or a path: `state="settings.rules"`). A Collection item sees one array element. Only the root has `initialState`: a child's start values go in the parent's.
+- A child belongs to the record its `state` points at: when that target changes the old child is disposed and a new one mounts, so `<Workspace state={byId('projects', selected.id)} />` needs no key.
+- Every side effect is a sink of a model entry (STATE, EVENTS, PARENT, EFFECT, drivers such as HTTP). JSX has no event handlers. A view may return `null`.
+- An intent's DOM selectors only see the component's own JSX, never a child's: handle the event in the child and send it up with `PARENT` or `EVENTS`.
+- Streams are xstream, not RxJS: `import { xs, debounce } from 'sygnal'`; `switchMap(f)` is `.map(f).flatten()`; an RxJS operator throws a message naming its xstream form.
+
+## 2. Component anatomy
+```jsx
+import { ABORT } from 'sygnal'
+function Counter({ state, context, label }) {  // 1st arg: parent props + state, context, children, slots
+  return (
+    <div className="counter">
+      <span>{label} {state.count} (x2 = {state.double})</span>
+      <button className="inc">+</button>
+      <button className="reset">reset</button>
+    </div>
+  )
+}
+Counter.initialState = { count: 0 }                       // root only
+Counter.calculated = { double: state => state.count * 2 } // read as state.double
+Counter.context = { total: state => state.count }         // itself + descendants: ({ context }) => context.total
+Counter.intent = ({ DOM }) => ({                          // sources: DOM STATE EVENTS CHILD props$ commands$ dispose$ + drivers
+  INC:   DOM.click('.inc'),
+  RESET: DOM.click('.reset'),
+})
+Counter.model = {
+  INC:   (state, data, next, props) => ({ ...state, count: state.count + 1 }),
+  RESET: (state) => (state.count === 0 ? ABORT : { ...state, count: 0 }),
+}
+Counter.onError = (error, { componentName }) => <div className="error">{componentName} failed</div>
+export default Counter
+```
+- Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action of this component only. `props` holds the parent's props plus `state`, `context`, `children`, `slots`.
+- Model entry: a function is the STATE reducer. An object `{ STATE, EVENTS, PARENT, EFFECT, LOG, <DRIVER>: fn }` maps each sink to a `(state, data, next, props)` function whose return value goes to that sink.
+- **STATE runs first in every entry**; every other sink gets the committed state: `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n }) }` (`s.n + 1` would count twice). The state from before the action is `props.previousState`: payloads read `state`, guards read `previousState`, and a guard stays on the sink because STATE's `ABORT` doesn't cancel other sinks.
+- The clock and randomness come from the 4th argument, so tests can fix them: `(state, title, next, { now, uuid, random }) => ({ ...state, tasks: [...state.tasks, { id: uuid(), title, created: now() }] })`.
+- Built-in actions (model only): `BOOTSTRAP` (once, after mount), `DISPOSE` (unmount). Declaration statics computed from state: `connections`, `resources`, `route`, `head`, `timers`. Also `uses`, `persist`, `viewTransitions`.
+- `ABORT` from STATE: no change; from another sink: nothing sent. Reducers return a new object, never a mutated `state`.
+
+## 3. Canonical examples
+### State update, set / toggle, controlled input
+```jsx
+import { ABORT, set, toggle } from 'sygnal'
+function AddTodo({ state }) {
+  return (
+    <div>
+      <input className="draft" aria-label="New todo" value={state.draft} />
+      <button className="add">Add</button>
+      <button className="help">?</button>
+      {state.showHelp && <p className="hint">Type, then Add</p>}
+    </div>
+  )
+}
+AddTodo.initialState = { draft: '', todos: [], nextId: 1, showHelp: false }
+AddTodo.intent = ({ DOM }) => ({
+  DRAFT: DOM.input('.draft').value(),   // a bound value={...} needs this listener
+  ADD:   DOM.click('.add'),
+  HELP:  DOM.click('.help'),
+})
+AddTodo.model = {
+  DRAFT: set((state, draft) => ({ draft })),
+  ADD: (state) => {
+    const text = state.draft.trim()
+    if (!text) return ABORT
+    return { ...state, draft: '', nextId: state.nextId + 1, todos: [...state.todos, { id: state.nextId, text }] }
+  },
+  HELP: toggle('showHelp'),
+}
+```
+### Multi-sink entry + EVENTS between distant components
+```jsx
+import { event } from 'sygnal'
+function SaveButton({ state }) {
+  return <button className="save">{state.saving ? 'Saving' : 'Save'}</button>
+}
+SaveButton.intent = ({ DOM }) => ({ SAVE: DOM.click('.save') })
+SaveButton.model = {
+  SAVE: {
+    STATE:  (state) => ({ ...state, saving: true }),
+    EVENTS: event('DOC_SAVED', (state) => ({ id: state.id })),  // event() is the sink entry itself
+  },
+}
+function Toast({ state }) {   // anywhere in the tree: EVENTS is a global bus
+  return <p className="toast">{state.lastSaved}</p>
+}
+Toast.intent = ({ EVENTS }) => ({ SAVED: EVENTS.select('DOC_SAVED') })  // emits the payload only
+Toast.model = { SAVED: (state, payload) => ({ ...state, lastSaved: payload.id }) }
+```
+### Child → parent, Collection, item removal
+```jsx
+import { Collection } from 'sygnal'
+function TaskItem({ state }) {
+  return (
+    <li className="task" data={{ id: state.id }}>
+      {state.title} <button className="pick">pick</button> <button className="remove">x</button>
+    </li>
+  )
+}
+TaskItem.intent = ({ DOM }) => ({ PICK: DOM.click('.pick'), REMOVE: DOM.click('.remove') })
+TaskItem.model = {
+  PICK:   { PARENT: (state) => ({ taskId: state.id }) },   // the parent receives exactly this value
+  REMOVE: () => undefined,                                   // a Collection item removes itself
+}
+function TaskList({ state }) {
+  return (
+    <div>
+      <p className="picked">{state.picked}</p>
+      <ul className="tasks">
+        <Collection of={TaskItem} from="tasks" />
+      </ul>
+    </div>
+  )
+}
+TaskList.initialState = { picked: null, tasks: [{ id: 1, title: 'Write' }, { id: 2, title: 'Test' }] }
+TaskList.intent = ({ CHILD }) => ({ PICKED: CHILD.select(TaskItem) })  // the function, not a string
+TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId }) }
+```
+- `from` names an array field. Items are keyed by `.id`, render with no wrapper. `filter={t => !t.done}`, `sort="title"` change only what renders. In the object form removal keeps `STATE: () => undefined`. Tabs and steps on one page: `<Switchable of={{ home: Home, settings: Settings }} current={state.tab} />` (all pages stay live; `instance={key}` re-creates the current one; not a router outlet).
+- A child gets props by tag: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name`. Reserved props: `state`, `children`, `slots`, `context`, `uid`, `key`.
+### HTTP with reply actions
+```jsx
+import { ABORT, debounce } from 'sygnal'
+function Search({ state }) {
+  return <div><input className="q" aria-label="Search" value={state.query} /><p className="status">{state.status}</p><ul>{state.results.map(r => <li>{r.title}</li>)}</ul></div>
+}
+Search.initialState = { query: '', status: '', results: [] }
+Search.intent = ({ DOM }) => ({   // no intent line for the reply
+  TYPE:   DOM.input('.q').value(),
+  SEARCH: DOM.input('.q').value().compose(debounce(300)).filter(q => q !== ''),
+})
+Search.model = {
+  TYPE: (state, query) => ({ ...state, query }),
+  SEARCH: {
+    STATE: (state) => ({ ...state, status: 'Searching…' }),
+    HTTP:  (state, q) => ({ url: '/api/search', query: { q }, ok: 'RESULTS', error: 'FAILED', latest: true }),
+  },
+  RESULTS: (state, body) => ({ ...state, status: '', results: body.results }),   // ok: the parsed body
+  FAILED:  (state, { status, error }) => ({ ...state, status: status === 404 ? 'Not found.' : 'Search failed.', results: [] }),
+}
+```
+- main.js: `run(Search, { HTTP: makeFetchDriver() })` (both from `'sygnal'`). Never `fetch` in a component or EFFECT. The reply reaches exactly the sending instance, so no request ids. `latest: true` aborts this instance's older requests; `{ abort: 'RESULTS' }` cancels without sending. A request sees what STATE stored. Non-fetch promise APIs: `run(App, { API: driverFromAsync(fn) })`, then `API: () => ({ value, ok: 'DONE', error: 'FAILED' })`.
+### Data a component shows: `resources`
+```jsx
+function Quote({ state }) {
+  const { status, data, error, refreshing } = state.quote  // status: 'idle' | 'loading' | 'success' | 'error'
+  const text = status === 'loading' ? 'Loading…' : status === 'error' ? `Failed (${error.status ?? 'network'})` : refreshing ? 'Updating…' : ''
+  return <div><button className="next">Next</button><button className="refresh">Refresh</button><p className="status">{text}</p><p className="text">{data?.text}</p></div>
+}
+Quote.initialState = { id: 1 }
+Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }  // a URL or a request; falsy = idle
+Quote.intent = ({ DOM }) => ({ NEXT: DOM.click('.next'), REFRESH: DOM.click('.refresh') })
+Quote.model = {
+  NEXT:    (state) => ({ ...state, id: state.id + 1 }),  // new request: 'loading' without data; the old one is aborted
+  REFRESH: { HTTP: { refresh: 'quote' } },               // same request: data kept, refreshing: true
+}
+```
+- For reads that follow state; writes and click-triggered requests keep reply actions. Needs `makeFetchDriver()`. Don't put `quote` in `initialState`. A component that reads `state.items` declares `items` in its own `.resources`, even when another page declares it too. When the old value must not show on Refresh, treat `refreshing` as loading. After a write: `{ url, method: 'PUT', json, ok: 'SAVED', error: 'SAVE_FAILED', invalidates: '/api/items', updates: 'item' }`. Cache: `makeFetchDriver({ cache: queryCache() })` + `staleTime` on the read.
+### WebSocket / SSE
+```jsx
+Chat.initialState = { room: 'general', status: 'connecting', messages: [] }
+Chat.connections = (state) => ({   // from state, diffed by name: new opens, falsy/removed closes, changed URL reconnects
+  room: state.room && { socket: `/ws/rooms/${state.room}`, message: 'RECEIVED', open: 'CONNECTED', close: 'DROPPED' },
+})
+Chat.model = {
+  SAY:       { WS: (state, text) => text.trim() ? { to: 'room', json: { text } } : ABORT },
+  RECEIVED:  (state, msg) => ({ ...state, messages: [...state.messages, msg] }),
+  CONNECTED: (state) => ({ ...state, status: 'online' }),
+  DROPPED:   (state, { willReconnect }) => ({ ...state, status: willReconnect ? 'reconnecting' : 'offline' }),
+}
+```
+- main.js: `run(Chat, { WS: makeSocketDriver() })`. Options and SSE: `references/sockets.md`.
+### Router
+```jsx
+// src/routes.js
+import { makeRouter } from 'sygnal'
+export const router = makeRouter({ routes: { home: '/', task: '/tasks/:id', admin: '/admin', notFound: '*' } })  // first match wins
+export const { href } = router   // href('task', { id: 2 }) → '/tasks/2'
+```
+```jsx
+// src/App.jsx; main.js: run(App, { ROUTER: router.driver })
+import { ABORT } from 'sygnal'
+import { router, href } from './routes.js'
+const PAGES = { home: Home, task: TaskPage, admin: Admin, notFound: NotFound }
+function App({ state }) {
+  const { route } = state, Page = PAGES[route.name]
+  return <main><nav><a href={href('home')}>All</a></nav><Page key={`${route.name}:${route.path}`} /></main>
+}
+App.route = 'ROUTE'                                    // ROUTE gets { name, params, query, hash, path } on start and every change
+App.initialState = { route: router.current(), user: null }
+App.head = (state) => ({ title: state.route.name === 'task' ? `Task ${state.route.params.id}` : 'Tasks' })   // main.js: HEAD: makeHeadDriver()
+App.model = {
+  ROUTE: {                                             // a guard refuses the route and redirects
+    STATE:  (state, route) => (route.name === 'admin' && !state.user ? ABORT : { ...state, route }),
+    ROUTER: (state, route) => (route.name === 'admin' && !state.user ? { to: 'home', replace: true } : ABORT),
+  },
+}
+```
+- Links are plain `<a href={href(...)}>`. Commands: `{ to, params, query, replace }`, `{ back: true }`, `{ block: 'CONFIRM_LEAVE' | false }` (the action gets `{ proceed }`). A page shares its parent's state (no `initialState`). Tests pass the router: §6. More: `references/router.md`.
+### Form with validation
+```jsx
+import { form } from 'sygnal'
+function Signup({ state, uid }) {
+  const f = state.form.fields
+  return (
+    <form>
+      <label for={uid('email')}>Email</label>
+      <input id={uid('email')} name="email" value={f.email.value} aria-invalid={f.email.invalid} />
+      <p>{f.email.error}</p>
+      <button disabled={state.form.submitting}>Sign up</button>
+    </form>
+  )
+}
+Signup.uses = { form: form(schema, { values: { email: '' }, request: { url: '/api/signup' } }) }   // any Standard Schema
+Signup.initialState = {}
+```
+- Fields match by `name`: no intent per field. `f.email.error` shows after blur or a submit. A valid submit sends `request` (the form adds `json`, `ok: 'form.DONE'`, `error: 'form.ERRORS'`); a host entry `'form.DONE': (state, body) => …` runs after the form's; a submit that sends nothing: `submit: 'NEXT'`. Rows: `'form.ADD'`, `'form.REMOVE'`. Empty on every visit: `resetOnShow: true`. More: `references/forms.md`.
+### One line each (details in the table above)
+- Behaviors: `uses = { pager: pager({ pageSize: 10, next: '.newer', prev: '.older' }), sel: selection({ item: '.pick', from: 'mails' }), history: undo({ key: 'doc', undo: '.undo', redo: '.redo' }) }` add `state.pager`, `state.sel` (`isSelected(state.sel, id)`), `state.history.canUndo`; your own: `defineBehavior`. A `uses` key isn't also in `initialState`.
+- `ELEMENT` (built in): `SUBMIT: { ELEMENT: { focus: '.email' } }` calls that method after the render (`scrollIntoView`, `showModal`, `close`, `select`); an element in the sending component's own view.
+- Timers: `Clock.timers = (state) => ({ tick: state.running && { every: 1000, action: 'TICK' } })` (also `{ after: ms, action }`, `{ frame: 'FRAME' }`), `run(App, { TIMER: makeTimerDriver() })`. No `setInterval`.
+- Saved state (root only): `App.persist = persist({ key: 'app', pick: ['todos'] })`.
+- Parent calls child: `const player = createCommand()`, `<Player commands={player} />`, `PLAY: { EFFECT: () => player.send('play', data) }`, child `commands$.select('play')`. A DOM node handle: `createRef()`.
+- Widget: `defineWidget({ tag, mount(el, props, dispatch), update(instance, props), unmount(instance), events: ['pick'] })`; a class on it is the selector: `DOM.select('.due').events('pick').detail()`.
+- LLM chat: `uses = { chat: chat({ agent: false, form: '.ask', prompt: '.prompt', stop: '.stop' }) }` from `sygnal/ai`.
+
+## 4. Facts you can't guess
+- `DOM.<event>('.sel')` is `DOM.select('.sel').events('<event>')`, for real DOM event names only. Chain `.value(fn?)`, `.checked(fn?)`, `.key(fn?)`, `.target(fn?)`, `.data('id', Number)` (reads `data-id`; JSX `data={{ id: 7 }}`). `blur`/`focus` work on the element; inside a container use `DOM.focusout('.form')`. Page-wide: `DOM.keydown('document').key().filter(k => k === 'Escape')`. `DOM.select('form').events('submit', { preventDefault: true })`.
+- React to a state change: `SAVE: STATE.watch(state => state.text).compose(debounce(1000))` in the intent.
+- One-off async work: `EFFECT: async (state, data, next, { signal }) => { ...; next('DONE', result) }`. A parent's `CHILD.select(Comp)` emits exactly what the child's `PARENT` returned, for every instance: put an id in it.
+- `run(App, drivers = {}, { mountPoint = '#root', onError })`. Conditional classes: `classes()`. `uid(name?)` (a view prop) is a stable per-instance id for `id`/`for`/`aria-*`.
+- xstream from `'sygnal'`: `xs.merge/combine/of/periodic`, `.compose(debounce(ms) | throttle(ms) | delay(ms) | dropRepeats() | sampleCombine(other$))`.
+- TypeScript: `const intent = ({ DOM }: IntentSources<State>) => ({ ... })`, then `const C: Comp<{ state: State; props: Props; actions: ActionsOf<typeof intent> }> = ({ state }) => ...`; root: `RootComp<{ state: State; actions: Actions }>`.
+
+## 5. Tools
+- `npm test`, then `npx --no-install sygnal-check --strict` (Vike: `pages`), both clean; `--fix` applies the mechanical rewrites. Every `[Sygnal SYGnnn]` line says what is wrong and the fix; `sygnal-check explain SYGnnn` says more. A silent no-op (a click does nothing) is almost always a selector in a child, an unmatched action name, or a missing driver in `run()`: `t.actions` shows whether the action ran, `npx --no-install sygnal-check --graph --json` shows the wiring.
+
+## 6. Testing your change
+```js
+import { it, expect } from 'vitest'
+import { renderComponent } from 'sygnal'
+import TaskList from './TaskList.jsx'
+it('picks, then removes a task', async () => {
+  const t = renderComponent(TaskList, { strict: true })   // also: initialState, props, context, http, router, url, dom: 'real'
+  t.simulateEvent('.pick', 'click')                 // first match; bubbles; reaches child components too
+  await t.next(s => s.picked === 1)                 // a state emitted after this call
+  await t.simulateEvent('.task[data-id="2"] .remove', 'click')
+  expect(t.state.tasks.length).toBe(1)
+  await t.settle()                                  // nothing pending anywhere in the tree
+  expect(t.html()).not.toContain('Test')
+  t.expectNoDiagnostics()                           // throws on warn/error
+})
+```
+- `simulateEvent(sel, type, init?)`: init `{ value }`, `{ checked }`, `{ key: 'Enter' }`, `{ data: { id: 2 } }`; `'document'` targets `DOM.select('document')`. `t.simulateAction('LOADED', data)`.
+- `t.state` is the latest state, `t.states` all of them, `t.next(pred)` waits for a future state, `t.waitForState(pred)` also matches recorded ones, `t.ready()`, `t.settle()`, `t.html()`, `t.query(sel)`, `t.queryAll(sel)`, `t.emitted` (EVENTS), `t.sinkValues('PARENT')`, `t.commands('ELEMENT')`, `t.storage(key)`, `t.head()`, `t.actions` (what ran), `t.explain(pred)`.
+- Drivers need no wiring in tests. `t.requests('HTTP')`; `await t.respond('HTTP', body, target?)`, `await t.fail('HTTP', 404, target?)` answer one and resolve once rendered (assert on `t.state` next, not `t.next`). Target: an action name, a resource name, a URL, or `{ nth: 0 }`. Sockets: `await t.push('WS', frame)`, `await t.drop('WS')`, `t.sent('WS')`. Router: `renderComponent(App, { router, url: '/tasks/2' })`, `await t.navigate('/admin')`, `t.location`. Widgets: `t.widget('.due').dispatch('pick', d)`. Timers: `vi.useFakeTimers()` first; `t.next`/`t.settle` advance the clock; `await vi.advanceTimersByTimeAsync(ms)`. Focus or real DOM: `{ dom: 'real' }` with `// @vitest-environment jsdom`. The rest: `references/testing.md`.

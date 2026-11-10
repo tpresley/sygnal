@@ -13,7 +13,7 @@
 | 1 | Replace the core `llms.txt` with the **compact core** (21.7 KB, ⅓ of today), everything removed moved verbatim to on-demand topic files. | Fact coverage: 97.4% of what the 49 reference solutions use is inline, 100% within one read (today 99% / 100%). | **Run done: ship it for the no-skill path** (section 9). A pass-rate loss under about 20 pp cannot be ruled out. |
 | 2 | **Generate the skill from the same source** (22.4 KB against 56.2 KB). | The two files carry the same facts in two wordings: only 28–34% shares exact wording, 652 of the 1,064 distinct API names are in both, and no skill trial needs both. | **Run done: generate it, and ship it together with #1** (section 9). Cost 0.78× today's skill; 30/30 passes against 29/30. Two trials per task cannot rule out a pass-rate loss under about 30 pp. |
 | 3 | Put the **trigger index in `AGENTS.md`** (7.0 KB; passive, always in context). | Vercel: 100% against 53–79% for a skill; here the llms-context core index found the right topic in 36/40 trials. | **Run done: do not adopt.** Cost ratio to #1 alone 0.97 (0.90–1.06), so it fails the section 7 rule, though it reached the right topic in 42 of 42 trials. |
-| 4 | Keep **option lists out of the core**, reachable by symbol: the types already answer them. Ship `sygnal-check docs <Symbol\|sygnal/x\|dir>`. | 88% of the API names in reference prose already sit in a JSDoc; about 23 KB of `llms.txt` is option-list sentences. `dist/index.d.ts` is 390 KB, so agents need a lookup, not more JSDoc. | Small; a prototype is in the folder. |
+| 4 | Keep **option lists out of the core**, reachable by symbol: the types already answer them. Ship `sygnal-check docs <Symbol\|sygnal/x\|dir>`. | 88% of the API names in reference prose already sit in a JSDoc; about 23 KB of `llms.txt` is option-list sentences. `dist/index.d.ts` is 390 KB, so agents need a lookup, not more JSDoc. | **Built** (section 10); no model has used it. A run is proposed there. |
 | 5 | Drop the **47 trap sentences whose diagnostic already says the fix** (6.5 KB in `llms.txt`, 4.8 KB in the skill), after raising SYG105 from info to warn. | Section 4. | None. |
 | 6 | Take the **13 traps in section 4's list** to the 8.0 backlog as throw-or-impossible candidates. | Section 4. | 8.0 work; I did not edit the backlog. |
 | 7 | Rule: **a subpath gets one line in the core**. The cost was smaller than expected, so this is hygiene: experimental subpaths are about 1.6 KB of `llms.txt`. | Section 5. | None. |
@@ -452,6 +452,174 @@ The topic files have 14 lines naming `main.js` or `run(App, {` across 12 files, 
 |---|---|---|---|
 | Sonnet skill pair, 15 tasks × 5 more | 150 | about $29 | The failed-run difference, and a pass-rate loss down to about 15 pp |
 | Haiku, current and compact on all 15 tasks × 3 | 90 | about $3 | Makes Haiku's comparison testable |
+
+## 10. The docs lookup
+
+The compact core removed the option lists, and in the runs above agents then went to the 390 KB `dist/index.d.ts` (8–11 of 15 Haiku trials, 5 of 30 compact-skill Sonnet trials). This section records the lookup built to replace that. **No model has used it yet**, so nothing here shows it helps; the proposed run below would.
+
+### What was built
+
+| Piece | Where |
+|---|---|
+| Generator: the types (every subpath, through the TypeScript checker), `llms.txt` + `llms/`, `dist/guide/` for "read this", and `sygnal-check/explanations.json`. Run by `npm run build` | `scripts/build-reference.mjs` |
+| `sygnal-check docs <symbol> [--json]` | `sygnal-check/src/docs.js` |
+| The MCP tool `docs`, beside `check`, `graph`, `explain` | `sygnal-check/src/mcp.js` |
+| The two delivery forms, from the same answers | `dist/reference.json` (CLI, MCP), `dist/reference.md` (one `## symbol` heading each) |
+| Drift and budget tests | `test/reference.test.js`, `sygnal-check/test/docs.vtest.js` |
+| One line each in the compact core and compact skill. The measured `compact-core` and `compact-skill` stay as they were, so earlier runs remain comparable | `candidates/compact-{lookup,grep}[-skill]`, from `tools/build-lookup-candidates.mjs` |
+| The reference generated against the compact topic set, so its `Read:` lines name files those arms have | `candidates/reference-compact/` |
+| Eval arms, and two harness additions | 6 `variants/agent-docs-*` below; `removeAfterInstall`, `prompt.skillLine` |
+
+**What it answers.** An export (`makeFetchDriver`), a static (`App.resources`, `.intent`), an option (`latest`, `FormOptions.show`), a source or sink (`DOM`, `DOM.click`, `HTTP`, `EFFECT`), a subpath (`sygnal/ui`) or a code (`SYG643`). An answer has the signature, the options with one line each, a usage example and the file to read. A name with several meanings lists them. An unknown name exits 1 and lists the nearest names.
+
+**Size.**
+
+| Measure | Value |
+|---|---|
+| Answers | 3,399, plus 1,986 aliases |
+| Bytes per answer | median 264, 95th percentile 1,067, maximum 1,802 (cap 1,800 plus the framing) |
+| `dist/reference.json` | 1.86 MB (419 KB gzipped) |
+| `dist/reference.md` | 1.48 MB (388 KB gzipped) |
+| Compact core with the line | 21,738 B (CLI) or 21,711 B (grep), against 21,701 B |
+| Compact skill with the line | 22,442 B (CLI) or 22,415 B (grep), against 22,411 B |
+
+The line replaces the core's existing "grep the name in `dist/index.d.ts`" row, so it costs 10–37 B. `test/reference.test.js` holds those candidates to a budget, and the `llms.txt` and `SKILL.md` budgets are unchanged.
+
+**Weak spots.**
+- Only 131 of the 380 functions, constants, statics, sources and sinks have an example (34%). It is taken only from code the docs actually show, and an entry with no real usage gets none rather than an invented one. The common symbols have one, and a test holds that for five of them.
+- 268 of those 380 name a file to read. The rest are symbols no doc mentions.
+- A long options list keeps its first lines and gives the rest by name only (`also: …`), so `HTTP` names `latest` without its description. `FetchRequest.latest` has it.
+- `App.drivers` is unknown on this branch because the static is on another. It will answer once that branch lands, since the entry comes from the types.
+- It needs `sygnal-check` installed and a `sygnal` release that ships `dist/reference.json`. Codes still answer without one.
+
+**If only one form ships: the CLI.** It takes the name an agent has, including `App.resources` or a misspelling, and it cannot return more than one short answer. The grep form suits Sonnet's habit and needs no second package, but it has no nearest-name help, needs an exact regex, and is a 1.5 MB file in a package whose Haiku users `cat` what they find. The run below can overturn this; the tie-break is in the rule.
+
+### What was verified, and what was not
+
+| Check | Result |
+|---|---|
+| `npm run build` with the new step; `build-reference.mjs --check` | passed |
+| `test/reference.test.js`, `test/llms-txt.test.js` | 18 of 18 |
+| `sygnal-check` suite, plain | 2,148 of 2,149. The one failure is `scope-tables.vtest.js`, a 5 s timeout at machine load average 33. It passes alone (4 of 4), and it does not touch this code |
+| `sygnal-check` suite, per-file mode | 2,149 of 2,149 |
+| `evals/agent-ergonomics/tests/variant.unit.mjs` | 18 of 18 |
+| Installed form: `npm pack`, unpacked into a project's `node_modules`, then `docs` for five kinds of name | answers as expected, no network used |
+| Replay of real behaviour: the names agents grepped for in `dist/index.d.ts` (37 commands, 26 trials) through the lookup | 29 of 39 distinct names answered. The other 10 are app words or pieces of a regex (`customers`, `proceed`, `SYG6`), not Sygnal names |
+| All 14 commands below | literal `--dry-run`; no trial directory created |
+
+**Not verified.**
+- No model has used either form. Whether agents reach for it instead of `dist/` is the question the run answers.
+- `removeAfterInstall` and the prompt option are unit-tested, but no trial was materialized.
+- The root `npm test` gate was not run, by instruction. The docs site was not rebuilt for its one added table row.
+- The eval analysis script does not yet report these arms; `tools/results.mjs` needs the new runs added when they exist.
+
+### The harness flaw, and what it does to comparisons
+
+`prepare.mjs` told every Sygnal trial to "Use the sygnal-dev skill", even with no skill installed. New no-skill arms set `"prompt": { "skillLine": false }` and get "This app uses the Sygnal framework." instead. It is opt-in so that the older variants keep their meaning.
+
+Earlier no-skill runs (`agent-docs-current`, `-compact`, `-index`) each carry a failed Skill call in 164 of 165 trials, and new no-skill arms do not. **So new no-skill arms must not be compared with those earlier runs**: any difference mixes the prompt, the date and the checker version. That is why the plan re-runs a compact control with the fixed prompt, `agent-docs-compact-ctl`. On the 11 tasks the two share, old compact against the new control gives a rough size for the flaw, descriptive only. The skill arms' prompt did not change, but they also get a fresh control, because the new package would otherwise contain the reference files.
+
+Every control removes both reference files, the CLI arms remove `reference.md`, and the grep arms remove `reference.json`, so no arm can find the other's form by listing `dist/`.
+
+### Task list
+
+The 15 tasks are `11,13,22,23,24,25,26,27,30,31,32,33,44,45,46`.
+
+- Six are the tasks whose reference solution uses the most Sygnal options the compact core no longer shows: 45, 13, 44, 23, 31, 46.
+- Five are from earlier runs where agents most often opened `dist/` under the compact docs, or which depend on a moved topic: 11, 24, 25, 30, 33.
+- Four are new, chosen because their topic moved out of the core: 22 (sockets), 26 (persistence), 27 (undo), 32 (widgets).
+
+11 of the 15 are in the earlier list. The first rank is by name matching on solutions, which is rough; the choice also used judgment. Four of these tasks (13, 22, 25, 44) have reference solutions that fail on this build according to the files-touched spike, but agents have passed them, so the hidden suites can be passed.
+
+### Decision rule (fixed before any run)
+
+Each lookup arm is compared with its own control, same model and same skill setting.
+
+**Measures.** A *`dist/` read* is a trial whose tool inputs open `index.d.ts`, built JS under `dist/`, or the package `src` (the regex in `tools/results.mjs`). The reference files do not count. *Used* means the trial ran `sygnal-check docs` or touched `reference.md`.
+
+| # | Requirement | Threshold |
+|---|---|---|
+| 1 | Agents use it | At least 50% of Haiku no-skill trials. If not, the arm tests nothing: no conclusion, reword the line |
+| 2 | `dist/` reads | At most half the control's share on Haiku, with and without the skill; not higher on Sonnet |
+| 3 | Failed build/test runs | Mean paired difference at most +0.25 per trial |
+| 4 | Cost | Paired ratio at most 1.05, upper 95% bound at most 1.15 |
+| 5 | Pass rate | Within 2 of 45 of the control on Sonnet, within 3 of 45 on Haiku |
+
+A form ships if it meets 1–5 on Haiku without the skill and 3–5 on Sonnet in both skill settings. If both qualify, ship the CLI, unless the grep form is better on cost or failed runs with an interval excluding no difference. If neither qualifies, ship neither and keep the compact core's existing row.
+
+**What it can detect.** At 45 trials per arm, halving a 73% `dist/`-read rate is caught 92% of the time. On Sonnet, where the rate is about 17% or less, going to 5% is caught only 33% of the time, which is why Sonnet is only required not to rise. A pass-rate loss under about 20 points can still be missed, as before.
+
+### Commands and cost, cheapest informative set first
+
+Build first, because the harness packs this checkout's `dist/`:
+
+```bash
+npm run build
+```
+
+Remove `--dry-run` from a command to run it. Each passes as written.
+
+| Step | Runs | Trials | Expected cost | Stop if |
+|---|---|---|---|---|
+| 0. Pilot, Haiku, tasks 23 and 30 × 2 | lookup, grep | 8 | about $0.30 | Neither form is used in any trial |
+| 1. Haiku, no skill, 15 × 3 | control, lookup, grep | 135 | about $5 | |
+| 2. Haiku, skill, 15 × 3 | control, lookup, grep | 135 | about $6 | |
+| 3. Sonnet, no skill, 15 × 3 | grep, lookup, control | 135 | about $25 | Step 1 fails requirement 1 for both forms |
+| 4. Sonnet, skill, 15 × 3 | grep, lookup, control | 135 | about $25 | |
+
+Total about **$61**, and about 11 hours run one after another (Haiku 1.1 h per arm, Sonnet 40 min). **The harness's Haiku estimate is wrong**: it prints $29.59 per arm, from the AI-tier rate; measured Haiku trials cost about $0.03–0.04. The amounts above use the measured rates ($8.35 per Sonnet arm is the harness's own, and it was accurate). The arms still run one after another, so time of day is mixed in; Sonnet runs in the opposite order from Haiku to soften that.
+
+**Step 0.**
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs-pilot-lookup-haiku --variant agent-docs-lookup --arms sygnal --tasks 23,30 --trials 2 --model claude-haiku-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs-pilot-grep-haiku --variant agent-docs-grep --arms sygnal --tasks 23,30 --trials 2 --model claude-haiku-5-5 --dry-run
+```
+
+**Step 1.**
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-compact-ctl-haiku --variant agent-docs-compact-ctl --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-lookup-haiku --variant agent-docs-lookup --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-grep-haiku --variant agent-docs-grep --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5 --dry-run
+```
+
+**Step 2.**
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-compact-skill-ctl-haiku --variant agent-docs-compact-skill-ctl --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-lookup-skill-haiku --variant agent-docs-lookup-skill --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-grep-skill-haiku --variant agent-docs-grep-skill --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-haiku-5-5 --dry-run
+```
+
+**Step 3.**
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-grep-sonnet --variant agent-docs-grep --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-sonnet-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-lookup-sonnet --variant agent-docs-lookup --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-sonnet-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-compact-ctl-sonnet --variant agent-docs-compact-ctl --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-sonnet-5-5 --dry-run
+```
+
+**Step 4.**
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-grep-skill-sonnet --variant agent-docs-grep-skill --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-sonnet-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-lookup-skill-sonnet --variant agent-docs-lookup-skill --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-sonnet-5-5 --dry-run
+```
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run agent-docs2-compact-skill-ctl-sonnet --variant agent-docs-compact-skill-ctl --arms sygnal --tasks 11,13,22,23,24,25,26,27,30,31,32,33,44,45,46 --trials 3 --model claude-sonnet-5-5 --dry-run
+```
 
 ## Appendix A: every trap the context mentions
 
