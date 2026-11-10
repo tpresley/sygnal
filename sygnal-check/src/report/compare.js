@@ -391,10 +391,7 @@ export function behaviourReport(base, head, meta = {}) {
       const e = head.graph.events[t]
       if (e?.selectors.length && !e.emitters.length) ctx.events.push({ severity: 'medium', kind: 'event-orphan', text: `\`${comp.name}\` stopped emitting \`${t}\`, and nothing else does: ${e.selectors.join(', ')} still listen${e.selectors.length === 1 ? 's' : ''}` })
     }
-    // (a finding whose message names a line isn't new because the line moved)
-    const noLine = (x) => x.replace(/\(line \d+\)/g, '')
-    const wasThere = new Set((fields.diagnostics?.removed || []).map(noLine))
-    for (const dx of fields.diagnostics?.added || []) if (!dx.startsWith('SYG5') && !wasThere.has(noLine(dx))) ctx.diagnostics.push(`\`${comp.name}\`: new finding: ${dx}`)
+    for (const dx of fields.diagnostics?.added || []) if (!dx.startsWith('SYG5')) ctx.diagnostics.push(`\`${comp.name}\`: new finding: ${dx}`)
     if (gb || gh) ctx.agent.push(...agentDiff(gb, gh))
     // (actions, sinks, selectors and state keys are compared above, from the facts)
     const other = Object.keys(fields).filter(x => !['actions', 'sinks', 'selectors', 'stateKeys'].includes(x))
