@@ -1,10 +1,11 @@
 // The app: the pickers (chat model, card backend), the user's plan, and the assistant for the
 // picked pair. The conversation persists (cards and all): an answered card comes back frozen with
 // its pick, an open one stays answerable.
-import { ABORT, persist } from 'sygnal'
+import { ABORT, persist, makeFetchDriver } from 'sygnal'
 import { OLLAMA, chatModels, cardBackends } from './backends.js'
 import { assistantFor, NEW_CHAT } from './Assistant.jsx'
 import { PLANS } from './data.js'
+import { makeChatDriver, chatCompletions } from 'sygnal/ai'
 
 const busy = (state) => state.assistant?.status === 'submitted' || state.assistant?.status === 'streaming'
 
@@ -46,6 +47,16 @@ function App({ state, context }) {
       {Assistant ? <Assistant key={state.cards.id} /> : <p className="status muted">{context.offline ?? 'Looking for models…'}</p>}
     </div>
   )
+}
+
+App.drivers = {
+  // the model list, Jev's availability, and compose.decisions()' decide() requests for cards
+  HTTP: makeFetchDriver(),
+  // the chat, and compose.llm()'s card requests: Ollama's OpenAI-compatible endpoint, thinking off
+  // (reasoning_effort 'none': much faster for qwen3), deterministic. Each request names its model.
+  LLM: makeChatDriver({
+    transport: chatCompletions({ baseURL: `${OLLAMA}/v1`, body: { temperature: 0, reasoning_effort: 'none' } }),
+  }),
 }
 
 App.initialState = {

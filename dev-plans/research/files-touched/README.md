@@ -1,6 +1,6 @@
 # Why a Sygnal change touches more files than the React one
 
-**Status (2026-11-09).** Diagnosis and rewritten reference solutions are done, and `App.drivers` is built to shippable quality on this branch: diagnostic, fix text, `--fix`, graph, docs, one template. No model was run (the eval data on disk only). Whether it becomes the canonical form is still the maintainer's decision, so both forms stay documented as equals.
+**Status (2026-11-09).** Diagnosis and rewritten reference solutions are done, and `App.drivers` is built to shippable quality on this branch: diagnostic, fix text, `--fix`, graph, docs, one template. No model was run (the eval data on disk only). **Maintainer decision, 2026-11-09: `App.drivers` is the canonical place for feature drivers; `run(App, {...})` stays for what differs per environment.** Applied on this branch: `PLAN-1-canonical-forms.md` C21, the docs, the examples and the `create-sygnal-app` templates. No strict-mode code for the `run()` form (`BACKLOG-8.0.md` B8-5).
 
 Starting point: the same feature touches 1.1–1.3× more source files in the Sygnal arm on every model, and 1.31× in the reference solutions (2.87 against 2.38 files), per `dev-plans/research/read-side-eval/` on branch `claude/musing-tu-93ce47`. Tests are excluded from that count; the test files are discussed separately below.
 
@@ -109,28 +109,52 @@ A zero-byte variant exists: keep the runtime unchanged, and have templates and s
 
 Tests: `test/root-drivers.test.js` (7 tests: real `run()` with `makeFetchDriver` and `makeTimerDriver`, override by name, two apps sharing a static, `renderComponent` ignoring it, no static, SYG643 quiet with the static and firing without) and `sygnal-check/test/root-drivers.vtest.js` (2 tests). Both pass after `npm run build`.
 
-Size gate: **+5 B**: 40,462 B against the previous 40,457 B. `BUDGET` in `scripts/size-gate.mjs` and `CLAUDE.md` are raised by that delta; the raise was approved through the coordinator session on 2026-11-09 under the maintainer's delegation. Branch `claude/sygnal-evolution-strategy-6b922c` raises the same budget for an element's `dataset` fix (to 40,466 B), so the two must be re-measured together at merge; gzip deltas don't add. Default bundle unchanged at 35,680 B; `src/core/**` alone +4 B gzip. Moving SYG646, the fix text and the graph into the dev entry and the checker added nothing to the app bundle.
+Size gate: **+7 B in all**: 40,464 B against the previous 40,457 B. That is +5 B for the runtime, then +2 B when `App.drivers` became canonical and the gated kanban app itself moved `DND` to the static (the line's position changes the result by 1 B; this is the smallest of three placements measured). The default bundle is 35,677 B.
+
+The prototype's own measurement: 40,462 B. `BUDGET` in `scripts/size-gate.mjs` and `CLAUDE.md` are raised by that delta; the raise was approved through the coordinator session on 2026-11-09 under the maintainer's delegation. Branch `claude/sygnal-evolution-strategy-6b922c` raises the same budget for an element's `dataset` fix (to 40,466 B), so the two must be re-measured together at merge; gzip deltas don't add. Default bundle unchanged at 35,680 B; `src/core/**` alone +4 B gzip. Moving SYG646, the fix text and the graph into the dev entry and the checker added nothing to the app bundle.
 
 Follow-up work on this branch, after the prototype:
 
 - **SYG646** (error, dev entry and `sygnal-check`): `drivers` on a component that isn't the root. Same conditions as SYG224 statically: a `run()` in the scanned files renders it and none has it as its root. Vike's Layout/Wrapper shell gets its own message.
-- **SYG643 / SYG609 fix text** names `App.drivers` next to `run()`.
+- **SYG643 / SYG609 fix text** leads with `App.drivers`; the explanations give `run()` as the environment form.
 - **`sygnal-check --fix`** writes `App.drivers = { HTTP: makeFetchDriver() }` and the import, or adds to an existing object literal. Only for a driver with no options (timers, sockets, resources, browser sources; for SYG609 `HTTP` and `WS`), one app, and statics assigned at the top level.
 - **`--graph`**: a root component gets `drivers: [{ name, driver, from: 'static' | 'run' }]` (`schema/inspect.schema.json`, text output), with `run()`'s argument overriding by name.
-- **Docs**: `guide/drivers.md` (both forms as equals), `reference/api.md`, `guide/app-graph.md`. `reference/errors.md` regenerated. Worked example: `create-sygnal-app/template-vite-pwa` (`App.drivers` in `App.jsx`, `main.js` is `run(App)`).
+- **Docs, examples, templates** (after the maintainer's decision): every page that wired a feature driver in `main.js` now shows the root's `drivers` static. `guide/drivers.md` documents `run()`'s argument as the override, and `advanced/alternative-forms` lists a feature driver in `run()`. `reference/errors.md` regenerated. See "What stayed in `run()`" below.
 - **F2** (docs only): `integration/typescript.md` and `reference/types.md` declare `SygnalEvents` next to the emitter and keep a state type in its own file. The eval's TS starters are untouched because they are paired with the reference solutions. `create-sygnal-app`'s TS templates already keep `State` in `App.tsx` and have no `types.ts` or `events.ts`, so they needed no change.
 
-Release notes for whoever ships this: `template-vite-pwa/package.json` still says `"sygnal": "^7.4.0"`, which predates the static, so it must move to the release that contains it. The `run(App, {...})` form stays documented as an equal; whether `App.drivers` becomes canonical is the maintainer's open question.
+### What stayed in `run()`
+
+The rule (C21) keeps a driver in `run()`'s argument when it differs per environment or has to be created at start-up. These stayed, on purpose:
+
+| Where | Driver | Why |
+|---|---|---|
+| `examples/todomvc` (`index.html`), `todomvc-worker/worker.ts` | `STORE`, `ROUTER` | `todomvc-worker` imports the same `app.tsx`, and `lib/routerDriver.ts` imports `director`, which reads `document` when loaded: a static would crash the worker on import. The page and the worker really do differ here. |
+| `examples/filter-wizard`, `plan5-showcase` Quotes and Signup | `HTTP` with a fake `fetch` | a stand-in backend; `filter-wizard`'s `ROUTER` did move |
+| `examples/advanced-feature-tests` | `MOCK` | a mock |
+| `plan5-showcase` Board, `guide/view-transitions`, `reference/api` | `DOM: makeViewTransitionDOMDriver(...)` | replaces the default DOM driver for one mount point |
+| Worker, three, custom-target and React Native pages | `DOM: target.driver` | a renderer target |
+| `ai-showcase` assistant `AGENT`, webmcp `WEBMCP` / `AGENT_CALL` | per-run drivers | they need the running app or the mount point (the assistant's `LLM` and `HTTP` did move) |
+| `ai-showcase/src/building/kimi.js` | `LLM` | one runner shared by every step's own root component |
+| `guide/ai-chat` (development / production), `recipes/ai-summarize` (hosted fallback) | `LLM` | the transport differs per build or per browser |
+| `guide/collaborative-state` | `SHARED` | creating the provider opens the connection, and a static's value is built on import |
+
+Vike and Astro templates are unchanged: Vike registers drivers in `+drivers.js`, and neither has a `main.js`. Their `AGENTS.md` still says `run(App, { HTTP: … })`, which predates this work.
+
+A static's driver is one instance for every `run()` of that root, where a `start()` that builds drivers inside gets a new one each time. `ai-showcase`'s Restart and `plan5-showcase` re-run a root after `dispose()`; `test/root-drivers.test.js` covers that for the timer and fetch drivers. I did not click through those two apps in a browser.
+
+### Release notes for whoever ships this
+
+The static exists only from the release that contains this branch, so these templates must move off `"sygnal": "^7.4.0"` to that release, or they break: `template-vite-pwa`, `template-vite-pwa-ts`, `template-mcp-app`, `template-mcp-app-ts` (the code uses `App.drivers`). `template-vite` and `template-vite-ts` changed only in `AGENTS.md`, which also names the static, so they should move too. The version is left for release time. The eval's reference solutions and starters still use `run()`.
 
 ### Text for `llms.txt`, `llms/` and `skills/sygnal-dev/` (not applied; another session is restructuring them)
 
 For the driver paragraph of `llms.txt` and the skill:
 
-> Drivers go in `run(App, { HTTP: makeFetchDriver() })` or on the root component: `App.drivers = { HTTP: makeFetchDriver() }`, in the file that uses them, with `main.js` left as `run(App)`. `run()`'s argument overrides the static by name, for what differs per environment. Root only (SYG646 elsewhere); `renderComponent` ignores it; no driver is needed in tests.
+> A feature's drivers go on the root component: `App.drivers = { HTTP: makeFetchDriver() }`, and `main.js` stays `run(App)`. `run(App, { ... })` is only for what differs per environment (a test double, a per-deploy `baseUrl`, a renderer target); it overrides the static by name. Root only (SYG646 elsewhere); `renderComponent` ignores it; no driver is needed in tests.
 
-For the recipes that say `main.js: run(...)` (the HTTP, resources and timers recipes, `SKILL.md` lines 184, 210, 229, 236), append:
+For the recipes that say `main.js: run(...)` (the HTTP, resources and timers recipes, `SKILL.md` lines 184, 210, 229, 236), replace that text with:
 
-> or `App.drivers = { HTTP: makeFetchDriver() }` on the root.
+> `App.drivers = { HTTP: makeFetchDriver() }` on the root.
 
 For the TypeScript topic file:
 
@@ -187,7 +211,7 @@ For a reviewer it is both: more lines to read, but behaviour-level (`renderCompo
 | Routes API change | Would be minor | n/a | ≤ 2 points | No |
 | Skill test instruction | n/a | 0 B | none | No change |
 
-Nothing needs a major release. If F1 ships, 8.0 could drop the `main.js` form from the canonical list while keeping `run()`'s argument as the override for environment-specific drivers; that is a canonical-forms change, not a removal.
+Nothing needs a major release. The canonical-forms change is made (C21); `run()`'s argument stays as the override, and 8.0 may add a strict code (B8-5).
 
 Caveats on the estimate: the numbers count files, and moving the driver line doesn't shrink the diff (churn is unchanged). The trial numbers are counterfactual rewrites of past diffs by file name (trial workspaces are gone, so `main.js` contents can't be read); F1 assumes an agent would put wiring in `App.*`, which is what agents already do for React's providers, but no model has been run with the new form. The React arm is mostly hooks with little library, so a TanStack-heavy React app has its own wiring.
 
@@ -258,7 +282,7 @@ Observed on the unrewritten references with this branch's prototype build (`veri
 
 ## Open questions for the maintainer
 
-1. Should `App.drivers` become the canonical place for feature drivers (HTTP, timers, sockets, the router), with `run(App, {...})` reserved for environment overrides (a test double, a per-deploy `baseUrl`)?
+1. ~~Should `App.drivers` become the canonical place for feature drivers?~~ **Decided 2026-11-09: yes.** `run(App, {...})` is kept for what differs per environment (a test double, a per-deploy `baseUrl`). No strict code now; `BACKLOG-8.0.md` B8-5 records what one would need.
 2. Should the eval's TS starters and old reference solutions move to the new layout, knowing that changes the eval's baseline?
 3. Six references (13, 17, 21, 22, 25, 44; listed below) fail their own hidden suite on this build, before any rewrite. Repair them as part of the read-side work's staleness pass (`verify.mjs` across all tasks)?
 4. Is a paid head-to-head wanted to confirm the trial numbers with the new form and guidance? The numbers here assume agent behaviour, nothing has measured it.

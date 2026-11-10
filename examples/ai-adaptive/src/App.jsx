@@ -1,10 +1,11 @@
 // Two labs on one page: an intake form a model builds from field pieces, and an ops board that
 // arranges itself around what needs attention. Each lab is a Switchable page that keeps its own
 // state (isolatedState), alive while the other tab shows.
-import { Switchable } from 'sygnal'
+import { Switchable, makeTimerDriver } from 'sygnal'
 import IntakeLab from './intake/IntakeLab.jsx'
 import BoardLab from './board/BoardLab.jsx'
-import { MODEL } from './llm.js'
+import { MODEL, OLLAMA } from './llm.js'
+import { makeChatDriver, chatCompletions } from 'sygnal/ai'
 
 const TABS = [['intake', 'Form from pieces'], ['board', 'Self-arranging board']]
 
@@ -21,6 +22,15 @@ export default function App({ state }) {
       <Switchable of={{ intake: IntakeLab, board: BoardLab }} current={state.tab} />
     </div>
   )
+}
+
+App.drivers = {
+  // compose.llm()'s requests: Ollama's OpenAI-compatible endpoint, thinking off, deterministic
+  LLM: makeChatDriver({
+    transport: chatCompletions({ baseURL: `${OLLAMA}/v1`, body: { temperature: 0, reasoning_effort: 'none' } }),
+  }),
+  // the board's simulated clock
+  TIMER: makeTimerDriver(),
 }
 
 App.initialState = { tab: 'intake' }

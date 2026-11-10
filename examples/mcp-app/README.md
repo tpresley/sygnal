@@ -4,7 +4,7 @@ An [MCP App](https://modelcontextprotocol.io/seps/1865-mcp-apps-interactive-user
 
 ```
 src/App.jsx          the view (a Sygnal component)
-src/main.js          run(App, { MCP: makeMcpAppDriver() })
+src/main.js          run(App) (the MCP driver is on App: App.drivers)
 server/server.js     the MCP server: get_forecast, the ui:// resource that serves the view, and the
                      selection tools (select_day for the view, get_selected_day for the model)
 server/forecast.js   made-up weather (replace it with a real API)

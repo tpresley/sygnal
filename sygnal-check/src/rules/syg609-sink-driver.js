@@ -78,7 +78,7 @@ export default {
           if (!lacking || rendering.some(a => !a.drivers || a.drivers.has(name))) continue
           const at = `${project.relPath(lacking.file.path)}:${lacking.call.loc.start.line}`
           const root = lacking.root?.name || 'App'
-          const example = EXAMPLE[name] ? `run(${root}, { ${name}: ${EXAMPLE[name]} })` : `run(${root}, { ${name}: myDriver })`
+          const example = `${root}.drivers = { ${name}: ${EXAMPLE[name] || 'myDriver'} }`
           report({
             code: 'SYG609',
             component: comp.name,
@@ -87,9 +87,9 @@ export default {
             related: [{ node: lacking.call.callee, file: lacking.file, message: `this run() call registers no ${name} driver` }],
             message: `${comp.name}.intent reads the ${name} source, but the run() call that renders ${comp.name} (${at}) ` +
               `registers no driver named ${name}, so it is undefined`,
-            fix: `Pass a driver named ${name} to run(): ${example}` +
+            fix: `Register a driver named ${name} on the root: ${example}` +
               (EXAMPLE[name] ? '' : ', e.g. driverFromAsync(fn) or your own driver') +
-              `, or name it on the root (${root}.drivers = { ${name}: … }). Check the spelling against the drivers you pass`,
+              `. Check the spelling against the drivers you register`,
             data: { name, kind: 'source', drivers: [...lacking.drivers] },
             fixes: fixFor(lacking, name, rendering),
           })
@@ -107,7 +107,7 @@ export default {
         if (!lacking || rendering.some(a => !a.drivers || a.drivers.has(sink))) continue
         const at = `${project.relPath(lacking.file.path)}:${lacking.call.loc.start.line}`
         const root = lacking.root?.name || 'App'
-        const example = EXAMPLE[sink] ? `run(${root}, { ${sink}: ${EXAMPLE[sink]} })` : `run(${root}, { ${sink}: myDriver })`
+        const example = `${root}.drivers = { ${sink}: ${EXAMPLE[sink] || 'myDriver'} }`
         report({
           code: 'SYG609',
           component: comp.name,
@@ -116,9 +116,9 @@ export default {
           related: [{ node: lacking.call.callee, file: lacking.file, message: `this run() call registers no ${sink} driver` }],
           message: `Model entry '${v.action}' sends to the ${sink} sink, but the run() call that renders ${comp.name} (${at}) ` +
             `registers no driver named ${sink}, so every value sent there is dropped`,
-          fix: `Pass a driver named ${sink} to run(): ${example}` +
+          fix: `Register a driver named ${sink} on the root: ${example}` +
             (EXAMPLE[sink] ? '' : ', e.g. driverFromAsync(fn) or your own driver') +
-            `, or name it on the root (${root}.drivers = { ${sink}: … }). Check the spelling against the drivers you pass. Tests don't need it: renderComponent fakes the sink`,
+            `. Check the spelling against the drivers you register. Tests don't need it: renderComponent fakes the sink`,
           data: { name: sink, kind: 'sink', action: v.action, drivers: [...lacking.drivers] },
           fixes: fixFor(lacking, sink, rendering),
         })

@@ -23,14 +23,13 @@ export const { href } = router
 - `'*'` is the not-found route: it matches anything the others don't.
 - `base: '/app'` serves the app under a prefix; `mode: 'hash'` keeps the route in the fragment (`/#/tasks/1`), for static hosting without rewrites.
 
-Register the driver in `main.js`:
+Register the driver on the root component:
 
 ```javascript
-import { run } from 'sygnal'
+// App.jsx
 import { router } from './routes.js'
-import App from './App.jsx'
 
-run(App, { ROUTER: router.driver })
+App.drivers = { ROUTER: router.driver }
 ```
 
 ## Reading the Route

@@ -266,7 +266,7 @@ describe('SYG609 (static): a model sink no run() driver takes', () => {
     expect(d[0].component).toBe('App')
     expect(d[0].message).toContain("Model entry 'LOAD' sends to the HTTP sink")
     expect(d[0].message).toContain('src/main.js:4')
-    expect(d[0].fix).toContain('run(App, { HTTP: makeFetchDriver() })')
+    expect(d[0].fix).toContain('App.drivers = { HTTP: makeFetchDriver() }')
     expect(d[0].data).toMatchObject({ name: 'HTTP', kind: 'sink', action: 'LOAD' })
   })
 
@@ -274,14 +274,14 @@ describe('SYG609 (static): a model sink no run() driver takes', () => {
     const llm = COURSES().replace("LOAD: { HTTP: () => ({ url: '/api/courses', ok: 'LOADED' }) },", "LOAD: { LLM: (s) => ({ messages: [], ok: 'LOADED' }) },")
     const d = only(check({ 'src/App.jsx': llm, 'src/main.js': MAIN() }), 'SYG609')
     expect(d).toHaveLength(1)
-    expect(d[0].fix).toContain('run(App, { LLM: makeChatDriver({ transport: openResponses(')
+    expect(d[0].fix).toContain('App.drivers = { LLM: makeChatDriver({ transport: openResponses(')
   })
 
   it('an SW sink: the fix names makeServiceWorkerDriver with enabled; a WS sink makeSocketDriver()', () => {
     const sw = COURSES().replace("LOAD: { HTTP: () => ({ url: '/api/courses', ok: 'LOADED' }) },", "LOAD: { SW: () => ({ action: 'skipWaiting' }), WS: () => ({ to: 'chat', json: {} }) },")
     const fixes = Object.fromEntries(only(check({ 'src/App.jsx': sw, 'src/main.js': MAIN() }), 'SYG609').map(x => [x.data.name, x.fix]))
-    expect(fixes.SW).toContain("run(App, { SW: makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD }) })")
-    expect(fixes.WS).toContain('run(App, { WS: makeSocketDriver() })')
+    expect(fixes.SW).toContain("App.drivers = { SW: makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD }) }")
+    expect(fixes.WS).toContain('App.drivers = { WS: makeSocketDriver() }')
   })
 
   it("a literal drivers object without that key: warn; with it (quoted too): nothing", () => {
@@ -363,7 +363,7 @@ describe('SYG609 (static): an intent source no run() driver provides', () => {
     const d = only(check({ 'src/App.jsx': FEED(), 'src/main.js': MAIN() }), 'SYG609')
     expect(brief(d)).toEqual(['SYG609 warn src/App.jsx:5'])
     expect(d[0].message).toBe('App.intent reads the HTTP source, but the run() call that renders App (src/main.js:4) registers no driver named HTTP, so it is undefined')
-    expect(d[0].fix).toContain('run(App, { HTTP: makeFetchDriver() })')
+    expect(d[0].fix).toContain('App.drivers = { HTTP: makeFetchDriver() }')
     expect(d[0].data).toEqual({ name: 'HTTP', kind: 'source', drivers: [] })
   })
 

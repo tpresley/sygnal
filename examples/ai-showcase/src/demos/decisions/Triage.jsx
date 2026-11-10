@@ -6,7 +6,7 @@
 //
 // Routing is what calibration is for: an answer at or above the threshold is acted on, an unsure
 // one sends the ticket to a person, and the slider sets where "sure" starts.
-import { ABORT, classes, debounce } from 'sygnal'
+import { ABORT, classes, debounce, makeFetchDriver } from 'sygnal'
 import { decide, choice, noul, score } from 'sygnal/ai'
 import { providersResource, pickerState, pickerIntent, pickerModel, choicesOf, pickedModel, modelPicker } from '../../shared/picker.jsx'
 
@@ -191,6 +191,10 @@ export default function Triage({ state }) {
     </div>
   )
 }
+
+// A decision is an ordinary HTTP request: decide() builds it for the fetch driver, which also
+// loads the model list (GET /api/providers). No LLM driver: a decision model writes no text.
+Triage.drivers = { HTTP: makeFetchDriver() }
 
 Triage.initialState = {
   ...pickerState,

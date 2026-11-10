@@ -26,6 +26,31 @@ Clock.drivers = { TIMER: makeTimerDriver() }
 const settled = () => new Promise((r) => setTimeout(r, 20))
 
 describe('App.drivers', () => {
+  it('the same driver instances serve a second run after the first is disposed', async () => {
+    vi.useFakeTimers()
+    const first = run(Clock)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(document.querySelector('.n').textContent).toBe('2')
+    first.dispose()
+    document.body.innerHTML = '<div id="root"></div>'
+    app = run(Clock)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(document.querySelector('.n').textContent).toBe('1')
+  })
+
+  it('the fetch driver serves a second run too', async () => {
+    const fetchMock = vi.fn(async () => json({ text: 'hello' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const first = run(Quote)
+    await settled()
+    first.dispose()
+    document.body.innerHTML = '<div id="root"></div>'
+    app = run(Quote)
+    await settled()
+    expect(document.querySelector('.q').textContent).toBe('hello')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('run(App) wires the drivers the root names', async () => {
     const fetchMock = vi.fn(async () => json({ text: 'hello' }))
     vi.stubGlobal('fetch', fetchMock)

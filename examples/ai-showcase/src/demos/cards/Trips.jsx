@@ -4,11 +4,12 @@
 // request (compose.llm()). The user's click is the tool's result, and the conversation goes on from
 // it. Booking is an ordinary `agent` action that books what the cards filled in, so the model can
 // only book a trip the user picked.
-import { ABORT, classes } from 'sygnal'
+import { ABORT, classes, makeFetchDriver } from 'sygnal'
 import { chat, askCard, openToolCalls } from 'sygnal/ai'
 import { providersResource, pickerState, pickerIntent, pickerModel, pickedModel, modelPicker } from '../../shared/picker.jsx'
 import { catalog, DestinationPicker, TripSize, Rating, totalOf } from './cards.jsx'
 import { DESTINATIONS, NEW_TRIP, destinationOf } from './destinations.js'
+import { makeLLM } from '../../shared/providers.js'
 
 const EXAMPLES = [
   'Plan me a long weekend somewhere warm',
@@ -119,6 +120,11 @@ export default function Trips({ state }) {
       </div>
     </div>
   )
+}
+
+Trips.drivers = {
+  LLM: makeLLM(),            // the chat, and the requests that compose its cards (compose.llm())
+  HTTP: makeFetchDriver(),   // the model list (GET /api/providers)
 }
 
 Trips.initialState = {

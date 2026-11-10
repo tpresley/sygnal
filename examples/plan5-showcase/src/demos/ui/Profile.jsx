@@ -45,4 +45,6 @@ Profile.model = {
   PING: { EVENTS: event('TOAST', { text: 'Toasts move into the open modal, so they stay visible and clickable', kind: 'success' }) },
 }
 
-export const start = (mountPoint, uid) => run(Profile, { TIMER: makeTimerDriver() }, { mountPoint, uid })
+Profile.drivers = { TIMER: makeTimerDriver() }
+
+export const start = (mountPoint, uid) => run(Profile, {}, { mountPoint, uid })

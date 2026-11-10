@@ -155,7 +155,7 @@ App.model = {
   },
 }
 
-// The service worker driver, next to the SW actions above. run(App, { SW: ... }) in main.js works the same.
+// The service worker driver, next to the SW actions above.
 App.drivers = { SW: makeServiceWorkerDriver('/sw.js') }
 
 export default App

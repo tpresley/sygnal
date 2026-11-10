@@ -76,7 +76,7 @@ export const timersCheck: DiagnosticCheck = {
       devReport('SYG646', {
         component,
         message: `${name}.drivers is set, but ${name} is not the root component${vike ? " (it renders in Vike's Layout/Wrapper shell)" : ''}, so its drivers are never registered (drivers works on the root only)`,
-        fix: vike ? 'Register the drivers in the page config: `drivers` in +config' : `Move drivers to the root component (the one passed to run()), or pass them as run()'s second argument`,
+        fix: vike ? 'Register the drivers in the page config: `drivers` in +config' : `Move drivers to the root component (the one passed to run())`,
         data: {drivers: Object.keys(view.drivers), ...(vike && {vike: true})},
       })
     }
@@ -89,7 +89,7 @@ export const timersCheck: DiagnosticCheck = {
       devReport('SYG643', {
         component,
         message: `${name} declares ${name}.${k}, but no ${NEEDS[k]} driver is registered, so ${k == 'timers' ? 'its timers never run' : k == 'connections' ? 'its connections never open' : k == 'browser' ? 'its browser sources never start' : 'its resources are never fetched'}`,
-        fix: `Register the driver: run(App, { ${KEY[k]}: ${NEEDS[k]} }), or name it on the root component: App.drivers = { ${KEY[k]}: ${NEEDS[k]} }`,
+        fix: `Register the driver on the root component: App.drivers = { ${KEY[k]}: ${NEEDS[k]} }`,
         data: {static: k, driver: NEEDS[k]},
       })
     }

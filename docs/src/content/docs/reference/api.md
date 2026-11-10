@@ -23,7 +23,7 @@ function run(
 | `drivers` | `Record<string, CycleDriver>` | Additional drivers beyond the defaults (optional) |
 | `options` | `RunOptions` | Configuration options (optional) |
 
-The root component's `drivers` static is merged with the second argument, which overrides it by name: `App.drivers = { HTTP: makeFetchDriver() }`. See [Adding Drivers](/guide/drivers/#adding-drivers).
+A feature's drivers go on the root component: `App.drivers = { HTTP: makeFetchDriver() }`. The second argument is for what differs per environment, and overrides the static by name. See [Adding Drivers](/guide/drivers/#adding-drivers).
 
 ### RunOptions
 
@@ -57,16 +57,12 @@ run(RootComponent)
 // With custom mount point
 run(RootComponent, {}, { mountPoint: '#app' })
 
-// With custom drivers
+// Overriding a driver for this environment (a feature's drivers go on the root: RootComponent.drivers)
 import myDriver from './myDriver'
 run(RootComponent, { MY_DRIVER: myDriver })
 
 // Fail fast on any diagnostic (e.g. in CI)
 run(RootComponent, {}, { diagnostics: 'error' })
-
-// With timers (the timers static needs its driver)
-import { makeTimerDriver } from 'sygnal'
-run(RootComponent, { TIMER: makeTimerDriver() })
 
 // With HMR (Vite)
 const { hmr, dispose } = run(RootComponent)
@@ -1095,10 +1091,9 @@ function makeDragDriver(): (sink$: Stream<DragDriverRegistration | DragDriverReg
 ### Setup
 
 ```javascript
-import { run, makeDragDriver } from 'sygnal'
-import RootComponent from './RootComponent.jsx'
+import { makeDragDriver } from 'sygnal'
 
-run(RootComponent, { DND: makeDragDriver() })
+RootComponent.drivers = { DND: makeDragDriver() }
 ```
 
 ### DragDriverRegistration
@@ -1341,7 +1336,7 @@ function makeTimerDriver(): Driver
 ```
 
 ```javascript
-run(App, { TIMER: makeTimerDriver() })
+App.drivers = { TIMER: makeTimerDriver() }
 ```
 
 The key is free (`TIMER` by convention): the core finds the driver by the static it takes. Each timer's action goes to the instance that declared it, with every sink of its model entry. A removed instance's timers stop; disposing the app stops all of them; nothing runs during server rendering. A component that declares `timers` without the driver is [SYG643](/reference/errors/#syg643) in dev. `renderComponent` provides it (`timerSink`, `t.timers()`).
@@ -1375,9 +1370,9 @@ function makeBrowserDriverWith(...sources: BrowserSource[]): Driver
 ```
 
 ```javascript
-run(App, { BROWSER: makeBrowserDriver() })
+App.drivers = { BROWSER: makeBrowserDriver() }
 // only these sources (the others add no bytes)
-run(App, { BROWSER: makeBrowserDriverWith(intersectionSource, mediaSource) })
+App.drivers = { BROWSER: makeBrowserDriverWith(intersectionSource, mediaSource) }
 ```
 
 The key is free (`BROWSER` by convention): the core finds the driver by the static it takes. Sources: `intersectionSource`, `resizeSource`, `mediaSource`, `storageSource`, `visibilitySource`, `onlineSource`, `geolocationSource`, `clipboardSource`. A component that declares `browser` without the driver is [SYG643](/reference/errors/#syg643) in dev. `renderComponent` provides a fake (`browserSink`, `browser`, `t.browser`).
@@ -1487,7 +1482,7 @@ source.errors(selector?: string | Function): Stream<AsyncDriverError>
 import { driverFromAsync } from 'sygnal'
 import { geocode } from './geo.js'   // async (address) => ({ lat, lng })
 
-run(RootComponent, { GEO: driverFromAsync(geocode) })
+RootComponent.drivers = { GEO: driverFromAsync(geocode) }
 
 // Use in model: geocode(state.address); the reply is FOUND or NOT_FOUND
 Place.model = {
@@ -1571,9 +1566,9 @@ source.select(type?: string): Stream
 ### Example
 
 ```javascript
-import { run, makeServiceWorkerDriver } from 'sygnal'
+import { makeServiceWorkerDriver } from 'sygnal'
 
-run(App, { SW: makeServiceWorkerDriver('/sw.js') })
+App.drivers = { SW: makeServiceWorkerDriver('/sw.js') }
 
 App.intent = ({ SW, DOM }) => ({
   UPDATE_READY: SW.select('waiting'),

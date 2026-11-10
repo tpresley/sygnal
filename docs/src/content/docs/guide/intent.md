@@ -33,7 +33,7 @@ By default, every Sygnal component's intent function receives these sources:
 | `context$` | Stream of context values from ancestors |
 | `dispose$` | Emits `true` once when the component is about to unmount (advanced — prefer the `DISPOSE` model action). See [Disposal Hooks](/advanced/disposal/) |
 
-Additionally, any custom drivers registered via `run()` are available as sources by their key name.
+Additionally, any drivers the root registers (its `drivers` static, or `run()`'s argument) are available as sources by their key name.
 
 ## Key Points
 

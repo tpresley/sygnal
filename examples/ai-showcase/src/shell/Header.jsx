@@ -108,7 +108,9 @@ Header.model = {
   SAVE_FAILED: (state, { error }) => ({ ...state, saving: false, error: error.body?.error ?? error.message }),
 }
 
-export const startHeader = (mountPoint) => run(Header, {
+Header.drivers = {
   HTTP: makeFetchDriver(),
   CHROME: driverFromAsync(() => ROUTES.chrome.transport.status()),
-}, { mountPoint, uid: 'header' })
+}
+
+export const startHeader = (mountPoint) => run(Header, {}, { mountPoint, uid: 'header' })

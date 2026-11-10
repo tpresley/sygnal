@@ -24,10 +24,10 @@ App.initialState = { title: 'Notes' }
 ```
 
 ```js
-import { run, makeTimerDriver } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeTimerDriver } from 'sygnal'
 
-run(App, { TIMER: makeTimerDriver() })
+App.drivers = { TIMER: makeTimerDriver() }
 ```
 
 Then send a toast from anywhere, through the `EVENTS` bus:

@@ -47,4 +47,6 @@ export function Notes() {
   )
 }
 
-export const start = (mountPoint, uid) => run(Notes, { TIMER: makeTimerDriver() }, { mountPoint, uid })
+Notes.drivers = { TIMER: makeTimerDriver() }
+
+export const start = (mountPoint, uid) => run(Notes, {}, { mountPoint, uid })

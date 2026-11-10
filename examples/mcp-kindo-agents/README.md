@@ -12,7 +12,7 @@ from the chat, and the host shows the **runner card**, written with [Sygnal](htt
 ```
 src/App.jsx          the view (a Sygnal component): the card, the run, the result
 src/markdown.jsx     just enough Markdown for an agent's answer
-src/main.js          run(App, { MCP: makeMcpAppDriver(), TIMER: makeTimerDriver() })
+src/main.js          run(App) (the drivers are on App: MCP, TIMER)
 server/server.js     the MCP server: the tools and the ui:// resource that serves the view
 server/kindo.js      a small client for Kindo's Agents API (list, read, run, poll, evals, restart)
 ```

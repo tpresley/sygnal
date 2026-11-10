@@ -16,13 +16,13 @@ It is the same shape as [`timers`](/guide/timers/): a function of the state that
 
 ## Setup
 
-Browser sources are run by `makeBrowserDriver()`, which you register when you start the app:
+Browser sources are run by `makeBrowserDriver()`, which you register on the root component:
 
 ```jsx
-import { run, makeBrowserDriver } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeBrowserDriver } from 'sygnal'
 
-run(App, { BROWSER: makeBrowserDriver() })
+App.drivers = { BROWSER: makeBrowserDriver() }
 ```
 
 The key is yours to choose (`BROWSER` by convention): Sygnal finds the driver by the `browser` static it takes. One driver serves every component of the app. A component that declares `browser` in an app without the driver gets [SYG643](/reference/errors/#syg643) in development.
@@ -30,10 +30,10 @@ The key is yours to choose (`BROWSER` by convention): Sygnal finds the driver by
 `makeBrowserDriver()` has every source. An app that uses only a few can list them, so the others add no bytes:
 
 ```jsx
-import { run, makeBrowserDriverWith, intersectionSource, mediaSource } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeBrowserDriverWith, intersectionSource, mediaSource } from 'sygnal'
 
-run(App, { BROWSER: makeBrowserDriverWith(intersectionSource, mediaSource) })
+App.drivers = { BROWSER: makeBrowserDriverWith(intersectionSource, mediaSource) }
 ```
 
 A spec whose source the driver wasn't made with is [SYG664](/reference/errors/#syg664) in development. The sources are `intersectionSource`, `resizeSource`, `mediaSource`, `storageSource`, `visibilitySource`, `onlineSource`, `geolocationSource` and `clipboardSource`.

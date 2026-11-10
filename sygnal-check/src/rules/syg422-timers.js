@@ -61,7 +61,7 @@ function reportMissingDrivers(project, report) {
         node: comp.staticPropNodes[k] || comp.staticProps[k],
         related: [{ node: lacking.call.callee, file: lacking.file, message: `this run() call registers no ${DRIVER_OF[k]} driver` }],
         message: `${comp.name} declares ${comp.name}.${k}, but the run() call that renders it (${at}) registers no ${DRIVER_OF[k]} driver, so ${EFFECT[k]}`,
-        fix: `register the driver: run(App, { ${KEY[k]}: ${DRIVER_OF[k]}, ... }), or name it on the root: ${lacking.root?.name || 'App'}.drivers = { ${KEY[k]}: ${DRIVER_OF[k]} } (any key; the core finds it by the static it takes)`,
+        fix: `register the driver on the root: ${lacking.root?.name || 'App'}.drivers = { ${KEY[k]}: ${DRIVER_OF[k]} } (any key; the core finds it by the static it takes)`,
         data: { static: k, driver: DRIVER_OF[k] },
         fixes: rootDriverFix(lacking, KEY[k], DRIVER_OF[k].slice(0, -2), apps.filter(a => a.components.has(comp))) || undefined,
       })
@@ -83,7 +83,7 @@ function reportChildDrivers(project, report) {
       file: comp.file,
       node: comp.staticPropNodes?.drivers || comp.staticProps.drivers,
       message: `${comp.name}.drivers is set, but ${comp.name} is not the root component (run() renders ${roots.join(', ')}), so its drivers are never registered: drivers works on the root only`,
-      fix: `move drivers to ${roots[0]}, or pass them as run()'s second argument`,
+      fix: `move drivers to ${roots[0]}`,
       data: { roots },
     })
   }

@@ -87,20 +87,18 @@ The counter still owns `state.count`. The behavior adds `state.chat` and namespa
 
 ### Connect a model once
 
-In your app's entry point, add the driver and choose a transport. Here it connects to a local Ollama model; the highlighted lines are the new driver setup. Pull the model with `ollama pull llama3.2` first ([local setup](/guide/ai-chat/#getting-started)).
+On the root component, add the driver and choose a transport. Here it connects to a local Ollama model; the highlighted lines are the new driver setup. Pull the model with `ollama pull llama3.2` first ([local setup](/guide/ai-chat/#getting-started)).
 
-```js title="main.js" ins={2,6-10}
-import { run } from 'sygnal'
+```js title="Counter.jsx" ins={1,3-9}
 import { makeChatDriver, openResponses } from 'sygnal/ai'
-import Counter from './Counter.jsx'
 
-run(Counter, {
+Counter.drivers = {
   LLM: makeChatDriver({
     transport: openResponses({
       baseURL: 'http://localhost:11434/v1', model: 'llama3.2',
     }),
   }),
-})
+}
 ```
 
 For a hosted provider, use a [server route](/guide/ai-chat/#shipping-it) that keeps the API key off the page. Authentication, rate limits, conversation storage, and your product's UI are still application work. The small addition here covers the client conversation lifecycle, rather than an entire production chat service.

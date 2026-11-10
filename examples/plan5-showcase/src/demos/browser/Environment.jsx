@@ -67,4 +67,6 @@ Environment.model = {
   FAILED: (state, { message }) => ({ ...state, error: message }),
 }
 
-export const start = (mountPoint, uid) => run(Environment, { BROWSER: makeBrowserDriver() }, { mountPoint, uid })
+Environment.drivers = { BROWSER: makeBrowserDriver() }
+
+export const start = (mountPoint, uid) => run(Environment, {}, { mountPoint, uid })

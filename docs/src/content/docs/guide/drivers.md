@@ -30,23 +30,11 @@ Sygnal's `run()` function automatically includes these drivers:
 
 ## Adding Drivers
 
-Pass additional drivers as the second argument to `run()`. Each one is then a source (in intent) and a sink (in model) under that name:
-
-```javascript
-import { run, makeFetchDriver, makeSocketDriver } from 'sygnal'
-import App from './App.jsx'
-
-run(App, {
-  HTTP: makeFetchDriver(),
-  WS:   makeSocketDriver(),
-})
-```
-
-The root component can name them instead, in the file that uses them. Nothing else changes: the source and sink are the same.
+A feature's driver goes on the root component, in the `drivers` static. Each one is then a source (in intent) and a sink (in model) under that name, and `src/main.js` stays `run(App)`:
 
 ```javascript
 // src/App.jsx
-import { makeFetchDriver } from 'sygnal'
+import { makeFetchDriver, makeSocketDriver } from 'sygnal'
 
 function App({ state }) {
   return <p>{state.quote?.data?.text}</p>
@@ -54,12 +42,27 @@ function App({ state }) {
 
 App.initialState = {}
 App.resources = { quote: () => ({ url: '/api/quote' }) }
-App.drivers = { HTTP: makeFetchDriver() }
+App.drivers = {
+  HTTP: makeFetchDriver(),
+  WS:   makeSocketDriver(),
+}
 
 export default App
 ```
 
-`src/main.js` then stays `run(App)`. Both forms work and can be combined: `run()`'s argument overrides the static by name, which is the place for what differs per environment (`run(App, { HTTP: makeFetchDriver({ baseUrl }) })`). `drivers` is read on the root only; on any other component it is [SYG646](/reference/errors/#syg646). The factories run when the module is loaded, in tests and on the server too, so a custom driver should do its work when the app starts, inside the driver function. `renderComponent` ignores the static. `sygnal-check --graph` lists a root's drivers and where each is registered, and `sygnal-check --fix` writes the line for a driver with no options.
+`drivers` is read on the root only; on any other component it is [SYG646](/reference/errors/#syg646). A child that needs a driver just uses it. The factories run when the module is loaded, in tests and on the server too, so a custom driver should do its work when the app starts, inside the driver function; something that connects as soon as it is created belongs in `main.js`. `renderComponent` ignores the static, and tests pass a double or use the fake.
+
+### What differs per environment
+
+`run()`'s second argument is for what changes between environments: a test double, a per-deploy `baseUrl`, a renderer target. It overrides the static by name, and the app's own code doesn't change:
+
+```javascript
+// src/main.js
+import { run, makeFetchDriver } from 'sygnal'
+import App from './App.jsx'
+
+run(App, { HTTP: makeFetchDriver({ baseUrl: import.meta.env.VITE_API_URL }) })
+```
 
 Drivers are registered explicitly, so an app only ships the ones it uses. A sink or source with no driver is reported as [SYG609](/reference/errors/#syg609) (with the dev diagnostics on). In tests, `renderComponent` needs no drivers: a driver you don't pass is replaced by a fake you answer from the test ([Testing](/integration/testing/#answering-requests-respond-and-fail)).
 
