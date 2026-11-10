@@ -2,6 +2,13 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+- **`dataset={{ … }}` on an element is `data={{ … }}`.** It was set as a DOM property, which the element's
+  getter-only `dataset` rejects, and `renderComponent`'s mock DOM printed `dataset="[object Object]"`, so
+  `.data('id')` read `undefined` with no diagnostic. A component's own `dataset` prop is unchanged.
+- **SYG222 no longer reports a `NaN` field** as changed in place when a reducer returns the state it got.
+
 ## 7.4.1 — 2026-11-09
 
 `sygnal` only. `sygnal-check`, `create-sygnal-app` (its templates' `^7.4.0` range includes this release), the

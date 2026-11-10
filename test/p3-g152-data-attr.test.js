@@ -15,6 +15,33 @@ describe('G-152: data-* JSX attributes', () => {
     expect(vnode.data.dataset).toEqual({ taskId: '7', id: '3', aBC: 'x' })
   })
 
+  it('an element\'s dataset={{…}} is data={{…}} (it was a prop: "[object Object]" in the mock DOM); a component keeps its own', async () => {
+    expect(createElement('button', { dataset: { i: '2' } }).data).toEqual({ dataset: { i: '2' } })
+    expect(createElement('button', { dataset: { i: '2' }, 'data-task-id': '7' }).data.dataset).toEqual({ i: '2', taskId: '7' })
+    expect(createElement('wa-button', { dataset: { i: '2' } }).data.dataset).toEqual({ i: '2' })
+    function Chart() { return createElement('div', null) }
+    const points = [1, 2]
+    expect(createElement(Chart, { dataset: points }).data.props.dataset).toBe(points)
+
+    for (const dom of [undefined, 'real']) {
+      function Board({ state }) {
+        return createElement('div', null,
+          createElement('button', { className: 'card', dataset: { i: '2' } }, 'pick'),
+          createElement('p', { className: 'picked' }, String(state.picked)))
+      }
+      Board.initialState = { picked: null }
+      Board.intent = ({ DOM }) => ({ PICK: DOM.click('.card').data('i', Number) })
+      Board.model = { PICK: (state, picked) => ({ ...state, picked }) }
+      t = renderComponent(Board, { dom })
+      await t.ready()
+      expect(t.html()).toContain('data-i="2"')
+      expect(t.html()).not.toContain('[object Object]')
+      await t.simulateEvent('.card', 'click')
+      await t.waitForState(s => s.picked === 2)
+      t.dispose(); t = null
+    }
+  })
+
   it('renders data-task-id in a real DOM, readable with .data()', async () => {
     function Board({ state }) {
       return createElement('div', null,

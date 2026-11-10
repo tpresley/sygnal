@@ -211,7 +211,9 @@ const route = (key: string, modules: Record<string, any>, c?: any): any => {
   // G-542: there, only a string form (an object is the element's own property: r[3])
   if (c != 1 && modules.attrs !== undefined && ATTRS.test(key) && !(c && key == 'list')) return ['attrs', key, prefix == 'aria' && 4, c && key == 'form']
   if (c != 1 && modules.attrs !== undefined && BOOLISH.test(key)) return ['attrs', key.toLowerCase(), 5]
-  if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' ? 3 : key == 'style' && c != 1 ? 6 : 2]
+  // an element's `dataset` is the module's own name for `data` (as a prop the DOM's getter-only
+  // dataset throws, and the mock DOM printed "[object Object]"); a component's stays its own prop
+  if (modules[key] !== undefined || key == 'dataset' && c != 1) return [modules[key] || key, 0, key == 'class' ? 3 : key == 'style' && c != 1 ? 6 : 2]
   return [modules.props !== undefined && 'props', key, key == 'className' && c != 1 && 8]
 }
 const own = Object.prototype.hasOwnProperty

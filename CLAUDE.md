@@ -39,7 +39,7 @@ npm --prefix docs run build          # docs site + internal link check + file-na
 npm --prefix docs run check-live     # every live example of the built docs/dist in Playwright; must pass on BROWSER=chromium, firefox and webkit
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (680 checked, 15 skipped by marker)
-node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 40,457 B gated (the core size sweep; D48, D185, D222, D230, 7.0 PLAN-12 M-10, 7.2 leaving-child fix, 7.2 behavior read-time normalizer, 7.2 one shape, 7.2 portal events, 7.2 root-shape fix, 7.2 autoFocus at the patch, 7.3 focusWithin from a fragment, the style and class forms, adopting innerHTML;
+node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 40,466 B gated (the core size sweep, 7.4.2 an element's `dataset`; D48, D185, D222, D230, 7.0 PLAN-12 M-10, 7.2 leaving-child fix, 7.2 behavior read-time normalizer, 7.2 one shape, 7.2 portal events, 7.2 root-shape fix, 7.2 autoFocus at the patch, 7.3 focusWithin from a fragment, the style and class forms, adopting innerHTML;
                                      #   needs build + examples/kanban install); also prints the default (globalthis-aliased)
                                      #   size and src/core/** alone. `--budget <bytes>` overrides
 ```
