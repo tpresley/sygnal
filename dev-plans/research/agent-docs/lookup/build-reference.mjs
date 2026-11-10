@@ -12,7 +12,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
-const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')   // moved from scripts/ (not shipped)
 const ts = createRequire(import.meta.url)('typescript')
 
 export const ANSWER_BUDGET = 1800  // bytes of one answer; the options list gives way first

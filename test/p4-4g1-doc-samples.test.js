@@ -256,7 +256,9 @@ describe('agent docs: the 4-G1 facts', () => {
   it('the stale-reply nuance: a superseded reply never arrives only once the newer request is sent', () => {
     expect(AGENT.llms).toContain('aborts the older ones once it is sent')
     expect(AGENT.llms).toContain('waits out a debounce) does')
-    expect(AGENT.skill).toContain("aborts this instance's older ones once sent; a reply landing earlier (during a debounce) still arrives")
+    // 7.5: the skill is generated from llms.txt (scripts/build-llms.mjs), so it carries the same wording
+    expect(AGENT.skill).toContain('aborts the older ones once it is sent')
+    expect(AGENT.skill).toContain('waits out a debounce) does')
   })
 
   it('preventDefault: true on submit, and a predicate on document keydown (run(), real DOM)', async () => {

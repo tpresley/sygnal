@@ -6,7 +6,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { outputs } from '../../../../scripts/build-reference.mjs'
+import { outputs } from '../lookup/build-reference.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const out = path.join(here, '../candidates')
