@@ -114,6 +114,8 @@ function blastLines(comp, out, max) {
   out.push('', `**Blast radius:** ${text.join('; ')}`)
 }
 
+const item = (a) => `- ${LABEL[a.severity]} (${KIND[a.kind] ?? a.kind}): ${a.text}${a.at ? ` (${code(a.at)})` : ''}`
+
 export function formatReport(r, { max = 6 } = {}) {
   const out = ['<!-- sygnal-behaviour-report -->', '## Behaviour report']
   const n = (x, w) => `${x} ${w}`
@@ -121,22 +123,9 @@ export function formatReport(r, { max = 6 } = {}) {
   if (r.coverage.parseErrors.length) out.push('', `> **A file did not parse, so its components look removed:** ${r.coverage.parseErrors.map(code).join(', ')}`)
   if (r.attention.length) {
     out.push('', '### Look at these first')
-    // many new actions with side effects on one component (a feature, a new example) are one line
-    const fresh = new Map()
-    for (const a of r.attention) if (a.isNew) (fresh.get(a.component) || fresh.set(a.component, []).get(a.component)).push(a)
-    const grouped = new Set([...fresh].filter(([, l]) => l.length > 3).map(([c]) => c))
-    const done = new Set()
-    for (const a of r.attention) {
-      if (a.isNew && grouped.has(a.component)) {
-        if (done.has(a.component)) continue
-        done.add(a.component)
-        const l = fresh.get(a.component)
-        out.push(`- ${LABEL.high} (${KIND['side-effect']}): ${code(a.component)}: ${l.length} new actions send to ${[...new Set(l.map(x => x.sink))].join(', ')} (${codes([...new Set(l.map(x => x.action))].slice(0, 8))}${l.length > 8 ? ', …' : ''})`)
-        continue
-      }
-      out.push(`- ${LABEL[a.severity]} (${KIND[a.kind] ?? a.kind}): ${a.text}${a.at ? ` (${code(a.at)})` : ''}`)
-    }
-  } else if (r.components.length) out.push('', 'Nothing here needs special attention: no new side effects, removed guards or wider writes were found.')
+    for (const a of r.attention) out.push(item(a))
+  } else if (r.components.length) out.push('', 'No side effect was added to an existing action, and no guard removed or write widened. That is all this line says: read the changes below.')
+  if (r.notes.length) out.push('', '### Also changed', ...r.notes.map(item))
   if (!r.components.length) out.push('', 'No difference in component behaviour was found.')
   for (const c of r.components) {
     out.push('', `### ${code(c.name)} ${c.status === 'changed' ? '' : `(${c.status}) `}· \`${c.file}\`${c.movedFrom ? ` (moved from \`${c.movedFrom}\`)` : ''}`)

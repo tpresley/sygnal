@@ -64,7 +64,7 @@ describe('G-656: the SDK client over stdio', () => {
       if (era === 'modern') expect(client.getDiscoverResult()).toMatchObject({ supportedVersions: SUPPORTED_VERSIONS, capabilities: { tools: {} } })
 
       const { tools } = await client.listTools()
-      expect(tools.map(t => t.name)).toEqual(['check', 'graph', 'explain'])
+      expect(tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'report'])
 
       const check = await client.callTool({ name: 'check', arguments: { paths: ['test/fixtures/bad/selector-typo.jsx'] } })
       expect(check.isError).toBe(false)
@@ -143,7 +143,7 @@ describe('G-656: 2026-07-28 on the wire (stdio)', () => {
     })
     const list = await s.request('tools/list', { _meta: modernMeta() })
     expect(list.result).toMatchObject({ resultType: 'complete', ttlMs: 3_600_000, cacheScope: 'private', _meta: { [META + 'serverInfo']: { name: 'sygnal-check' } } })
-    expect(list.result.tools.map(t => t.name)).toEqual(['check', 'graph', 'explain'])
+    expect(list.result.tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'report'])
     const call = await s.request('tools/call', { name: 'explain', arguments: { code: '104' }, _meta: modernMeta() })
     expect(call.result).toMatchObject({ resultType: 'complete', isError: false, structuredContent: getExplanation('SYG104') })
     expect(call.result).not.toHaveProperty('ttlMs')
@@ -203,7 +203,7 @@ describe('createMcpServer().handle (2026-07-28)', () => {
   it('a modern request with non-object _meta fields', () => {
     expect(handle({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: { _meta: modernMeta({ [META + 'clientCapabilities']: 'all' }) } }).error.code).toBe(-32602)
     // _meta that isn't an object: no version, so the initialize era
-    expect(handle({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: { _meta: 'x' } }).result.tools).toHaveLength(3)
+    expect(handle({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: { _meta: 'x' } }).result.tools).toHaveLength(4)
     // notifications are never answered, whatever their _meta
     expect(handle({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { _meta: modernMeta({ [META + 'protocolVersion']: 'bad' }) } })).toBe(null)
   })

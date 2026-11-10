@@ -6,6 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { main, parseArgs } from '../src/cli.js'
+import { createMcpServer } from '../src/mcp.js'
 import { graphFiles } from '../src/graph.js'
 import { behaviourFacts, appDrivers } from '../src/report/facts.js'
 import { behaviourReport } from '../src/report/compare.js'
@@ -27,7 +28,8 @@ function report(a, b, changedFiles) {
   return behaviourReport(side(typeof a === 'string' ? { 'src/App.jsx': a } : a), side(typeof b === 'string' ? { 'src/App.jsx': b } : b), { base: 'base', head: 'head', changedFiles })
 }
 
-const kinds = (r) => r.attention.map(a => a.kind)
+const items = (r) => [...r.attention, ...r.notes]
+const kinds = (r) => items(r).map(a => a.kind)
 const action = (r, name, comp = 0) => r.components[comp].actions.find(a => a.name === name)
 const sink = (r, a, s = 'STATE', comp = 0) => action(r, a, comp).sinks.find(x => x.sink === s)
 
@@ -45,6 +47,7 @@ describe('--report: flags', () => {
     expect(() => parseArgs(['--report'])).toThrow('--report needs --base')
     expect(() => parseArgs(['--graph', '--head', 'x'])).toThrow('--head needs --base')
     expect(() => parseArgs(['--report', '--base', 'a', '--graph'])).toThrow('cannot be combined')
+    expect(() => parseArgs(['--fail-on=high'])).toThrow('--fail-on=high needs --report')
     expect(parseArgs(['--report', '--base', 'a', '--head', 'b', '--json', '--out', 'x.md'])).toMatchObject({ report: true, base: 'a', head: 'b', json: true, out: 'x.md' })
   })
 })
@@ -55,7 +58,7 @@ describe('--report: side effects', () => {
       app(`{ ADD: (s) => ({ ...s, n: s.n + 1 }), SAVE: (s) => s }`),
       app(`{ ADD: (s) => ({ ...s, n: s.n + 1 }), SAVE: { STATE: (s) => s, HTTP: (s) => ({ url: '/api/save', method: 'POST', json: s.draft, ok: 'SAVED', error: 'FAILED' }) }, SAVED: (s) => s, FAILED: (s) => s }`),
     )
-    const a = r.attention.find(x => x.kind === 'side-effect')
+    const a = items(r).find(x => x.kind === 'side-effect')
     expect(a.severity).toBe('high')
     expect(a.text).toContain('`App.SAVE` now sends to HTTP')
     expect(a.text).toContain('POST /api/save → ok SAVED, error FAILED')
@@ -65,7 +68,7 @@ describe('--report: side effects', () => {
   it('a changed URL is a new request, the old one named', () => {
     const http = (u) => app(`{ ADD: (s) => s, SAVE: { HTTP: () => ({ url: '${u}', method: 'POST', ok: 'A' }) }, A: (s) => s }`)
     const r = report(http('/api/v1/save'), http('/api/v2/save'))
-    expect(r.attention[0].text).toContain('new HTTP request: `POST /api/v2/save → ok A` (was `POST /api/v1/save → ok A`)')
+    expect(items(r)[0].text).toContain('new HTTP request: `POST /api/v2/save → ok A` (was `POST /api/v1/save → ok A`)')
   })
 
   it('a new EFFECT and the globals it touches', () => {
@@ -73,7 +76,7 @@ describe('--report: side effects', () => {
       app(`{ ADD: (s) => s, SAVE: (s) => s }`),
       app(`{ ADD: (s) => s, SAVE: { EFFECT: (s) => { localStorage.setItem('d', s.draft) } } }`),
     )
-    expect(r.attention.find(a => a.kind === 'side-effect').text).toContain('localStorage.setItem')
+    expect(items(r).find(a => a.kind === 'side-effect').text).toContain('localStorage.setItem')
   })
 
   it('a reducer that starts touching a global', () => {
@@ -81,20 +84,20 @@ describe('--report: side effects', () => {
       app(`{ ADD: (s) => ({ ...s, n: 1 }), SAVE: (s) => s }`),
       app(`{ ADD: (s) => ({ ...s, n: window.innerWidth }), SAVE: (s) => s }`),
     )
-    expect(r.attention.find(a => a.kind === 'side-effect').text).toContain('STATE now touches `window.innerWidth`')
+    expect(items(r).find(a => a.kind === 'side-effect').text).toContain('STATE now touches `window.innerWidth`')
   })
 
   it('a clock read in a reducer is a note, not a side effect', () => {
     const r = report(app(`{ ADD: (s) => ({ ...s, n: 1 }), SAVE: (s) => s }`), app(`{ ADD: (s) => ({ ...s, n: Date.now() }), SAVE: (s) => s }`))
-    expect(r.attention.find(a => a.kind === 'clock')).toMatchObject({ severity: 'low' })
+    expect(items(r).find(a => a.kind === 'clock')).toMatchObject({ severity: 'low' })
     expect(kinds(r)).not.toContain('side-effect')
   })
 
   it('a new driver given to run() is a new side-effect surface', () => {
     const v = (d) => ({ 'src/App.jsx': app(`{ ADD: (s) => s, SAVE: (s) => s }`), 'src/main.js': `import { run } from 'sygnal'\nimport { App } from './App.jsx'\nrun(App, ${d})\n` })
     const r = report(v('{}'), v('{ HTTP: makeFetchDriver() }'), ['src/main.js'])
-    expect(r.attention[0]).toMatchObject({ severity: 'high', kind: 'driver' })
-    expect(r.attention[0].text).toContain('`HTTP`')
+    expect(items(r)[0]).toMatchObject({ severity: 'high', kind: 'driver' })
+    expect(items(r)[0].text).toContain('`HTTP`')
     expect(r.coverage.explained).toEqual(['src/main.js'])
   })
 
@@ -113,8 +116,8 @@ describe('--report: guards', () => {
 
   it('removed: named with its condition, high', () => {
     const r = report(app(guarded, { head: ABORT }), app(bare, { head: ABORT }))
-    expect(r.attention[0]).toMatchObject({ severity: 'high', kind: 'guard-removed', action: 'ADD' })
-    expect(r.attention[0].text).toContain('`!s.draft`')
+    expect(items(r)[0]).toMatchObject({ severity: 'high', kind: 'guard-removed', action: 'ADD' })
+    expect(items(r)[0].text).toContain('`!s.draft`')
   })
 
   it('added: listed, no alarm', () => {
@@ -126,8 +129,8 @@ describe('--report: guards', () => {
   it('changed condition: paired, medium; through ?: and nested ifs', () => {
     const v = (c) => app(`{ ADD: (s) => (${c} ? ABORT : { ...s, n: 1 }), SAVE: (s) => s }`, { head: ABORT })
     const r = report(v('s.n > 3'), v('s.n > 5'))
-    expect(r.attention[0]).toMatchObject({ severity: 'medium', kind: 'guard-changed' })
-    expect(r.attention[0].text).toContain('`s.n > 3` became `s.n > 5`')
+    expect(items(r)[0]).toMatchObject({ severity: 'medium', kind: 'guard-changed' })
+    expect(items(r)[0].text).toContain('`s.n > 3` became `s.n > 5`')
     const nest = report(
       app(`{ ADD: (s) => { if (s.a) { if (s.b) return ABORT } return { ...s, n: 1 } }, SAVE: (s) => s }`, { head: ABORT }),
       app(`{ ADD: (s) => { if (s.a) { } return { ...s, n: 1 } }, SAVE: (s) => s }`, { head: ABORT }),
@@ -146,7 +149,7 @@ describe('--report: guards', () => {
   it('a trigger filter removed is a guard removed', () => {
     const intent = (x) => `({ DOM }) => ({ ADD: DOM.select('.add').events('keydown')${x}, SAVE: DOM.click('.save') })`
     const r = report(app(`{ ADD: (s) => s, SAVE: (s) => s }`, { intent: intent(`.filter(e => e.key === 'Enter')`) }), app(`{ ADD: (s) => s, SAVE: (s) => s }`, { intent: intent('') }))
-    expect(r.attention[0]).toMatchObject({ severity: 'high', kind: 'trigger-filter-removed' })
+    expect(items(r)[0]).toMatchObject({ severity: 'high', kind: 'trigger-filter-removed' })
   })
 })
 
@@ -185,7 +188,7 @@ describe('--report: reads, writes, reducer logic', () => {
     expect(x.writes).toMatchObject({ base: ['n'], head: ['n', 'draft'], added: ['draft'] })
     expect(x.readsDiff).toEqual({ added: ['draft'], removed: [] })
     expect(x.logic.kinds).toContain('writes')
-    expect(r.attention[0]).toMatchObject({ kind: 'writes-widened' })
+    expect(items(r)[0]).toMatchObject({ kind: 'writes-widened' })
   })
 
   it('same writes, different value: which key', () => {
@@ -286,7 +289,7 @@ describe('--report: events, payloads, blast radius', () => {
 
   it('a new emission and who hears it', () => {
     const r = report(two(`(s) => s`), two(`{ EVENTS: (s) => ({ type: 'A', data: 1 }) }`))
-    expect(r.attention.find(a => a.kind === 'event-new').text).toContain('`A` → App')
+    expect(items(r).find(a => a.kind === 'event-new').text).toContain('`A` → App')
     expect(r.components.find(c => c.name === 'Item').blast).toContainEqual({ kind: 'event', key: 'A', readers: ['App'] })
   })
 
@@ -303,8 +306,8 @@ describe('--report: events, payloads, blast radius', () => {
       'src/Row.jsx': `export function Row() { return <p>x</p> }\nRow.intent = ({ DOM }) => ({ GO: DOM.click('p') })\nRow.model = { GO: { PARENT: (s) => ${p} } }\n`,
     })
     const r = report(v('s.id'), v('({ pick: s.id })'))
-    expect(r.attention[0]).toMatchObject({ kind: 'payload' })
-    expect(r.attention[0].text).toContain('a value → { pick }')
+    expect(items(r)[0]).toMatchObject({ kind: 'payload' })
+    expect(items(r)[0].text).toContain('a value → { pick }')
     expect(r.components[0].blast).toContainEqual({ kind: 'parent', key: 'PARENT', readers: ['App (PICK)'] })
   })
 
@@ -354,7 +357,7 @@ describe('--report: the rest of a component', () => {
       app(`{ ADD: (s) => ({ ...s, n: 1 }), SAVE: (s) => s }`, { head: P, extra: `App.persist = persist({ key: 'k', pick: ['n'] })` }),
       app(`{ ADD: (s) => ({ ...s, n: 1, draft: 'x' }), SAVE: (s) => s }`, { head: P, extra: `App.persist = persist({ key: 'k', pick: ['n', 'draft'] })` }),
     )
-    const t = r.attention.filter(a => a.kind === 'persist').map(a => a.text)
+    const t = items(r).filter(a => a.kind === 'persist').map(a => a.text)
     expect(t[0]).toContain('+draft')
     expect(t[1]).toContain('`App.ADD` now writes persisted key `draft`')
   })
@@ -365,7 +368,7 @@ describe('--report: the rest of a component', () => {
       app(`{ ADD: (s) => s, SAVE: (s) => s }`, { extra: agent('') }),
       app(`{ ADD: (s) => s, SAVE: (s) => s }`, { extra: `App.agent = { name: 'a', actions: { ADD: { description: 'd' }, SAVE: { description: 's' } } }` }),
     )
-    const t = r.attention.filter(a => a.kind === 'agent').map(a => a.text)
+    const t = items(r).filter(a => a.kind === 'agent').map(a => a.text)
     expect(t).toEqual(expect.arrayContaining([expect.stringContaining('can now call `SAVE`'), expect.stringContaining('`ADD` is no longer marked consequential')]))
   })
 
@@ -389,7 +392,9 @@ describe('--report: the rest of a component', () => {
   it('a new component: its side effects are in the list', () => {
     const r = report(app(`{ ADD: (s) => s, SAVE: (s) => s }`), { 'src/App.jsx': app(`{ ADD: (s) => s, SAVE: (s) => s }`), 'src/New.jsx': `export function New() { return <p className="p">n</p> }\nNew.initialState = {}\nNew.intent = ({ DOM }) => ({ GO: DOM.click('.p') })\nNew.model = { GO: { HTTP: () => ({ url: '/x', ok: 'A' }) }, A: (s) => s }\n` })
     expect(r.components[0]).toMatchObject({ name: 'New', status: 'added' })
-    expect(r.attention[0].text).toContain('`New.GO` is new and sends to HTTP')
+    // a new action's side effects are in its row, not the attention list
+    expect(r.attention).toEqual([])
+    expect(formatReport(r)).toContain('`GO` | + `click .p` | + HTTP, + `GET /x → ok A`')
   })
 
   it('coverage: what is changed and not accounted for', () => {
@@ -442,14 +447,22 @@ describe('--report: the markdown', () => {
   })
 })
 
-describe('--report: the markdown groups a large addition', () => {
-  it('more than three new actions with side effects on one component are one line', () => {
-    const http = ['A', 'B', 'C', 'D'].map(n => `${n}: { HTTP: () => ({ url: '/${n}', ok: 'R' }) }`).join(', ')
-    const r = report(app(`{ ADD: (s) => s, SAVE: (s) => s }`), app(`{ ADD: (s) => s, SAVE: (s) => s, R: (s) => s, ${http} }`))
-    expect(r.attention.filter(a => a.kind === 'side-effect')).toHaveLength(4)
+describe('--report: attention and notes', () => {
+  it('attention: side effects on existing actions, removed guards, wider writes; the rest are notes', () => {
+    const r = report(
+      app(`{ ADD: (s) => { if (s.x) return ABORT; return { ...s, n: 1 } }, SAVE: (s) => (s.a ? ABORT : s), Z: (s) => s }`, { head: ABORT }),
+      app(`{ ADD: (s) => ({ ...s, n: 1, draft: '' }), SAVE: { STATE: (s) => (s.b ? ABORT : s), HTTP: () => ({ url: '/x', ok: 'Z' }) }, Z: (s) => s, NEW: { HTTP: () => ({ url: '/n', ok: 'Z' }) } }`, { head: ABORT }),
+    )
+    expect(r.attention.map(a => a.kind).sort()).toEqual(['guard-removed', 'side-effect', 'writes-widened'])
+    expect(r.notes.map(a => a.kind)).toContain('guard-changed')
+    expect(r.summary.attention).toBe(3)
     const md = formatReport(r)
-    expect(md).toContain('`App`: 4 new actions send to HTTP (`A`, `B`, `C`, `D`)')
-    expect(md).not.toContain('`App.A` is new')
+    expect(md.indexOf('Look at these first')).toBeLessThan(md.indexOf('Also changed'))
+  })
+
+  it('with nothing on the attention list the report says only that', () => {
+    const r = report(app(`{ ADD: (s) => ({ ...s, n: 1 }), SAVE: (s) => s }`), app(`{ ADD: (s) => ({ ...s, n: 2 }), SAVE: (s) => s }`))
+    expect(formatReport(r)).toContain('That is all this line says')
   })
 })
 
@@ -498,6 +511,25 @@ describe('--report: the CLI on a git repository', () => {
     expect(bad.err).toContain('unknown git ref')
   })
 
+  it('informational by default; --fail-on=high exits 1 on a high item only', () => {
+    const { root, write } = repo()
+    expect(run(['--report', '--base', 'HEAD~1', '--head', 'HEAD', '--fail-on=high', 'src'], root).code).toBe(0)
+    write(app(`{ ADD: (s) => ({ ...s, n: 1 }), SAVE: { HTTP: () => ({ url: '/x', ok: 'ADD' }) } }`))
+    expect(run(['--report', '--base', 'HEAD', 'src'], root).code).toBe(0)
+    expect(run(['--report', '--base', 'HEAD', '--fail-on=high', 'src'], root).code).toBe(1)
+  })
+
+  it('the MCP report tool', () => {
+    const { root } = repo()
+    const s = createMcpServer({ cwd: root })
+    s.handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } })
+    const call = (args) => s.handle({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'report', arguments: args } }).result
+    const ok = call({ base: 'HEAD~1', head: 'HEAD', paths: ['src'] })
+    expect(ok.structuredContent).toMatchObject({ base: 'HEAD~1', head: 'HEAD', summary: { changed: 1 } })
+    expect(call({ base: 'nope', paths: ['src'] })).toMatchObject({ isError: true })
+    expect(call({ paths: ['src'] })).toMatchObject({ isError: true })
+  })
+
   it('--graph --base --head: the graph diff of two commits', () => {
     const { root } = repo()
     const d = JSON.parse(run(['--graph', '--json', '--base', 'HEAD~1', '--head', 'HEAD', 'src'], root).out)
@@ -522,8 +554,8 @@ describe('--report: known limits (false alarms and false calm)', () => {
       app(`{ ADD: (s) => { if (!s.draft) return ABORT; return { ...s, n: 1 } }, SAVE: (s) => s }`, { head: ABORT }),
       app(`{ ADD: (s) => { const t = add(s); return t }, SAVE: (s) => s }`, { head: ABORT, extra: `function add(s) { if (!s.draft) return ABORT; return { ...s, n: 1 } }` }),
     )
-    expect(r.attention[0]).toMatchObject({ severity: 'medium', kind: 'guard-removed' })
-    expect(r.attention[0].text).toContain('or moved into `add`')
+    expect(items(r)[0]).toMatchObject({ severity: 'medium', kind: 'guard-removed' })
+    expect(items(r)[0].text).toContain('or moved into `add`')
   })
 
   it('false alarm: an equivalent condition is a changed guard', () => {
@@ -540,7 +572,7 @@ describe('--report: known limits (false alarms and false calm)', () => {
     const v = (c) => app(`{ ADD: (s) => add(s), SAVE: (s) => s }`, { head: ABORT, extra: `function add(s) { if (${c}) return ABORT; return { ...s, n: 1 } }` })
     const r = report(v('s.a && s.b'), v('s.a'))
     expect(sink(r, 'ADD').logic.kinds).toEqual(expect.arrayContaining(['helper', 'guard']))
-    expect(r.attention.find(a => a.kind === 'guard-changed').text).toContain('`s.a (in add)`')
+    expect(items(r).find(a => a.kind === 'guard-changed').text).toContain('`s.a (in add)`')
   })
 
   it('fixed: a guard removed from a helper, three calls down', () => {

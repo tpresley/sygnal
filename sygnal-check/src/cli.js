@@ -30,7 +30,8 @@
  *   --report --base <ref> [--head <ref>] [--json] [--out <file>]  the behaviour report (src/report/, experimental;
  *                    research: dev-plans/research/behaviour-report): what the change does per component, as
  *                    markdown for a PR comment, --json the data. --head reads the head from a commit too
- *                    (also for --graph --base): without it, the working tree
+ *                    (also for --graph --base): without it, the working tree. Exit 0; --fail-on=high: 1
+ *                    when the attention list has a high item
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
  * sygnal-check lsp            (language server on stdio; see src/lsp/server.js and bin/sygnal-check.js)
@@ -54,10 +55,9 @@ import { getExplanation, listExplanations, formatExplanation, suggestCodes } fro
 import { createLiveProject } from './live.js'
 import { createWatcher } from './watch.js'
 import { createLiveServer } from './liveServer.js'
-import { openRef, baseGraph, inputBase, changedPaths, GitBaseError } from './gitBase.js'
+import { refGraph, GitBaseError } from './gitBase.js'
 import { graphDiff, formatDiff, diffMermaid } from './graphView/diff.js'
-import { behaviourFacts, appDrivers } from './report/facts.js'
-import { behaviourReport } from './report/compare.js'
+import { runReport } from './report/run.js'
 import { formatReport } from './report/markdown.js'
 
 const HELP = `Usage: sygnal-check [paths...] [options]
@@ -134,7 +134,10 @@ Options:
                          working tree
   --report               with --base: what the change does per component (triggers,
                          reads and writes, sinks, guards, blast radius), as markdown
-                         for a pull request comment; --json for the data (experimental)
+                         for a pull request comment; --json for the data (experimental).
+                         Informational: exits 0 unless --fail-on=high is given and
+                         a side effect was added to an existing action or a guard
+                         was removed
   --config <file>        read this JSON config file instead of looking for
                          sygnal-check.config.json / package.json
   --no-config            ignore config files (flags and defaults only)
@@ -212,7 +215,8 @@ export function parseArgs(argv) {
     else if (a.startsWith('-')) throw new Error(`unknown option ${a}`)
     else opts.paths.push(a)
   }
-  if (!['warn', 'error', 'never'].includes(opts.failOn)) throw new Error(`--fail-on must be warn, error or never (got '${opts.failOn}')`)
+  if (opts.failOn === 'high' && !opts.report) throw new Error('--fail-on=high needs --report')
+  if (!['warn', 'error', 'never', 'high'].includes(opts.failOn)) throw new Error(`--fail-on must be warn, error or never (got '${opts.failOn}')`)
   if (opts.a11y !== undefined && !['warn', 'error'].includes(opts.a11y)) throw new Error(`--a11y must be warn or error (got '${opts.a11y}')`)
   if (opts.graph && opts.fix) throw new Error('--graph and --fix cannot be combined')
   if (opts.report) {
@@ -389,59 +393,19 @@ export async function watchGraph(opts, { cwd, stdout, stderr, env = {}, isTTY, o
   return { url: server.url, server, watcher, live, rebuild, close, closed }
 }
 
-/**
- * --base <ref> (PLAN-10 C-3): the graph of the ref's commit, with the settings the flags and the
- * ref's own config file give (an explicit --config file not in the commit is read from the disk).
- * Throws GitBaseError for the CLI's exit-2 cases.
- */
-function buildBase(opts, headPaths, { cwd, stderr, shown }, { ref = opts.base, onProject } = {}) {
-  const tree = openRef(ref, { cwd })
-  const explicit = typeof opts.config === 'string' ? path.resolve(cwd, opts.config) : null
-  const io = explicit && !tree.exists(explicit) ? undefined : { exists: tree.exists, read: tree.readOrThrow }
-  const { options: settings, config } = resolveOptions({
-    cwd, config: opts.noConfig ? false : opts.config, strict: opts.strict, a11y: opts.a11y, includeTests: opts.includeTests, io,
-  })
-  const paths = opts.paths.length ? opts.paths : settings.paths
-  for (const p of new Set([...headPaths, ...paths])) {
-    if (!tree.inside(inputBase(p, cwd))) throw new GitBaseError(`--base: ${shown(p)} is outside the git repository (${tree.top})`)
-  }
-  const r = baseGraph(tree, paths, {
-    cwd, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, includeTests: settings.includeTests,
-    replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics, onProject,
-  })
-  for (const m of r.missing) stderr.write(`sygnal-check: ${shown(m)} is not in ${ref}: everything there counts as added\n`)
-  return { ref, commit: tree.commit, graph: r.graph }
-}
-
-/** One side of the report: its graph, the facts behind it and its parse errors. */
-function reportSide() {
-  const side = { graph: null, facts: null, parseErrors: [] }
-  side.onProject = (project, graph) => {
-    side.graph = graph
-    side.facts = behaviourFacts(project, graph)
-    side.apps = appDrivers(project)
-    side.parseErrors = project.parseErrors.map(e => project.relPath(e.file))
-  }
-  return side
-}
-
-/** --report: builds both sides (--head: a commit, else the working tree) and writes the report. */
+/** --report: the report on stdout or in --out; --fail-on=high exits 1 on a high item. */
 function writeReport(opts, files, paths, settings, config, { cwd, stdout, stderr, shown }) {
-  const base = reportSide(), head = reportSide()
-  let meta
+  let report
   try {
-    const b = buildBase(opts, paths, { cwd, stderr, shown }, { onProject: base.onProject })
-    if (opts.head !== undefined) buildBase(opts, paths, { cwd, stderr, shown }, { ref: opts.head, onProject: head.onProject })
-    else graphFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, includeTests: settings.includeTests, replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics, onProject: head.onProject })
-    meta = { base: opts.base, head: opts.head ?? 'working tree', commit: b.commit, changedFiles: changedPaths(b.commit, opts.head, paths, { cwd }) }
+    report = runReport({ refOptions: opts, base: opts.base, head: opts.head, cwd, files, paths, settings, extraDiagnostics: config.diagnostics, stderr, shown })
   } catch (err) {
     if (!(err instanceof GitBaseError)) throw err
     stderr.write(`sygnal-check: ${err.message}\n`)
     return 2
   }
-  const report = behaviourReport(base, head, meta)
   const text = opts.json ? JSON.stringify(report, null, 2) + '\n' : formatReport(report)
-  if (opts.out === undefined) { stdout.write(text); return 0 }
+  const code = opts.failOn === 'high' && report.attention.some(a => a.severity === 'high') ? 1 : 0
+  if (opts.out === undefined) { stdout.write(text); return code }
   try {
     fs.writeFileSync(path.resolve(cwd, opts.out), text)
   } catch (err) {
@@ -449,7 +413,7 @@ function writeReport(opts, files, paths, settings, config, { cwd, stdout, stderr
     return 2
   }
   stderr.write(`sygnal-check: wrote ${path.resolve(cwd, opts.out)}\n`)
-  return 0
+  return code
 }
 
 const EXPLAIN_HELP = `Usage: sygnal-check explain <code> [--json]
@@ -531,8 +495,8 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     let base = null
     if (opts.base !== undefined) {
       try {
-        base = buildBase(opts, paths, { cwd, stderr, shown })
-        if (opts.head !== undefined) g = buildBase(opts, paths, { cwd, stderr, shown }, { ref: opts.head }).graph
+        base = refGraph(opts, paths, { cwd, stderr, shown })
+        if (opts.head !== undefined) g = refGraph(opts, paths, { cwd, stderr, shown }, { ref: opts.head }).graph
       } catch (err) {
         if (!(err instanceof GitBaseError)) throw err
         stderr.write(`sygnal-check: ${err.message}\n`)

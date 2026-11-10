@@ -24,6 +24,7 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { expandInputs } from './files.js'
 import { graphFiles } from './graph.js'
+import { resolveOptions } from './config.js'
 
 export class GitBaseError extends Error {}
 
@@ -106,6 +107,31 @@ export function baseGraph(tree, inputs, settings) {
   tree.prefetch(files)
   const graph = graphFiles(files, { ...settings, tree, extraDiagnostics: settings.extraDiagnostics, onProject: settings.onProject })
   return { graph, files, missing }
+}
+
+/**
+ * The graph of a ref's commit (PLAN-10 C-3), with the settings the flags and the ref's own config file
+ * give (an explicit config file not in the commit is read from the disk). opts: the CLI's { paths,
+ * config, noConfig, strict, a11y, includeTests, base }; ref (default opts.base); onProject see graphFiles.
+ * Throws GitBaseError for the CLI's exit-2 cases.
+ */
+export function refGraph(opts, headPaths, { cwd, stderr, shown }, { ref = opts.base, onProject } = {}) {
+  const tree = openRef(ref, { cwd })
+  const explicit = typeof opts.config === 'string' ? path.resolve(cwd, opts.config) : null
+  const io = explicit && !tree.exists(explicit) ? undefined : { exists: tree.exists, read: tree.readOrThrow }
+  const { options: settings, config } = resolveOptions({
+    cwd, config: opts.noConfig ? false : opts.config, strict: opts.strict, a11y: opts.a11y, includeTests: opts.includeTests, io,
+  })
+  const paths = opts.paths.length ? opts.paths : settings.paths
+  for (const p of new Set([...headPaths, ...paths])) {
+    if (!tree.inside(inputBase(p, cwd))) throw new GitBaseError(`--base: ${shown(p)} is outside the git repository (${tree.top})`)
+  }
+  const r = baseGraph(tree, paths, {
+    cwd, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, includeTests: settings.includeTests,
+    replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics, onProject,
+  })
+  for (const m of r.missing) stderr.write(`sygnal-check: ${shown(m)} is not in ${ref}: everything there counts as added\n`)
+  return { ref, commit: tree.commit, graph: r.graph }
 }
 
 /**

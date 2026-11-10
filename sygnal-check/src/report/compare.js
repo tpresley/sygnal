@@ -7,8 +7,11 @@
  *     base, head   { graph, facts, parseErrors }
  *     meta         { base, head, commit, changedFiles }
  *   BehaviourReport {
- *     base, head, commit, summary: { added, removed, changed, attention },
- *     attention: [{ severity: 'high' | 'medium' | 'low', kind, component, action?, sink?, text, at? }],
+ *     base, head, commit, summary: { added, removed, changed, attention, notes },
+ *     attention: [{ severity: 'high' | 'medium' | 'low', kind, component, action?, sink?, text, at? }]
+ *                side effects added to existing actions, removed guards and trigger filters, wider
+ *                writes (the provisional decision in the research README): what to read first
+ *     notes:     the same shape: everything else worth a line. A new action's side effects are in its table row
  *     components: [{ key, name, file, status: 'added' | 'removed' | 'changed', movedFrom?,
  *       actions: [ActionChange], state: [..], context: [..], calculated: [..], statics: [..],
  *       view: { changed, helpers, reads, children } | null, blast: [..] }],
@@ -27,6 +30,7 @@ import { CLOCK_GLOBALS } from './canon.js'
 /** Sinks that stay inside the app: changing them isn't a new side effect. */
 const INTERNAL_SINKS = new Set(['STATE', 'EVENTS', 'PARENT', 'ELEMENT', 'DOM', 'CHILD', 'READY', 'LOG'])
 const SEVERITY = { high: 0, medium: 1, low: 2 }
+const ATTENTION_KINDS = new Set(['side-effect', 'guard-removed', 'trigger-filter-removed', 'writes-widened', 'removes'])
 const uniq = (xs) => [...new Set(xs)].sort()
 const listDiff = (a = [], b = []) => { const A = new Set(a), B = new Set(b); return { added: uniq(b.filter(x => !A.has(x))), removed: uniq(a.filter(x => !B.has(x))) } }
 const some = (d) => !!d && (d.added.length > 0 || d.removed.length > 0)
@@ -253,7 +257,7 @@ function attentionFor(comp, ctx) {
       const external = !INTERNAL_SINKS.has(s.sink)
       if (s.change === 'added' && external) {
         const what = s.requests?.added.length ? `: ${s.requests.added.map(r => `\`${r}\``).join(', ')}` : s.touches?.added.length ? `: touches ${s.touches.added.map(t => `\`${t}\``).join(', ')}` : ''
-        push('high', 'side-effect', `${label(a)} ${a.change === 'added' ? 'is new and' : 'now'} sends to ${s.sink}${what}`, { ...x, ...(a.change === 'added' ? { isNew: true } : {}) })
+        if (a.change !== 'added') push('high', 'side-effect', `${label(a)} now sends to ${s.sink}${what}`, x)
       } else if (s.change === 'removed' && external && a.change !== 'removed') {
         push('medium', 'side-effect-removed', `${label(a)} no longer sends to ${s.sink}${s.requests?.removed.length ? `: ${s.requests.removed.map(r => `\`${r}\``).join(', ')}` : ''}`, x)
       } else if (s.change === 'changed') {
@@ -268,7 +272,7 @@ function attentionFor(comp, ctx) {
       }
       if (s.change === 'added' && s.sink === 'STATE') {
         const t = s.touches?.added.filter(x => !CLOCK_GLOBALS.test(x)) || []
-        if (t.length) push('high', 'side-effect', `${label(a)}'s reducer touches ${t.map(k => `\`${k}\``).join(', ')}`, x)
+        if (t.length && a.change !== 'added') push('high', 'side-effect', `${label(a)}'s reducer touches ${t.map(k => `\`${k}\``).join(', ')}`, x)
       }
       if (s.change === 'changed') {
         const pairs = Math.min(s.guards.added.length, s.guards.removed.length)
@@ -413,7 +417,9 @@ export function behaviourReport(base, head, meta = {}) {
   for (const name of drivers.removed) attention.push({ severity: 'medium', kind: 'driver', text: `The app no longer gives \`run()\` a driver \`${name}\`` })
   if (some(drivers)) for (const a of head.apps || []) explained.add(a.file)
 
-  attention.sort((x, y) => SEVERITY[x.severity] - SEVERITY[y.severity])
+  const bySeverity = (x, y) => SEVERITY[x.severity] - SEVERITY[y.severity]
+  const notes = attention.filter(a => !ATTENTION_KINDS.has(a.kind)).sort(bySeverity)
+  const first = attention.filter(a => ATTENTION_KINDS.has(a.kind)).sort(bySeverity)
   const files = meta.changedFiles || []
   const coverage = {
     files: files.length,
@@ -427,8 +433,9 @@ export function behaviourReport(base, head, meta = {}) {
   const count = (s) => components.filter(c => c.status === s).length
   const out = { base: meta.base ?? 'base', head: meta.head ?? 'working tree' }
   if (meta.commit) out.commit = meta.commit
-  out.summary = { added: count('added'), removed: count('removed'), changed: count('changed'), attention: attention.length }
-  out.attention = attention
+  out.summary = { added: count('added'), removed: count('removed'), changed: count('changed'), attention: first.length, notes: notes.length }
+  out.attention = first
+  out.notes = notes
   out.components = components
   out.events = d.events
   out.drivers = drivers
