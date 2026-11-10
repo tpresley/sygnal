@@ -1379,6 +1379,26 @@ A `<shapes items={…}>` data layer of `sygnal/canvas` got a new array in which 
 
 **Fix:** Replace only the nodes that change and keep the others: `shapes.map(s => s.id === id ? { ...s, x } : s)`, or patch by index. For a selection, look the ids up in a `Set` and return the untouched objects as they are.
 
+### SYG265
+
+**Network request outside a declared output**
+
+Severity: `warn` at runtime, `error` in sygnal-check · Reported by: `sygnal-check`, the dev checks (`sygnal/diagnostics`)
+
+A view, a STATE reducer, another sink's handler (HTTP, EVENTS, PARENT, a custom driver's), a calculated field, a context entry, a declaration static (`resources`, `timers`, `connections`, `head`, `route`, `persist`, `browser`, `uses`, `agent`, `initialState`), an intent, a component file's top-level code, or a helper one of these calls, makes a network request: `fetch`, `XMLHttpRequest`, `navigator.sendBeacon`, `WebSocket`, `EventSource`, `new Image()`, `import()` of a URL, or a call into an HTTP or telemetry package (axios, ky, posthog-js, @sentry/*, ...). Every effect of a Sygnal component is meant to be a declared output of a model entry, which is what lets a tool list what an app or a change sends; a request made here is on no such list, and it runs whenever the view or reducer does. `sygnal-check` reports it as an error, following aliases (`const f = fetch`), `window.` / `globalThis.`, foldable computed names, helpers in this file and through relative imports, and getters on literals. It can't see inside other packages or code reached through a parameter. In development the `sygnal/diagnostics` entry also reports it, as a warning, when a view or a non-EFFECT handler really makes the call while it runs, whichever way it was written. To turn it off for one line, put `// sygnal-ignore SYG265` above the call or above the effect in the helper.
+
+**Fix:** Return the request from an HTTP sink: `ACTION: { HTTP: (state, data) => ({ url, method: 'POST', json, ok: 'SAVED' }) }` with `makeFetchDriver()`, or declare a `resources` entry for data the component shows. A WebSocket or EventSource goes in the `connections` static with `makeSocketDriver()`. Any other kind of output gets a driver of its own, so it appears as a sink.
+
+### SYG266
+
+**Side effect outside a declared output**
+
+Severity: `warn` · Reported by: `sygnal-check`, the dev checks (`sygnal/diagnostics`)
+
+The same places as SYG265 run another kind of side effect: a storage write (`localStorage.setItem`, `sessionStorage`, `indexedDB`, `document.cookie =`), a navigation (`location` assignment, `location.assign`, `history.pushState`, `window.open`), a timer (`setTimeout`, `setInterval`, `requestAnimationFrame`, `queueMicrotask`), a message (`postMessage`, `BroadcastChannel`, `new Worker`), a DOM write or listener on something rooted in `document`, `window` or an event's target (`document.title =`, `el.focus()`, `window.addEventListener`), a device API (clipboard write, `navigator.share`), `eval` / `new Function`, or a computed property of `window` / `globalThis` the checker can't fold. Reads (`location.href`, `localStorage.getItem`) and `console` are not reported. Top-level code of a component file is checked for storage, navigation and messages only. These run with every render or action, and no tool reading the model can list them. It is a warning, because a timer or a DOM write in a view is usually a bug rather than a data leak, and the checker can see less of a DOM value's origin than of a global call.
+
+**Fix:** Storage: the `persist` static, or an EFFECT entry. Navigation: `ROUTER: (state, data) => ({ to: '/path' })` with `makeRouter()`. Timers: the `timers` static or `next('ACTION', data, delayMs)`. DOM: an `ELEMENT` command (focus, blur, scrollIntoView, select, click), the `head` static for the title, `DOM.select('document').events(...)` or the `browser` static for listeners, `<Portal>` for content outside the root. Anything else belongs in an EFFECT entry or a driver sink: `ACTION: { EFFECT: (state, data) => { ... } }`.
+
 ## SYG3xx: Streams
 
 ### SYG301
@@ -2321,6 +2341,26 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 Strict mode only (`renderComponent(C, { strict: true })` or `configureStrict(true)`). `t.waitForState(pred)` searches the recorded history first, so it resolves at once when any earlier state matches. Reported when the only match is a state from before the test's last awaited input (`await t.simulateEvent(...)`, `await t.simulateAction(...)`) and the current state doesn't match: the wait was true in the past and proves nothing about now. A match the current state also satisfies (`count === 0` again after a reset) isn't reported.
 
 **Fix:** Assert the current state, `expect(t.state).toMatchObject({ ... })`, or wait for a new state, `await t.next(pred)`. To wait for a state an input will cause, call `t.next(pred)` before the input, or await the input and read `t.state`.
+
+### SYG511
+
+**Network request in an EFFECT handler**
+
+Severity: `warn` · Reported by: `sygnal-check` · Strict mode only
+
+Strict mode only (`sygnal-check --strict`). An EFFECT handler, or a helper it calls, makes a network request directly (`fetch`, `XMLHttpRequest`, `navigator.sendBeacon`, `WebSocket`, `EventSource`, or an HTTP or telemetry package). EFFECT is the declared escape hatch, so the effect is visible to tools, but the request bypasses the HTTP driver: it isn't aborted when superseded, has no reply actions, can't be answered from a test with `t.respond`, and the URL doesn't appear in an app's inventory of requests. Storage, timers and DOM work in an EFFECT are not reported.
+
+**Fix:** Return the request from the entry's HTTP sink instead: `ACTION: { HTTP: (state, data) => ({ url, method: 'POST', json, ok: 'SAVED', error: 'FAILED' }) }`, with `makeFetchDriver()`. `init: { keepalive: true }` covers what `sendBeacon` is used for. A socket goes in `connections`. If a third-party SDK must run here, put `// sygnal-ignore SYG511` above it, or give it a driver.
+
+### SYG512
+
+**Module-level variable written outside a declared output**
+
+Severity: `warn` · Reported by: `sygnal-check` · Strict mode only
+
+Strict mode only (`sygnal-check --strict`). A view, a reducer, another sink's handler, a calculated field, a context entry, a declaration static or an intent, or a helper it calls, writes a variable declared at the top level of a file: an assignment or `++`, a property of a module-level object (also one imported from a relative path), or a mutating method on a module-level array, Map or Set. That is state outside the state tree: it is shared by every instance, a reader of the model can't see it, replaying the actions doesn't reproduce it, and two components can talk through it unseen. A Map or Set that the same function reads with `.get` or `.has` is treated as a memo and not reported. An alias made through a parameter or a local variable is not followed, so this check is good but not complete.
+
+**Fix:** Keep the value in component state, or in a `calculated` field. A counter for ids: `uuid()` from the handler's 4th argument, or a counter in state. If it really is a pure cache (the result is the same without it), add `// sygnal-ignore SYG512` above the write and say so.
 
 ## SYG6xx: Drivers, sources and component setup
 

@@ -227,6 +227,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG507: 'Prop drilled through more than 2 component levels',
   SYG508: 'select()/errors() round trip where reply actions would do',
   SYG509: 'Clock or randomness read from a global in a handler',
+  SYG511: 'Network request in an EFFECT handler',
+  SYG512: 'Module-level variable written outside a declared output',
   // renderComponent({ strict: true }) (src/extra/testing.ts)
   SYG510: 'waitForState matched only a state the test had already seen',
   // SYG9xx internal (0B)
@@ -406,6 +408,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG258: 'Clock or randomness read from a global in a STATE reducer',
   // 7.3 (Sift's live-writes walk): static only (sygnal-check)
   SYG259: "An output reads a field its action's STATE cleared",
+  // static (sygnal-check rules/syg265-undeclared-effect.js) and the dev entry (checks/effects.ts, sync calls in a view or handler)
+  SYG265: 'Network request outside a declared output',
+  SYG266: 'Side effect outside a declared output',
   // sygnal/yjs (research: dev-plans/research/crdt-state): shared() reports them (dev), SYG260 statically too
   SYG260: 'undo() or undoable() on a key shared() syncs',
   SYG261: 'shared() inferred the kind of an empty array',
@@ -466,6 +471,8 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG507: 'info',
   SYG508: 'warn',
   SYG509: 'warn',
+  SYG511: 'warn',
+  SYG512: 'warn',
   SYG510: 'warn',
 }
 
@@ -687,6 +694,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // record/replay: static only (sygnal-check); listed so the entry knows its title
   SYG258: 'warn',
   SYG259: 'warn',
+  SYG265: 'warn',
+  SYG266: 'warn',
   // sygnal/yjs: reported with the severity passed (shared() in dev; sygnal-check: SYG260)
   SYG260: 'warn',
   SYG261: 'warn',

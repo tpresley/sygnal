@@ -147,6 +147,12 @@
   "SYG260": {
     "C.jsx": "import { undo } from 'sygnal'\nimport { shared } from 'sygnal/yjs'\nexport function C({ state }) { return <p>{state.board.n}</p> }\nC.initialState = { board: { n: 0 } }\nC.uses = { board: shared(), h: undo({ key: 'board' }) }\n"
   },
+  "SYG265": {
+    "App.jsx": "function App({ state }) {\n  navigator.sendBeacon('/x', state.a)\n  return <p>{state.a}</p>\n}\nApp.initialState = { a: 0 }\n"
+  },
+  "SYG266": {
+    "App.jsx": "function App({ state }) {\n  document.title = 'x'\n  return <p>{state.a}</p>\n}\nApp.initialState = { a: 0 }\n"
+  },
   "SYG302": {
     "App.jsx": "import xs from 'xstream'\nfunction A() { return <p /> }\nA.intent = () => ({ T: xs.periodic(10) })\nA.model = { T: (s) => s }\n"
   },
@@ -230,6 +236,12 @@
   },
   "SYG509": {
     "App.jsx": "function App({ state }) { return <p>{state.at}</p> }\nApp.initialState = { at: 0 }\nApp.model = {\n  INITIALIZE: (s) => ({ ...s, at: Date.now() }),\n  SAVE: { EFFECT: () => { console.log(Math.random()) } },\n}\n"
+  },
+  "SYG511": {
+    "App.jsx": "function App({ state }) { return <button className=\"go\">{state.a}</button> }\nApp.initialState = { a: 0 }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nApp.model = {\n  GO: { EFFECT: () => { fetch('/x') } },\n}\n"
+  },
+  "SYG512": {
+    "App.jsx": "let n = 0\nfunction App({ state }) { return <button className=\"go\">{state.a}</button> }\nApp.initialState = { a: 0 }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nApp.model = {\n  GO: (s) => ({ ...s, a: n++ }),\n}\n"
   },
   "SYG609": {
     "src/Chat.jsx": "export function Chat() { return <p>chat</p> }\nChat.intent = ({ DOM }) => ({ SEND: DOM.click('p') })\nChat.model = { SEND: { WS: () => ({ send: 'hi' }) } }\n",

@@ -52,6 +52,10 @@ const RANGES = [
   ['SYG256', 'App.jsx', 4, "s.status!=='working'"],
   ['SYG258', 'App.jsx', 4, 'Date.now()'],          // default mode only (SYG509 under --strict)
   ['SYG259', 'App.jsx', 6, 's.text'],             // the read of the field STATE cleared
+  ['SYG265', 'App.jsx', 2, "navigator.sendBeacon('/x', state.a)"],
+  ['SYG266', 'App.jsx', 2, "document.title = 'x'"],
+  ['SYG511', 'App.jsx', 5, "fetch('/x')"],
+  ['SYG512', 'App.jsx', 6, 'n++'],
   ['SYG454', 'App.jsx', 2, "byId('projects', state.selectedId)"],
   ['SYG101', 'App.jsx', 3, 'HYDRATE'],
   ['SYG102', 'T.jsx', 3, 'A'],
