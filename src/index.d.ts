@@ -2044,9 +2044,9 @@ export type Component<
   persist?: Persist<STATE>;
   /**
    * The drivers this root component needs, next to the code that uses them:
-   * `App.drivers = { HTTP: makeFetchDriver() }`. Root component only (a child's is ignored). run()'s
+   * `App.drivers = { HTTP: makeFetchDriver() }`. run()'s
    * second argument overrides it by name (`run(App, { HTTP: makeFetchDriver({ baseUrl }) })`).
-   * renderComponent() ignores it.
+   * renderComponent() ignores it. Root component only (SYG646 elsewhere).
    */
   drivers?: Record<string, CycleDriver<any, any>>;
   /**

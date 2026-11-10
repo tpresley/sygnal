@@ -23,6 +23,8 @@ function run(
 | `drivers` | `Record<string, CycleDriver>` | Additional drivers beyond the defaults (optional) |
 | `options` | `RunOptions` | Configuration options (optional) |
 
+The root component's `drivers` static is merged with the second argument, which overrides it by name: `App.drivers = { HTTP: makeFetchDriver() }`. See [Adding Drivers](/guide/drivers/#adding-drivers).
+
 ### RunOptions
 
 | Option | Type | Default | Description |

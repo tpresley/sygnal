@@ -22,6 +22,7 @@
 import { walk, unwrap, propName, memberName } from '../ast.js'
 import { findApps } from '../model/apps.js'
 import { sourceAliases } from '../model/intent.js'
+import { rootDriverFix } from '../model/rootDriverFix.js'
 
 // src/extra/diagnostics/checks/wiring.ts NO_DRIVER_NEEDED, plus run()'s default drivers
 const NO_DRIVER_NEEDED = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD', 'ELEMENT', 'PERSIST', 'LOG'])
@@ -30,6 +31,10 @@ const DRIVER_NAME = /^[A-Z][A-Z0-9_]*$/
 const CORE_SOURCES = new Set(['DOM', 'STATE', 'CHILD', 'EVENTS', 'LOG'])
 // G-620: an LLM sink gets the chat driver (sygnal/ai)
 const EXAMPLE = { HTTP: 'makeFetchDriver()', WS: 'makeSocketDriver()', SW: "makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD })", LLM: "makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) })" }
+
+// the sinks whose driver takes no options, for --fix
+const ZERO_OPTION = { HTTP: 'makeFetchDriver', WS: 'makeSocketDriver' }
+const fixFor = (app, name, rendering) => (ZERO_OPTION[name] && rootDriverFix(app, name, ZERO_OPTION[name], rendering)) || undefined
 
 /** The driver-like source names an intent reads: Map<name, node> (the first read). */
 function sourceReads(fn) {
@@ -84,8 +89,9 @@ export default {
               `registers no driver named ${name}, so it is undefined`,
             fix: `Pass a driver named ${name} to run(): ${example}` +
               (EXAMPLE[name] ? '' : ', e.g. driverFromAsync(fn) or your own driver') +
-              `. Check the spelling against the drivers you pass`,
+              `, or name it on the root (${root}.drivers = { ${name}: … }). Check the spelling against the drivers you pass`,
             data: { name, kind: 'source', drivers: [...lacking.drivers] },
+            fixes: fixFor(lacking, name, rendering),
           })
         }
       }
@@ -112,8 +118,9 @@ export default {
             `registers no driver named ${sink}, so every value sent there is dropped`,
           fix: `Pass a driver named ${sink} to run(): ${example}` +
             (EXAMPLE[sink] ? '' : ', e.g. driverFromAsync(fn) or your own driver') +
-            `. Check the spelling against the drivers you pass. Tests don't need it: renderComponent fakes the sink`,
+            `, or name it on the root (${root}.drivers = { ${sink}: … }). Check the spelling against the drivers you pass. Tests don't need it: renderComponent fakes the sink`,
           data: { name: sink, kind: 'sink', action: v.action, drivers: [...lacking.drivers] },
+          fixes: fixFor(lacking, sink, rendering),
         })
       }
     }

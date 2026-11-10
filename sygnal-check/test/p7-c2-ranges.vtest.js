@@ -130,6 +130,7 @@ const RANGES = [
   ['SYG640', 'F.jsx', 5, "'.x'"],
   ['SYG641', 'F.jsx', 5, 'fokus'],
   ['SYG643', 'src/Feed.jsx', 2, 'Feed.connections'],
+  ['SYG646', 'Child.jsx', 3, 'Child.drivers'],
   ['SYG691', 'Q.jsx', 3, 'lst'],                 // the unknown segment of the chain
   ['SYG701', 'App.jsx', 2, "'.x b'"],
   ['SYG702', 'App.jsx', 2, '<input'],

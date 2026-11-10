@@ -12,8 +12,13 @@
  *                   call is in the scanned files, its drivers are an object literal the checker can
  *                   list (model/apps.js), and the component is one the root renders: otherwise
  *                   nothing, so no false positives (renderComponent provides fakes; tests don't count).
+ *                   --fix: `App.drivers = { HTTP: makeFetchDriver() }` on the root (model/rootDriverFix.js).
+ *   SYG646 (error)  `drivers` on a component that isn't the root: run() reads it on the root only.
+ *                   Reported when a run() call in the scanned files renders the component and none
+ *                   has it as its root, like SYG224.
  */
 import { findApps, STATIC_DRIVERS } from '../model/apps.js'
+import { rootDriverFix } from '../model/rootDriverFix.js'
 
 const DRIVER_OF = Object.fromEntries(Object.entries(STATIC_DRIVERS).map(([f, s]) => [s, `${f}()`]))
 const KEY = { timers: 'TIMER', connections: 'WS', resources: 'HTTP', browser: 'BROWSER' }
@@ -56,18 +61,40 @@ function reportMissingDrivers(project, report) {
         node: comp.staticPropNodes[k] || comp.staticProps[k],
         related: [{ node: lacking.call.callee, file: lacking.file, message: `this run() call registers no ${DRIVER_OF[k]} driver` }],
         message: `${comp.name} declares ${comp.name}.${k}, but the run() call that renders it (${at}) registers no ${DRIVER_OF[k]} driver, so ${EFFECT[k]}`,
-        fix: `register the driver: run(App, { ${KEY[k]}: ${DRIVER_OF[k]}, ... }) (any key; the core finds it by the static it takes)`,
+        fix: `register the driver: run(App, { ${KEY[k]}: ${DRIVER_OF[k]}, ... }), or name it on the root: ${lacking.root?.name || 'App'}.drivers = { ${KEY[k]}: ${DRIVER_OF[k]} } (any key; the core finds it by the static it takes)`,
         data: { static: k, driver: DRIVER_OF[k] },
+        fixes: rootDriverFix(lacking, KEY[k], DRIVER_OF[k].slice(0, -2), apps.filter(a => a.components.has(comp))) || undefined,
       })
     }
   }
 }
 
+function reportChildDrivers(project, report) {
+  const declared = project.components.filter(c => c.staticProps.drivers)
+  if (!declared.length) return
+  const apps = findApps(project)
+  for (const comp of declared) {
+    const rendering = apps.filter(a => a.components.has(comp))
+    if (!rendering.length || rendering.some(a => !a.root || a.root === comp)) continue
+    const roots = [...new Set(rendering.map(a => a.root.name))]
+    report({
+      code: 'SYG646',
+      component: comp.name,
+      file: comp.file,
+      node: comp.staticPropNodes?.drivers || comp.staticProps.drivers,
+      message: `${comp.name}.drivers is set, but ${comp.name} is not the root component (run() renders ${roots.join(', ')}), so its drivers are never registered: drivers works on the root only`,
+      fix: `move drivers to ${roots[0]}, or pass them as run()'s second argument`,
+      data: { roots },
+    })
+  }
+}
+
 export default {
   id: 'timers',
-  codes: ['SYG422', 'SYG643'],
-  description: 'Invalid timer spec; a declaration static with no driver to take it',
+  codes: ['SYG422', 'SYG643', 'SYG646'],
+  description: 'Invalid timer spec; a declaration static with no driver to take it; drivers on a non-root component',
   run(project, report) {
+    reportChildDrivers(project, report)
     reportSpecs(project, report)
     reportMissingDrivers(project, report)
   },

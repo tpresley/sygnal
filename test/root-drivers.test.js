@@ -85,6 +85,20 @@ describe('App.drivers', () => {
 describe('dev checks', () => {
   beforeEach(() => setupChecks())
 
+  it('SYG646: a drivers static below the root is reported; the root is not', async () => {
+    function Child({ state }) { return h('p', null, String(state.n)) }
+    Child.drivers = { TIMER: makeTimerDriver() }
+    function Root() { return h(Child, { state: 'child' }) }
+    Root.initialState = { child: { n: 0 } }
+    app = run(Root, undefined, { mountPoint: '#root', diagnostics: 'collect' })
+    await settled()
+    expect(diagnostics('SYG646').map((d) => [d.severity, d.component, d.data])).toEqual([['error', 'Child', { drivers: ['TIMER'] }]])
+    app.dispose()
+    app = run(Clock, undefined, { mountPoint: '#root', diagnostics: 'collect' })
+    await settled()
+    expect(diagnostics('SYG646').length).toBe(1)
+  })
+
   it('SYG643 stays quiet when the static provides the driver, and fires without it', async () => {
     app = run(Clock, undefined, { mountPoint: '#root', diagnostics: 'collect' })
     await settled()

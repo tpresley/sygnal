@@ -53,6 +53,7 @@
  * | SYG238 | a root with a model but no initialState: renders nothing | state.ts       |
  * | SYG223 | persist pick/omit key not in initialState              | persist.ts     |
  * | SYG224 | persist on a component that isn't the root             | persist.ts     |
+ * | SYG646 | drivers on a component that isn't the root             | timers.ts      |
  * | SYG645 | viewTransitions without makeViewTransitionDOMDriver(), or not an array | viewTransitions.ts |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |

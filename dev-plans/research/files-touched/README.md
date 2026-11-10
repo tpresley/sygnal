@@ -1,6 +1,6 @@
 # Why a Sygnal change touches more files than the React one
 
-**Status (2026-11-09).** Diagnosis, fix prototypes and rewritten reference solutions are done. No model was run (the eval data on disk only). One size question is open for the maintainer: the prototype is 5 B over the size gate, which has no headroom (see "Prototype and size").
+**Status (2026-11-09).** Diagnosis and rewritten reference solutions are done, and `App.drivers` is built to shippable quality on this branch: diagnostic, fix text, `--fix`, graph, docs, one template. No model was run (the eval data on disk only). Whether it becomes the canonical form is still the maintainer's decision, so both forms stay documented as equals.
 
 Starting point: the same feature touches 1.1–1.3× more source files in the Sygnal arm on every model, and 1.31× in the reference solutions (2.87 against 2.38 files), per `dev-plans/research/read-side-eval/` on branch `claude/musing-tu-93ce47`. Tests are excluded from that count; the test files are discussed separately below.
 
@@ -97,7 +97,7 @@ A closes less because it can only act where a driver takes no options: `queryCac
 
 Rejected alternatives: pre-wiring every driver in the template's `main.js` breaks "an app pays nothing" (it is B in the template). A `.drivers` static on any component needs the runtime to install drivers after start and to resolve two declarations of the same sink, which is real core cost and a merge rule to explain; root-only is the simple case and the eval shows it is enough (every trial that edits `main.*` already edits `App.*`).
 
-A zero-byte variant exists: keep the runtime unchanged, and have templates and starters write `run(App, App.drivers)`. It costs nothing in the gate. Its downside is that an app whose `main.js` is plain `run(App)` silently ignores `App.drivers` (SYG643 fires for `timers`, `connections`, `resources`; not for an arbitrary custom sink), and every existing app needs the one-line change first. Open question 1.
+A zero-byte variant exists: keep the runtime unchanged, and have templates and starters write `run(App, App.drivers)`. It costs nothing in the gate. Its downside is that an app whose `main.js` is plain `run(App)` silently ignores `App.drivers` (SYG643 fires for `timers`, `connections`, `resources`; not for an arbitrary custom sink), and every existing app needs the one-line change first.
 
 ## Prototype and size
 
@@ -109,9 +109,32 @@ A zero-byte variant exists: keep the runtime unchanged, and have templates and s
 
 Tests: `test/root-drivers.test.js` (7 tests: real `run()` with `makeFetchDriver` and `makeTimerDriver`, override by name, two apps sharing a static, `renderComponent` ignoring it, no static, SYG643 quiet with the static and firing without) and `sygnal-check/test/root-drivers.vtest.js` (2 tests). Both pass after `npm run build`.
 
-Size gate: **40,462 B against the budget of 40,457 B: 5 B over, so `node scripts/size-gate.mjs` currently fails on this branch.** The budget was not raised; that is the maintainer's call. Default bundle unchanged at 35,680 B; `src/core/**` alone +4 B gzip.
+Size gate: **+5 B**: 40,462 B against the previous 40,457 B. `BUDGET` in `scripts/size-gate.mjs` and `CLAUDE.md` are raised by that delta; the raise was approved through the coordinator session on 2026-11-09 under the maintainer's delegation. Branch `claude/sygnal-evolution-strategy-6b922c` raises the same budget for an element's `dataset` fix (to 40,466 B), so the two must be re-measured together at merge; gzip deltas don't add. Default bundle unchanged at 35,680 B; `src/core/**` alone +4 B gzip. Moving SYG646, the fix text and the graph into the dev entry and the checker added nothing to the app bundle.
 
-Not implemented: a dev diagnostic and `sygnal-check` rule for a `.drivers` on a non-root component (today it is silently ignored; that should be an error code before this ships), the SYG643 fix text pointing at `App.drivers`, docs, `llms.txt`, the skill, templates and the app graph view.
+Follow-up work on this branch, after the prototype:
+
+- **SYG646** (error, dev entry and `sygnal-check`): `drivers` on a component that isn't the root. Same conditions as SYG224 statically: a `run()` in the scanned files renders it and none has it as its root. Vike's Layout/Wrapper shell gets its own message.
+- **SYG643 / SYG609 fix text** names `App.drivers` next to `run()`.
+- **`sygnal-check --fix`** writes `App.drivers = { HTTP: makeFetchDriver() }` and the import, or adds to an existing object literal. Only for a driver with no options (timers, sockets, resources, browser sources; for SYG609 `HTTP` and `WS`), one app, and statics assigned at the top level.
+- **`--graph`**: a root component gets `drivers: [{ name, driver, from: 'static' | 'run' }]` (`schema/inspect.schema.json`, text output), with `run()`'s argument overriding by name.
+- **Docs**: `guide/drivers.md` (both forms as equals), `reference/api.md`, `guide/app-graph.md`. `reference/errors.md` regenerated. Worked example: `create-sygnal-app/template-vite-pwa` (`App.drivers` in `App.jsx`, `main.js` is `run(App)`).
+- **F2** (docs only): `integration/typescript.md` and `reference/types.md` declare `SygnalEvents` next to the emitter and keep a state type in its own file. The eval's TS starters are untouched because they are paired with the reference solutions. `create-sygnal-app`'s TS templates already keep `State` in `App.tsx` and have no `types.ts` or `events.ts`, so they needed no change.
+
+Release notes for whoever ships this: `template-vite-pwa/package.json` still says `"sygnal": "^7.4.0"`, which predates the static, so it must move to the release that contains it. The `run(App, {...})` form stays documented as an equal; whether `App.drivers` becomes canonical is the maintainer's open question.
+
+### Text for `llms.txt`, `llms/` and `skills/sygnal-dev/` (not applied; another session is restructuring them)
+
+For the driver paragraph of `llms.txt` and the skill:
+
+> Drivers go in `run(App, { HTTP: makeFetchDriver() })` or on the root component: `App.drivers = { HTTP: makeFetchDriver() }`, in the file that uses them, with `main.js` left as `run(App)`. `run()`'s argument overrides the static by name, for what differs per environment. Root only (SYG646 elsewhere); `renderComponent` ignores it; no driver is needed in tests.
+
+For the recipes that say `main.js: run(...)` (the HTTP, resources and timers recipes, `SKILL.md` lines 184, 210, 229, 236), append:
+
+> or `App.drivers = { HTTP: makeFetchDriver() }` on the root.
+
+For the TypeScript topic file:
+
+> `declare module 'sygnal' { interface SygnalEvents { … } }` goes in the component that emits the event; keep a state type in the component's file and `import type` it from children (no runtime cycle).
 
 ## Verification of the rewritten references
 
@@ -156,7 +179,7 @@ For a reviewer it is both: more lines to read, but behaviour-level (`renderCompo
 
 | Fix | Release | Size | Gap closed (refs / trials) | Verdict |
 |---|---|---|---|---|
-| F1 `App.drivers` (core + types + checker + docs + a non-root diagnostic) | Minor (additive; `run(App, drivers)` keeps working) | +5 B, needs approval, or the 0 B `run(App, App.drivers)` variant | 55% / 89% | **Do it** |
+| F1 `App.drivers` (core + types + checker + docs + a non-root diagnostic) | Minor (additive; `run(App, drivers)` keeps working) | +5 B (budget raised on this branch) | 55% / 89% | **Do it** |
 | F2 Types next to code (docs, TS starters, reference fixtures) | Docs only; no code | 0 B | 12% / 19% | **Do it** |
 | Update the eval's references 05, 11, 22, 26 to current built-ins | None (eval maintenance) | 0 B | ~20 points of the reference gap (estimate, no trial impact) | Worth doing with the next eval change |
 | A. Vite plugin inference | Minor | 0 B | 16–35% / up to 58% | Not worth it: implicit, Vite-only |
@@ -184,11 +207,58 @@ node scripts/size-gate.mjs
 
 `diff-size.mjs` is a copy of the analysis on branch `claude/musing-tu-93ce47` with its imports adjusted. `<out>` and `<work>` must be outside the repository.
 
+## Six references that fail their own hidden suite (for the eval session)
+
+Observed on the unrewritten references with this branch's prototype build (`verify-rewrites.mjs` setup). Not diagnosed. Test name, then the first line of the failure.
+
+
+**13-course-portal 0/8**
+
+- adds a Courses tab after Profile and does not load anything at startup: `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times`
+- lists the courses with seats and the right button for each: `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times`
+- enrolling and leaving update the seats, the button and the header count: `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times`
+- the Profile page lists the enrolled courses in course-list order: `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times`
+- keeps enrollments and seats across page switches and never loads twice: `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times`
+- a response that arrives after the user left the page is still used: `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times`
+- shows an error with Retry for a failed load, and Retry loads again: `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times`
+- the existing pages keep working: `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times`
+
+**17-address-lookup 6/8**
+
+- an unknown ZIP shows a message and moves focus to the City field, keeping its text: `AssertionError: expected <input name="zip" …(1)></input> to be <input name="city"></input> // Object`
+- other failures show "Lookup failed." and also move focus to the City field: `AssertionError: expected <input name="zip" …(1)></input> to be <input name="city"></input> // Object`
+
+**21-ts-selection-panel 8/9**
+
+- typecheck: tsc --noEmit passes (strict): `AssertionError: tsc reported errors: expected 'src/DetailsPanel.tsx(4,7): error TS23…' to be '' // O`
+
+**22-chat-socket 0/7**
+
+- joining a room opens one WebSocket to /ws/rooms/<room> and shows its status: `AssertionError: expected [] to have a length of 1 but got +0`
+- lists received messages and sends typed ones as JSON, without adding them itself: `AssertionError: expected [] to have a length of 1 but got +0`
+- switching rooms closes the old connection, opens the new one and clears the list: `AssertionError: expected [] to have a length of 1 but got +0`
+- "Leave room" closes the connection for good; joining again starts fresh: `AssertionError: expected [] to have a length of 1 but got +0`
+- a dropped connection shows "Reconnecting…" and retries every second until one opens: `AssertionError: expected [] to have a length of 1 but got +0`
+- a first connection that fails to open is retried too: `AssertionError: expected [] to have a length of 1 but got +0`
+- switching rooms or leaving cancels a pending retry: `AssertionError: expected [] to have a length of 1 but got +0`
+
+**25-router-spa 8/9**
+
+- "Leave" completes the navigation and discards the change; an unchanged form leaves at once: `AssertionError: expected '/tasks/2/edit' to be '/' // Object.is equality`
+
+**44-streaming-chat 1/8**
+
+- sends the message and streams the reply into the conversation: `Error: no new request to /api/chat; sent: none`
+- sends the whole conversation on the next message: `Error: no new request to /api/chat; sent: none`
+- Stop cancels the request and keeps the text received so far: `Error: no new request to /api/chat; sent: none`
+- Stop before any text arrives: `Error: no new request to /api/chat; sent: none`
+- an HTTP error shows the alert; Retry sends the conversation again: `Error: no new request to /api/chat; sent: none`
+- an error in the stream drops the partial reply; Retry sends the conversation again: `Error: no new request to /api/chat; sent: none`
+- a network error shows the alert; a new message removes it: `Error: no new request to /api/chat; sent: none`
+
 ## Open questions for the maintainer
 
-1. Approve +5 B (and `scripts/size-gate.mjs`'s budget) for `App.drivers` in the core, or take the 0 B `run(App, App.drivers)` variant that needs templates to change and existing apps a one-line edit?
-2. Should `App.drivers` become the canonical place for feature drivers (HTTP, timers, sockets, the router), with `run(App, {...})` reserved for environment overrides (a test double, a per-deploy `baseUrl`)?
-3. Root-only is the prototype's rule. Is a silent ignore for `Child.drivers` acceptable until a diagnostic lands, or should the diagnostic be part of the first release?
-4. Should the eval's TS starters and old reference solutions move to the new layout, knowing that changes the eval's baseline?
-5. Six references (13, 17, 21, 22, 25, 44) fail their own hidden suite on this build, before any rewrite. Repair them as part of the read-side work's staleness pass (`verify.mjs` across all tasks)?
-6. Is a paid head-to-head wanted to confirm the trial numbers with the new form and guidance? The numbers here assume agent behaviour, nothing has measured it.
+1. Should `App.drivers` become the canonical place for feature drivers (HTTP, timers, sockets, the router), with `run(App, {...})` reserved for environment overrides (a test double, a per-deploy `baseUrl`)?
+2. Should the eval's TS starters and old reference solutions move to the new layout, knowing that changes the eval's baseline?
+3. Six references (13, 17, 21, 22, 25, 44; listed below) fail their own hidden suite on this build, before any rewrite. Repair them as part of the read-side work's staleness pass (`verify.mjs` across all tasks)?
+4. Is a paid head-to-head wanted to confirm the trial numbers with the new form and guidance? The numbers here assume agent behaviour, nothing has measured it.

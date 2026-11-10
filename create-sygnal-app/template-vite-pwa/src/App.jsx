@@ -1,4 +1,4 @@
-import { Collection, xs, ABORT, onlineStatus$, createInstallPrompt } from 'sygnal'
+import { Collection, xs, ABORT, onlineStatus$, createInstallPrompt, makeServiceWorkerDriver } from 'sygnal'
 import TaskItem from './components/TaskItem.jsx'
 
 const installPrompt = createInstallPrompt()
@@ -154,5 +154,8 @@ App.model = {
     }),
   },
 }
+
+// The service worker driver, next to the SW actions above. run(App, { SW: ... }) in main.js works the same.
+App.drivers = { SW: makeServiceWorkerDriver('/sw.js') }
 
 export default App

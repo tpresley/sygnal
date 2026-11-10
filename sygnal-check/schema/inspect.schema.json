@@ -131,6 +131,11 @@
           "type": "array",
           "items": { "$ref": "#/$defs/command" }
         },
+        "drivers": {
+          "description": "static: a root's drivers, from its `drivers` static and run()'s argument (which overrides it by name); omitted when there are none",
+          "type": "array",
+          "items": { "$ref": "#/$defs/rootDriver" }
+        },
         "timers": {
           "description": "static: the literal timer specs of its `timers` static; omitted when there are none",
           "type": "array",
@@ -197,6 +202,19 @@
         "target": { "type": ["string", "null"], "description": "the control's key or the selector; null when not static" },
         "control": { "type": "string", "description": "the control it targets (its key)" },
         "triggers": { "$ref": "#/$defs/strings", "description": "intent actions listening on the target for a native event the command causes (close, toggle...)" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
+      }
+    },
+    "rootDriver": {
+      "type": "object",
+      "required": ["name", "driver", "from"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "driver": { "type": ["string", "null"], "description": "the factory called, or the source text of the value" },
+        "from": { "enum": ["static", "run"] },
         "line": { "type": "integer" },
         "column": { "type": "integer" },
         "file": { "type": "string", "description": "static: when not the component's file" }

@@ -42,6 +42,25 @@ run(App, {
 })
 ```
 
+The root component can name them instead, in the file that uses them. Nothing else changes: the source and sink are the same.
+
+```javascript
+// src/App.jsx
+import { makeFetchDriver } from 'sygnal'
+
+function App({ state }) {
+  return <p>{state.quote?.data?.text}</p>
+}
+
+App.initialState = {}
+App.resources = { quote: () => ({ url: '/api/quote' }) }
+App.drivers = { HTTP: makeFetchDriver() }
+
+export default App
+```
+
+`src/main.js` then stays `run(App)`. Both forms work and can be combined: `run()`'s argument overrides the static by name, which is the place for what differs per environment (`run(App, { HTTP: makeFetchDriver({ baseUrl }) })`). `drivers` is read on the root only; on any other component it is [SYG646](/reference/errors/#syg646). The factories run when the module is loaded, in tests and on the server too, so a custom driver should do its work when the app starts, inside the driver function. `renderComponent` ignores the static. `sygnal-check --graph` lists a root's drivers and where each is registered, and `sygnal-check --fix` writes the line for a driver with no options.
+
 Drivers are registered explicitly, so an app only ships the ones it uses. A sink or source with no driver is reported as [SYG609](/reference/errors/#syg609) (with the dev diagnostics on). In tests, `renderComponent` needs no drivers: a driver you don't pass is replaced by a fake you answer from the test ([Testing](/integration/testing/#answering-requests-respond-and-fail)).
 
 | Driver | For | Guide |

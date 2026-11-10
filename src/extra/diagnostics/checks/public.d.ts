@@ -360,6 +360,8 @@ export interface InspectComponent {
   commands?: InspectCommand[]
   /** static only, PLAN-4 GS-7 (G-224): the literal timer specs of its `timers` static; omitted when none */
   timers?: InspectTimer[]
+  /** static only: a root's drivers (its `drivers` static and run()'s argument, which overrides it by name); omitted when none */
+  drivers?: InspectRootDriver[]
   /** static only, PLAN-6 K-1: the component's `agent` declaration (sygnal/ai); omitted when none */
   agent?: InspectAgent
   diagnostics: InspectDiagnostic[]
@@ -395,6 +397,18 @@ export interface InspectAgent {
   queries?: Array<{ name: string; input: boolean } & Partial<InspectLocation>>
   /** spreads: what is listed may be incomplete */
   partial?: true
+}
+
+/** a driver the root is wired with (static inspect, sygnal-check --graph) */
+export interface InspectRootDriver {
+  name: string
+  /** the factory called (`makeFetchDriver`) or the source text of the value; null when not read */
+  driver: string | null
+  /** where it is registered: the root's `drivers` static or run()'s argument */
+  from: 'static' | 'run'
+  line?: number
+  column?: number
+  file?: string
 }
 
 /** PLAN-4 GS-7: a literal timer spec of a `timers` static (static inspect, sygnal-check --graph) */
