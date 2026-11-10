@@ -104,8 +104,17 @@ export function openRef(ref, { cwd = process.cwd() } = {}) {
 export function baseGraph(tree, inputs, settings) {
   const { files, missing } = expandInputs(inputs, { cwd: settings.cwd, includeTests: settings.includeTests, tree })
   tree.prefetch(files)
-  const graph = graphFiles(files, { ...settings, tree, extraDiagnostics: settings.extraDiagnostics })
+  const graph = graphFiles(files, { ...settings, tree, extraDiagnostics: settings.extraDiagnostics, onProject: settings.onProject })
   return { graph, files, missing }
+}
+
+/**
+ * The files that differ between two commits (or a commit and the working tree: `head` null), under
+ * `paths`, relative to cwd: what the behaviour report checks it has accounted for.
+ */
+export function changedPaths(base, head, paths, { cwd }) {
+  const out = git(['diff', '--name-only', '--relative', '-z', base, ...(head ? [head] : []), '--', ...paths], { cwd })
+  return out.split('\0').filter(Boolean)
 }
 
 /** The base part of a glob or path (what must be inside the repository). */

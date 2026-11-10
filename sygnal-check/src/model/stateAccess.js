@@ -43,7 +43,7 @@ import { returnedExpressions } from './intent.js'
 const SYGNAL = /^sygnal(\/|$)/
 
 /** The 'sygnal' export an expression is bound to (any local name), or null. */
-function sygnalName(file, node) {
+export function sygnalName(file, node) {
   node = unwrap(node)
   if (node?.type !== 'Identifier') return null
   const b = findBinding(file, node.name, node)
@@ -310,6 +310,13 @@ export function stateReads(project, file, fn, opts = {}) {
   walk(fn.body, (n) => {
     if (partial) return false
     if (handled.has(n)) return false
+    // opts.reducer (the behaviour report): carrying the state over isn't reading it
+    if (opts.reducer) {
+      if (n.type === 'SpreadElement' && isStateRef(n.argument)) return false
+      for (const e of n.type === 'ReturnStatement' ? [n.argument] : n.type === 'ConditionalExpression' ? [n.consequent, n.alternate] : n.type === 'LogicalExpression' ? [n.right] : []) {
+        if (e && isStateRef(e)) handled.add(unwrap(e))
+      }
+    }
     if (n.type === 'CallExpression' && depth < 3) {
       // a local helper given the state (`panel(state)`): its reads through that parameter
       const i = n.arguments.findIndex(a => isStateRef(a))
@@ -318,7 +325,7 @@ export function stateReads(project, file, fn, opts = {}) {
         const h = resolveExpr(project, file, callee)
         if (h?.node && isFunction(h.node) && h.node !== fn && !seen.has(h.node)) {
           seen.add(h.node)
-          const sub = stateReads(project, h.file, h.node, { state: true, index: i, depth: depth + 1, seen })
+          const sub = stateReads(project, h.file, h.node, { state: true, index: i, depth: depth + 1, seen, reducer: opts.reducer })
           if (!sub) { partial = true; return false }
           for (const k of sub.keys) push(k)
           if (sub.partial) partial = true

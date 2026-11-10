@@ -27,6 +27,10 @@
  *                      html     the head graph with the diff drawn on it (V-6)
  *                    Exit 2: not in a git repository, an unknown ref, a path outside the repository,
  *                    with --watch. A path missing at the ref is fine (everything in it is added).
+ *   --report --base <ref> [--head <ref>] [--json] [--out <file>]  the behaviour report (src/report/, experimental;
+ *                    research: dev-plans/research/behaviour-report): what the change does per component, as
+ *                    markdown for a PR comment, --json the data. --head reads the head from a commit too
+ *                    (also for --graph --base): without it, the working tree
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
  * sygnal-check lsp            (language server on stdio; see src/lsp/server.js and bin/sygnal-check.js)
@@ -50,8 +54,11 @@ import { getExplanation, listExplanations, formatExplanation, suggestCodes } fro
 import { createLiveProject } from './live.js'
 import { createWatcher } from './watch.js'
 import { createLiveServer } from './liveServer.js'
-import { openRef, baseGraph, inputBase, GitBaseError } from './gitBase.js'
+import { openRef, baseGraph, inputBase, changedPaths, GitBaseError } from './gitBase.js'
 import { graphDiff, formatDiff, diffMermaid } from './graphView/diff.js'
+import { behaviourFacts, appDrivers } from './report/facts.js'
+import { behaviourReport } from './report/compare.js'
+import { formatReport } from './report/markdown.js'
 
 const HELP = `Usage: sygnal-check [paths...] [options]
        sygnal-check explain <code> [--json]     explain a diagnostic code (e.g. SYG104)
@@ -123,6 +130,11 @@ Options:
                          types), text a summary, mermaid and html the graph with
                          the changes marked. Components are matched by file and
                          name: a renamed file is a removal and an addition
+  --head <ref>           with --base: compare with this commit instead of the
+                         working tree
+  --report               with --base: what the change does per component (triggers,
+                         reads and writes, sinks, guards, blast radius), as markdown
+                         for a pull request comment; --json for the data (experimental)
   --config <file>        read this JSON config file instead of looking for
                          sygnal-check.config.json / package.json
   --no-config            ignore config files (flags and defaults only)
@@ -137,7 +149,7 @@ Suppress a finding with a comment on the same line or the line above:
  * config file (or the defaults) decide: see resolveOptions in src/config.js.
  */
 export function parseArgs(argv) {
-  const opts = { paths: [], json: false, strict: undefined, a11y: undefined, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: undefined, config: undefined, noConfig: false, help: false, out: undefined, open: undefined, editor: undefined, events: true, watch: false, poll: false, port: undefined, base: undefined }
+  const opts = { paths: [], json: false, strict: undefined, a11y: undefined, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: undefined, config: undefined, noConfig: false, help: false, out: undefined, open: undefined, editor: undefined, events: true, watch: false, poll: false, port: undefined, base: undefined, head: undefined, report: false }
   let graphFormat = null
   const value = (a, i, name) => {
     if (a.startsWith(name + '=')) {
@@ -171,6 +183,8 @@ export function parseArgs(argv) {
     else if (a === '--events=false' || a === '--events=true') opts.events = a === '--events=true'
     else if (a === '--watch') opts.watch = true
     else if (a === '--base' || a.startsWith('--base=')) [opts.base, i] = value(a, i, '--base')
+    else if (a === '--head' || a.startsWith('--head=')) [opts.head, i] = value(a, i, '--head')
+    else if (a === '--report') opts.report = true
     else if (a === '--poll') opts.poll = true
     else if (a.startsWith('--poll=')) {
       opts.poll = Number(a.slice('--poll='.length))
@@ -201,6 +215,11 @@ export function parseArgs(argv) {
   if (!['warn', 'error', 'never'].includes(opts.failOn)) throw new Error(`--fail-on must be warn, error or never (got '${opts.failOn}')`)
   if (opts.a11y !== undefined && !['warn', 'error'].includes(opts.a11y)) throw new Error(`--a11y must be warn or error (got '${opts.a11y}')`)
   if (opts.graph && opts.fix) throw new Error('--graph and --fix cannot be combined')
+  if (opts.report) {
+    if (opts.base === undefined) throw new Error('--report needs --base <ref>')
+    if (opts.graph || opts.fix) throw new Error('--report cannot be combined with --graph or --fix')
+  }
+  if (opts.head !== undefined && opts.base === undefined) throw new Error('--head needs --base')
   // --graph alone stays text and --graph --json stays JSON; --graph=<format> names one
   if (opts.graph) {
     if (graphFormat && graphFormat !== 'json' && opts.json) throw new Error(`--json cannot be combined with --graph=${graphFormat}`)
@@ -208,13 +227,13 @@ export function parseArgs(argv) {
     opts.json = opts.graph === 'json'
   }
   const graphOnly = (flag, formats, given) => { if (given && !formats.includes(opts.graph)) throw new Error(`${flag} needs ${formats.length > 1 ? '--graph' : '--graph=' + formats[0]}`) }
-  graphOnly('--out', GRAPH_FORMATS, opts.out !== undefined)
+  graphOnly('--out', GRAPH_FORMATS, opts.out !== undefined && !opts.report)
   graphOnly(opts.open ? '--open' : '--no-open', ['html'], opts.open !== undefined)
   graphOnly('--editor', ['html'], opts.editor !== undefined)
   graphOnly('--events', ['mermaid'], !opts.events)
   // W-1: --watch serves the page; a file:// page can't receive updates, so no --out
   graphOnly('--watch', ['html'], opts.watch)
-  graphOnly('--base', GRAPH_FORMATS, opts.base !== undefined)
+  graphOnly('--base', GRAPH_FORMATS, opts.base !== undefined && !opts.report)
   if (opts.base !== undefined && opts.watch) throw new Error('--base cannot be combined with --watch')
   if (opts.watch && opts.out !== undefined) throw new Error('--out cannot be combined with --watch (a saved file can\'t be updated: the page is served instead)')
   if (opts.poll !== false && !opts.watch) throw new Error('--poll needs --watch')
@@ -375,8 +394,8 @@ export async function watchGraph(opts, { cwd, stdout, stderr, env = {}, isTTY, o
  * ref's own config file give (an explicit --config file not in the commit is read from the disk).
  * Throws GitBaseError for the CLI's exit-2 cases.
  */
-function buildBase(opts, headPaths, { cwd, stderr, shown }) {
-  const tree = openRef(opts.base, { cwd })
+function buildBase(opts, headPaths, { cwd, stderr, shown }, { ref = opts.base, onProject } = {}) {
+  const tree = openRef(ref, { cwd })
   const explicit = typeof opts.config === 'string' ? path.resolve(cwd, opts.config) : null
   const io = explicit && !tree.exists(explicit) ? undefined : { exists: tree.exists, read: tree.readOrThrow }
   const { options: settings, config } = resolveOptions({
@@ -388,10 +407,49 @@ function buildBase(opts, headPaths, { cwd, stderr, shown }) {
   }
   const r = baseGraph(tree, paths, {
     cwd, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, includeTests: settings.includeTests,
-    replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics,
+    replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics, onProject,
   })
-  for (const m of r.missing) stderr.write(`sygnal-check: ${shown(m)} is not in ${opts.base}: everything there counts as added\n`)
-  return { ref: opts.base, commit: tree.commit, graph: r.graph }
+  for (const m of r.missing) stderr.write(`sygnal-check: ${shown(m)} is not in ${ref}: everything there counts as added\n`)
+  return { ref, commit: tree.commit, graph: r.graph }
+}
+
+/** One side of the report: its graph, the facts behind it and its parse errors. */
+function reportSide() {
+  const side = { graph: null, facts: null, parseErrors: [] }
+  side.onProject = (project, graph) => {
+    side.graph = graph
+    side.facts = behaviourFacts(project, graph)
+    side.apps = appDrivers(project)
+    side.parseErrors = project.parseErrors.map(e => project.relPath(e.file))
+  }
+  return side
+}
+
+/** --report: builds both sides (--head: a commit, else the working tree) and writes the report. */
+function writeReport(opts, files, paths, settings, config, { cwd, stdout, stderr, shown }) {
+  const base = reportSide(), head = reportSide()
+  let meta
+  try {
+    const b = buildBase(opts, paths, { cwd, stderr, shown }, { onProject: base.onProject })
+    if (opts.head !== undefined) buildBase(opts, paths, { cwd, stderr, shown }, { ref: opts.head, onProject: head.onProject })
+    else graphFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, includeTests: settings.includeTests, replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics, onProject: head.onProject })
+    meta = { base: opts.base, head: opts.head ?? 'working tree', commit: b.commit, changedFiles: changedPaths(b.commit, opts.head, paths, { cwd }) }
+  } catch (err) {
+    if (!(err instanceof GitBaseError)) throw err
+    stderr.write(`sygnal-check: ${err.message}\n`)
+    return 2
+  }
+  const report = behaviourReport(base, head, meta)
+  const text = opts.json ? JSON.stringify(report, null, 2) + '\n' : formatReport(report)
+  if (opts.out === undefined) { stdout.write(text); return 0 }
+  try {
+    fs.writeFileSync(path.resolve(cwd, opts.out), text)
+  } catch (err) {
+    stderr.write(`sygnal-check: can't write ${opts.out}: ${err.message}\n`)
+    return 2
+  }
+  stderr.write(`sygnal-check: wrote ${path.resolve(cwd, opts.out)}\n`)
+  return 0
 }
 
 const EXPLAIN_HELP = `Usage: sygnal-check explain <code> [--json]
@@ -466,12 +524,15 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     return 2
   }
 
+  if (opts.report) return writeReport(opts, files, paths, { ...settings, ignore }, config, { cwd, stdout, stderr, shown })
+
   if (opts.graph) {
-    const g = graphFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore, includeTests: settings.includeTests, replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics })
+    let g = graphFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore, includeTests: settings.includeTests, replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics })
     let base = null
     if (opts.base !== undefined) {
       try {
         base = buildBase(opts, paths, { cwd, stderr, shown })
+        if (opts.head !== undefined) g = buildBase(opts, paths, { cwd, stderr, shown }, { ref: opts.head }).graph
       } catch (err) {
         if (!(err instanceof GitBaseError)) throw err
         stderr.write(`sygnal-check: ${err.message}\n`)
@@ -479,7 +540,7 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
       }
     }
     if (opts.graph === 'html') return writeGraphPage(g, opts, { cwd, stderr, stdout, env, isTTY, openFile, tmpdir, base })
-    const meta = base && { base: base.ref, head: 'working tree', commit: base.commit }
+    const meta = base && { base: base.ref, head: opts.head ?? 'working tree', commit: base.commit }
     const text = base
       ? opts.graph === 'json' ? JSON.stringify(graphDiff(base.graph, g, meta), null, 2) + '\n'
         : opts.graph === 'mermaid' ? diffMermaid({ buildModel, toMermaid }, base.graph, g, { ...meta, events: opts.events })

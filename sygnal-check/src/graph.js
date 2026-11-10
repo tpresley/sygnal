@@ -149,7 +149,9 @@ export function graphFiles(files, options = {}) {
   let diags = runRules(project, rules)
   if (options.extraDiagnostics?.length) diags = [...options.extraDiagnostics, ...diags]
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
-  return buildGraph(project, sortDiagnostics(diags))
+  const g = buildGraph(project, sortDiagnostics(diags))
+  options.onProject?.(project, g) // the behaviour report's facts need the model's AST nodes
+  return g
 }
 
 const contains = (outer, inner) => !!outer && !!inner && inner.start >= outer.start && inner.end <= outer.end

@@ -1,0 +1,3 @@
+app graph: bd18dc24~1 (9e66efe22e) → bd18dc24
+~ LaneComponent: +sink DELETE_LANE:STATE, +sink MOVE_LEFT:STATE, +sink MOVE_RIGHT:STATE, -sink DELETE_LANE:EVENTS, -sink MOVE_LEFT:EVENTS, -sink MOVE_RIGHT:EVENTS  examples/kanban/src/LaneComponent.jsx
+0 added, 0 removed, 1 changed

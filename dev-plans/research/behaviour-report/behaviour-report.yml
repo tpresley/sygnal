@@ -1,0 +1,63 @@
+# A sketch, not installed: GitHub Actions only runs files under .github/workflows/.
+# Posts `sygnal-check --report` on a pull request and updates its own comment on each push.
+# Assumes the app is the repository root and that sygnal-check is a devDependency. For this monorepo
+# see "What it would take for this repo" in README.md (a matrix over the changed examples).
+name: Behaviour report
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write   # a fork's token is read-only: the comment step is skipped below
+
+concurrency:
+  group: behaviour-report-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # --base reads the base commit with git; a shallow clone doesn't have it
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      # The merge base, not the base branch's tip: otherwise commits merged to main since the branch
+      # was cut read as this PR undoing them.
+      - name: Write the report
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          npx sygnal-check --report --base "$base" --head "$HEAD_SHA" --out report.md
+          # GitHub rejects a comment over 65,536 characters
+          if [ "$(wc -c < report.md)" -gt 60000 ]; then
+            head -c 60000 report.md > report.tmp && mv report.tmp report.md
+            printf '\n\n_Report cut off: run `sygnal-check --report` locally for the rest._\n' >> report.md
+          fi
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # One comment per PR, found by the marker on the report's first line.
+      - name: Post or update the comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.body | startswith("<!-- sygnal-behaviour-report -->"))][0].id // empty')
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@report.md
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@report.md
+          fi
