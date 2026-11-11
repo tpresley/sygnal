@@ -2,7 +2,11 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.5.0 — 2026-11-10
+
+With `sygnal-check` 0.17.0 (`--report`, SYG265 / SYG266 / SYG511 / SYG512, SYG646), `create-sygnal-app` 2.15.0
+(templates on `sygnal` ^7.5.0, `sygnal-check` ^0.17.0, drivers on `App.drivers`), the VS Code extension 0.14.0
+and the Claude Code plugin 0.2.6 (the compact skill).
 
 - **A third of the agent context.** `llms.txt` is now a 22 KB core (it was 66.5 KB): the mental model, the
   anatomy, one canonical example per concept, and a table of which file in `llms/` to read before a feature.
@@ -33,6 +37,18 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   getter-only `dataset` rejects, and `renderComponent`'s mock DOM printed `dataset="[object Object]"`, so
   `.data('id')` read `undefined` with no diagnostic. A component's own `dataset` prop is unchanged.
 - **SYG222 no longer reports a `NaN` field** as changed in place when a reducer returns the state it got.
+- **App graph fixes (`sygnal-check --graph`).** `CHILD.select` of a function no view renders no longer crashes
+  the graph; a model entry written as `emit('T', fn)` is an EVENTS sink; and in a graph diff, a diagnostic
+  whose message names a line is not "changed" when code only moved.
+
+**Measured impact.** Size: the kanban gate is (a) 40,473 B with `nativeGlobalThis: false` (7.4.1: 40,457 B;
+budget 40,473 B: +16 B for the element `dataset` form, `App.drivers` and the effect checks) and
+(b) 35,687 B by default (7.4.1: 35,680 B). Agent eval on this release against the same tasks in React
+(Sonnet 5.5, 45 shared tasks, 2 trials each, `rc75-react-sonnet`): hidden tests passed in 98 of 98 Sygnal
+trials and 87 of 90 React trials; a Sygnal task took 1.75× the time and 2.35× the cost of the React one
+(1.49× and 2.26× when neither arm writes tests, `rc75-no-test-sonnet`), most of the extra cost being the
+context the agent loads. With `App.drivers` no trial edited the entry file, and a change touches 1.07× the
+source files of the React one (1.12× before).
 
 ## 7.4.1 — 2026-11-09
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0
+
+Bundles sygnal-check 0.17.0 (Sygnal 7.5.0). The extension's own code doesn't change.
+
+- New findings: SYG265 (a network request outside a declared output), SYG266 (another side effect there), SYG646 (`drivers` on a component that is not the root), and in strict mode SYG511 (a network request in an `EFFECT` handler) and SYG512 (a module-level variable written outside a declared output).
+
 ## 0.13.0
 
 Bundles sygnal-check 0.16.0 (Sygnal 7.4.0). The extension's own code doesn't change.
