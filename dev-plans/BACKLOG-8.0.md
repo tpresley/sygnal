@@ -114,3 +114,15 @@ The obstacle is telling the two uses apart from the `run()` call alone, since bo
 - **Otherwise** (a literal factory call with constant options, for a name no static declares): the feature-driver case the code would flag, and `--fix` could move it to the static (the `rootDriverFix` of SYG643/SYG609).
 
 `sygnal-check` can see all of this; the runtime can only see that no static has the name. So it would be static-only, like SYG503. Decide after a release of real use shows how many `run()` arguments land in the "otherwise" case by mistake.
+
+## B8-6: unhandled things become errors
+
+From the strategy review of 2026-11-09 (maintainer: keep for 8.0, 2026-11-10). The friction Tune and Sift kept reporting was silent no-ops: an action, a reply or a command that goes nowhere. Each fix so far was a new diagnostic plus a new sentence in `llms.txt`. The 8.0 change is to make these fail in dev, or to make the mistaken form work, so the rule no longer needs documenting.
+
+The candidates, one decision each, are the 13 entries of `dev-plans/research/agent-docs/data/traps-8.0.md` (SYG101, 105, 106, 115, 116, 132, 143, 202, 221, 222, 302, 421, 643). Three kinds:
+
+- **Throw in dev:** an intent action with no model entry (SYG101), an unknown DOM event shorthand (SYG115), a prop overwritten by a reserved view argument (SYG106), state mutated in place (SYG222, by freezing the state handed to reducers).
+- **Make the form work:** `set('draft')` (SYG221), a sink function returning an `event()` result (SYG116), `DOM.select(Widget)` (SYG143), a default import from `xstream/extra/*` (SYG302), a hyphenated `data` key (SYG421), a root with declaration statics and no `initialState` (SYG132).
+- **Decide:** `undefined` from a root reducer as ABORT or a throw (SYG202); raising SYG105 to a warning.
+
+Still to decide: which of these are breaking (a dev-only throw is not, a production throw is), and whether a reply or command with no receiver gets the same treatment as an action. Each one that lands removes its sentence from `llms.txt` and its topic file.
