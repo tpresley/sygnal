@@ -11,15 +11,22 @@
  *   }
  *   trigger: { sources: ['click .add', 'EVENTS SAVED', 'CHILD Row', 'key j'], filters: [{ h, text }], fp }
  *   SinkFacts {
- *     fp, reads, readsPartial, guards: [{ h, text }], conds: [{ h, text }], branches,
+ *     fp, reads, readsPartial, guards: [{ h, text, f }], conds: [{ h, text, owner?, via? }], branches,
+ *     helperBranches / callBranches { [helper]: n }: found in a helper the sink returns through (via
+ *     'return') or calls elsewhere ('call'); compare.js leaves out a helper's that both versions call and
+ *     that compares equal, or that is called elsewhere (its change is said once, with its verdict),
  *     mutates (assigns through a local or calls an array mutator), opaque (can't be read),
  *     STATE: writes (keys, null unknown; reducerWrites with deep), removes,
- *            perKey { [key]: hash of what the returns put there }
+ *            perKey { [key]: hash of what the returns put there }, perKeyDeep: the same with the app's
+ *            one-expression helpers written out (canon.js calls), for "same values, now through a helper"
  *     EVENTS: events [type]; PARENT / EVENTS: shape [keys of the returned literal] | null
- *     a driver sink (HTTP, LLM, ...): requests ['PUT /api/x/${…} → ok SAVED, error FAILED']
+ *     a driver sink (HTTP, LLM, ...): requests ['PUT /api/x/${…} → ok SAVED, error FAILED'],
+ *            requestSigs [{ text, sig, complete }]: sig is every key's value with helpers and their
+ *            arguments written out, so a request built by a helper compares with one written in place
  *   }
  * fp is canon.js's fingerprint. A guard is a condition under which the sink does nothing (ABORT, or
- * `return state` from a STATE reducer); text is its path of conditions as written.
+ * `return state` from a STATE reducer); text is its path of conditions as written, f the same path as a
+ * logic.js formula (null when it can't be written as one: a switch).
  */
 import { walk, unwrap, isFunction, propName, memberName, stringValue, fileOfNode } from '../ast.js'
 import { findBinding } from '../scope.js'
@@ -30,6 +37,7 @@ import { stateReads, sygnalName, reducerWrites } from '../model/stateAccess.js'
 import { renderGraph } from '../model/renderGraph.js'
 import { findApps } from '../model/apps.js'
 import { fingerprint, canonOf, canonText, hash, textOf, returnedLiterals } from './canon.js'
+import { formulaOf, helperLogic, not, and } from './logic.js'
 
 const MUTATORS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'fill', 'copyWithin'])
 const bare = (n) => { n = unwrap(n); while (n?.type === 'ChainExpression') n = unwrap(n.expression); return n }
@@ -80,12 +88,14 @@ function helperOf(project, file, call) {
  * moved into a helper hashes as it did in place (canon.js args), a guard changed in one is a changed guard.
  */
 function controlFlow(project, file0, fn0, isStateSink) {
-  const out = { guards: [], conds: [], branches: 0, literals: [], mutates: false }
+  // helperBranches: the branches counted inside each helper, so a helper that compares equal can be left out
+  const out = { guards: [], conds: [], branches: 0, helperBranches: {}, callBranches: {}, literals: [], mutates: false }
   const seen = new Set()
   const visit = (file, fn, path0, level) => {
     seen.add(fn)
     if (mutates(fn)) out.mutates = true
     const c = (n) => canonOf(file, n, fn, { args: level.args })
+    const fo = (n) => formulaOf(project, file, n, fn, level.fargs)
     const say = (t) => level.name ? `${t} (in ${level.name})` : t
     const stateParam = fn.params[level.state]
     const noop = (e) => {
@@ -94,13 +104,17 @@ function controlFlow(project, file0, fn0, isStateSink) {
       if (sygnalName(file, e) === 'ABORT') return true
       return isStateSink && e.type === 'Identifier' && stateParam?.type === 'Identifier' && e.name === stateParam.name
     }
-    const neg = (x) => ({ text: `!(${x.text})`, h: 'not:' + x.h })
+    // (`!x` for a name, member or call; `!x` negated is x)
+    const neg = (x) => ({ text: x.text.startsWith('!') && /^![\w$.]+(\(.*\))?$/.test(x.text) ? x.text.slice(1) : /^[\w$.]+(\(.*\))?$/.test(x.text) ? `!${x.text}` : `!(${x.text})`, h: 'not:' + x.h, f: x.f && not(x.f) })
     // (conds: `!x` and `x` are one condition, an if / else written the other way round isn't a change)
     const positive = (n) => { const t = bare(n); return t.type === 'UnaryExpression' && t.operator === '!' ? bare(t.argument) : t }
     const seenConds = new Set()
-    const addCond = (n) => { const p = positive(n); const x = { text: say(textOf(file, p)), h: c(p) }; if (!seenConds.has(x.text)) { seenConds.add(x.text); out.conds.push(x); out.branches++ } }
-    const cond = (n) => { addCond(n); return { text: say(textOf(file, n)), h: c(n) } }
-    const guard = (path) => path.length && out.guards.push({ text: path.map(x => x.text).join(' && '), h: hash(path.map(x => x.h).join('&')) })
+    const own = level.name
+    const branch = (owner, via = 'return') => { out.branches++; const m = via === 'call' ? out.callBranches : out.helperBranches; if (owner) m[owner] = (m[owner] || 0) + 1 }
+    const addCond = (n) => { const p = positive(n); const x = { text: say(textOf(file, p)), h: c(p), ...(own ? { owner: own, via: 'return' } : {}) }; if (!seenConds.has(x.text)) { seenConds.add(x.text); out.conds.push(x); branch(own) } }
+    // (`!x` hashes as x negated, the way an else branch does)
+    const cond = (n) => { addCond(n); const t = bare(n); const h = t.type === 'UnaryExpression' && t.operator === '!' ? 'not:' + c(t.argument) : c(n); return { text: say(textOf(file, n)), h, f: fo(n) } }
+    const guard = (path) => path.length && out.guards.push({ text: path.map(x => x.text).join(' && '), h: hash(path.map(x => x.h).join('&')), f: path.every(x => x.f) ? and(...path.map(x => x.f)) : null })
     const expr = (e, path) => {
       e = bare(e)
       if (!e) return
@@ -111,7 +125,8 @@ function controlFlow(project, file0, fn0, isStateSink) {
         expr(e.alternate, [...path, neg(x)])
       } else if (e.type === 'LogicalExpression') {
         // `a && ABORT`, `a || ABORT`
-        const x = { text: say(textOf(file, e.left)), h: c(e.left) }
+        const l = bare(e.left)
+        const x = { text: say(textOf(file, e.left)), h: l.type === 'UnaryExpression' && l.operator === '!' ? 'not:' + c(l.argument) : c(e.left), f: fo(e.left) }
         if (noop(e.right)) guard([...path, e.operator === '&&' ? x : neg(x)])
         else { expr(e.right, path); if (e.operator !== '&&') expr(e.left, path) }
       } else if (e.type === 'ObjectExpression') {
@@ -122,7 +137,7 @@ function controlFlow(project, file0, fn0, isStateSink) {
         const h = helperOf(project, file, e)
         if (!h || seen.has(h.fn)) return
         const i = e.arguments.findIndex(a => bare(a)?.type === 'Identifier' && stateParam?.type === 'Identifier' && bare(a).name === stateParam.name)
-        visit(h.file, h.fn, path, { depth: level.depth + 1, name: h.name, state: i < 0 ? -1 : i, args: e.arguments.map(a => a.type === 'SpreadElement' ? '...' : canonText(file, a, fn, { args: level.args })) })
+        visit(h.file, h.fn, path, { depth: level.depth + 1, name: h.name, state: i < 0 ? -1 : i, args: e.arguments.map(a => a.type === 'SpreadElement' ? '...' : canonText(file, a, fn, { args: level.args })), fargs: argsFor(e) })
       }
     }
     const stmt = (s, path) => {
@@ -140,7 +155,7 @@ function controlFlow(project, file0, fn0, isStateSink) {
           const d = { text: textOf(file, s.discriminant), h: c(s.discriminant) }
           for (const k of s.cases) {
             const x = k.test ? { text: say(`${d.text} === ${textOf(file, k.test)}`), h: d.h + c(k.test) } : { text: 'default', h: 'default' }
-            if (k.test && !seenConds.has(x.text)) { seenConds.add(x.text); out.conds.push(x); out.branches++ }
+            if (k.test && !seenConds.has(x.text)) { seenConds.add(x.text); out.conds.push(own ? { ...x, owner: own, via: 'return' } : x); branch(own) }
             k.consequent.forEach(y => stmt(y, [...path, x]))
           }
           break
@@ -149,15 +164,32 @@ function controlFlow(project, file0, fn0, isStateSink) {
         case 'ForStatement': case 'ForInStatement': case 'ForOfStatement': case 'WhileStatement': case 'DoWhileStatement': stmt(s.body, path); break
       }
     }
+    // (formulas: the arguments written with their helpers, as logic.js's atoms are)
+    const argsFor = (e) => e.arguments.map(a => a.type === 'SpreadElement' ? '...' : canonText(file, a, fn, { args: level.fargs, inline: true, calls: project, hashCalls: true }))
     stmt(statementsOf(fn), path0)
-    // conditions the walk above doesn't reach (inside expressions, nested callbacks): counted as branches
-    walk(fn.body, (n) => {
-      if (n.type === 'ConditionalExpression' || n.type === 'IfStatement') addCond(n.test)
-      else if (n.type === 'LogicalExpression' && ['&&', '||', '??'].includes(n.operator)) out.branches++
-      return true
-    })
+    // conditions the walk above doesn't reach (inside expressions, nested callbacks, helpers called
+    // there): counted as branches, so logic moved into a helper isn't a branch removed
+    const inner = (file1, fn1, args1, say1, depth, owner, via) => {
+      const seen1 = new Set()
+      walk(fn1.body, (n) => {
+        if (n.type === 'ConditionalExpression' || n.type === 'IfStatement') {
+          const p = positive(n.test)
+          const x = { text: say1(textOf(file1, p)), h: canonOf(file1, p, fn1, { args: args1 }), ...(owner ? { owner, via } : {}) }
+          if (!seenConds.has(x.text) && !seen1.has(x.text)) { seen1.add(x.text); seenConds.add(x.text); out.conds.push(x); branch(owner, via) }
+        } else if (n.type === 'LogicalExpression' && ['&&', '||', '??'].includes(n.operator)) branch(owner, via)
+        else if (n.type === 'CallExpression' && depth < 3) {
+          const h = helperOf(project, file1, n)
+          if (h && !seen.has(h.fn)) {
+            seen.add(h.fn)
+            inner(h.file, h.fn, n.arguments.map(a => a.type === 'SpreadElement' ? '...' : canonText(file1, a, fn1, { args: args1 })), (t) => `${t} (in ${h.name})`, depth + 1, via === 'call' ? owner : h.name, 'call')
+          }
+        }
+        return true
+      })
+    }
+    inner(file, fn, level.args, say, level.depth, own, 'return')
   }
-  visit(file0, fn0, [], { depth: 0, name: null, state: 0, args: null })
+  visit(file0, fn0, [], { depth: 0, name: null, state: 0, args: null, fargs: null })
   return out
 }
 
@@ -185,7 +217,7 @@ function previousStateReads(fn) {
 }
 
 /** What each key of the state a reducer's returns put there (the state carried over isn't a key). */
-function perKey(literals) {
+function perKey(project, literals, deep = false) {
   const lists = {}
   for (const { obj, file, fn, args } of literals) {
     for (const p of obj.properties) {
@@ -193,7 +225,7 @@ function perKey(literals) {
       const k = propName(p)
       if (k == null) continue
       const v = p.type === 'ObjectMethod' ? p : p.value
-      ;(lists[k] ||= []).push(canonOf(file, v, fn, { inline: true, args }))
+      ;(lists[k] ||= []).push(canonOf(file, v, fn, { inline: true, args, calls: deep ? project : undefined, hashCalls: deep }))
     }
   }
   const out = {}
@@ -201,19 +233,38 @@ function perKey(literals) {
   return out
 }
 
-function requestsOf(project, file, value, sink) {
-  const out = []
+/**
+ * A request's value written out: a helper's parameters as its caller passed them (bind), the app's
+ * one-expression functions inlined, the sink function's own parameters by position.
+ */
+function boundText(project, node, file, bind, root, depth = 0) {
+  const bound = new Map()
+  if (bind && depth < 6) for (const [name, a] of bind) bound.set(name, boundText(project, a.node, a.file, a.bind, root, depth + 1))
+  const inRoot = !bind && root && root.file === file && node.start >= root.fn.start && node.end <= root.fn.end
+  // (hashCalls: a helper that isn't written out is named with its hash, so a change in it is a different request)
+  return canonText(file, node, inRoot ? root.fn : null, { inline: true, calls: project, hashCalls: true, bound })
+}
+
+function requestsOf(project, file, value, sink, root) {
+  const out = [], sigs = []
   for (const o of returnedObjects(project, file, value)) {
-    const { props } = requestProps(project, o.node, o.file, o.bind)
+    const { props, dynamic } = requestProps(project, o.node, o.file, o.bind)
     const get = (key) => props.find(({ p }) => propName(p) === key)
     const show = (x) => { if (!x) return null; const s = stringValue(x.p.value); return s ?? textOf(x.file, x.p.value).replace(/^`|`$/g, '') }
     const url = show(get('url'))
     const replies = ['ok', 'error', 'chunk', 'delta', 'tool'].map(k => [k, show(get(k))]).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ')
     const what = url != null ? `${sink === 'HTTP' ? (show(get('method')) || 'GET') + ' ' : ''}${url}`
       : props.length ? `{ ${[...new Set(props.map(({ p }) => propName(p)).filter(Boolean))].slice(0, 6).join(', ')} }` : null
-    if (what) out.push(replies ? `${what} → ${replies}` : what)
+    if (what) {
+      const text = replies ? `${what} → ${replies}` : what
+      out.push(text)
+      // (an HTTP request without a method is a GET)
+      const keys = props.map(({ p, file: f, bind }) => `${propName(p) ?? '?'}=${boundText(project, p.value, f, bind, root)}`)
+      if (sink === 'HTTP' && !get('method')) keys.push('method="GET"')
+      sigs.push({ text, sig: hash(keys.sort().join('\n')), complete: !dynamic.length && props.every(({ p }) => propName(p) != null) })
+    }
   }
-  return [...new Set(out)]
+  return { requests: [...new Set(out)], sigs }
 }
 
 function sinkFacts(project, entry, sink, value, vfile, stateKeys) {
@@ -236,8 +287,8 @@ function sinkFacts(project, entry, sink, value, vfile, stateKeys) {
     for (const k of previousStateReads(fn)) if (!out.reads.includes(k)) out.reads.push(k)
     out.reads.sort()
     const flow = controlFlow(project, f, fn, sink === 'STATE')
-    Object.assign(out, { guards: flow.guards, conds: flow.conds, branches: flow.branches, mutates: flow.mutates })
-    if (sink === 'STATE') out.perKey = perKey(flow.literals)
+    Object.assign(out, { guards: flow.guards, conds: flow.conds, branches: flow.branches, helperBranches: flow.helperBranches, callBranches: flow.callBranches, mutates: flow.mutates })
+    if (sink === 'STATE') { out.perKey = perKey(project, flow.literals); out.perKeyDeep = perKey(project, flow.literals, true) }
     if (sink === 'EVENTS' || sink === 'PARENT') {
       const lits = returnedLiterals(fn, returnedExpressions)
       // `{ type: 'X', data }`: the payload is data, the same as event('X', fn) returning it
@@ -256,7 +307,7 @@ function sinkFacts(project, entry, sink, value, vfile, stateKeys) {
     const e = bare(form.expr)
     out.fp = fingerprint(project, f, e, form.setter && sink === 'STATE' && e?.type === 'ObjectExpression' ? { strip: new Set([e]) } : {})
     out.opaque = !e || (e.type !== 'ObjectExpression' && !/Literal$/.test(e.type) && sygnalName(f, e) !== 'ABORT' && !(e.type === 'CallExpression' && ['set', 'toggle', 'emit', 'event'].includes(sygnalName(f, e.callee))))
-    if (sink === 'STATE' && e?.type === 'ObjectExpression') out.perKey = perKey([{ obj: e, file: f, fn: null, args: null }])
+    if (sink === 'STATE' && e?.type === 'ObjectExpression') { out.perKey = perKey(project, [{ obj: e, file: f, fn: null, args: null }]); out.perKeyDeep = perKey(project, [{ obj: e, file: f, fn: null, args: null }], true) }
     if (sink === 'STATE' && e?.type === 'CallExpression' && sygnalName(f, e.callee) === 'toggle') out.perKey = { [stringValue(e.arguments[0]) ?? '?']: 'toggle' }
     if ((sink === 'PARENT' || sink === 'EVENTS') && e?.type === 'ObjectExpression') out.shape = shapeOf([e])
   }
@@ -264,7 +315,9 @@ function sinkFacts(project, entry, sink, value, vfile, stateKeys) {
     const t = eventSinkTypes(project, vfile, value)
     out.events = [...new Set([...(form.eventType ? [form.eventType] : []), ...t.types.map(x => x.type)])].sort()
   } else if (!NON_REPLY_SINKS.has(sink) && sink !== 'LOG') {
-    out.requests = requestsOf(project, vfile, value, sink)
+    const r = requestsOf(project, vfile, value, sink, form.fn ? { fn: form.fn, file: form.file } : null)
+    out.requests = r.requests
+    out.requestSigs = r.sigs
   }
   return out
 }
@@ -421,6 +474,7 @@ export function appDrivers(project) {
 
 export function behaviourFacts(project, graph) {
   const out = {}
+  project.reportLogic = (file, fn) => helperLogic(project, file, fn)
   project.components.forEach((c, i) => {
     const node = graph.components[i]
     const triggers = triggersOf(project, c)
