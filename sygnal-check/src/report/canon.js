@@ -9,6 +9,7 @@
  *     deps     the module-level functions / consts it uses (this file or imported, transitively,
  *              5 levels; of an object used only as `api.x`, each key used: 'api.x'): a change
  *              there is a change here even when `own` is equal
+ *              (a function's also has logic: logic.js helperLogic, when facts.js asked for it)
  *     opaque   names it uses that can't be followed (a relative import the checker can't load)
  *     touches  the globals it calls or uses that aren't plain computation ('localStorage.setItem')
  *     opts     strip: object literals whose `...<first param>` spread is dropped and keys sorted
@@ -17,6 +18,11 @@
  *              as written (conditions: stable when unrelated locals come and go); opts.args: the
  *              canonical text of each parameter's argument, so a condition in a helper hashes as
  *              it would written in its caller
+ *              opts.calls (the project): a call to a function of the app with a one-expression body is
+ *              written out with its arguments (`ticketUrl(id)` = its template); another is `name(args)`,
+ *              or `name#<hash of it and what it uses>(args)` with opts.hashCalls, so a change in it shows
+ *              opts.bound: { param name → text }, a helper's parameters as its call wrote them
+ *   A template literal inside another is one template (`${`/a/${x}`}/b` = `/a/${x}/b`).
  *   hash(text), textOf(file, node) (the source, whitespace collapsed)
  */
 import { createHash } from 'node:crypto'
@@ -75,9 +81,20 @@ function serNode(file, n, ctx) {
     case 'NumericLiteral': case 'BooleanLiteral': return String(n.value)
     case 'NullLiteral': return 'null'
     case 'RegExpLiteral': return `/${n.pattern}/${n.flags}`
-    case 'TemplateLiteral':
+    case 'TemplateLiteral': {
       if (!n.expressions.length) return JSON.stringify(n.quasis[0].value.cooked)
-      return '`' + n.quasis.map((q, i) => q.value.cooked + (n.expressions[i] ? '${' + s(n.expressions[i]) + '}' : '')).join('') + '`'
+      // a string or template in a template is spliced in: `${ticketUrl(id)}/close` written out = `/api/t/${id}/close`
+      const part = (e) => {
+        const x = s(e).replace(/^\((.*)\)$/s, (m, inner) => /^(`[^`]*`|"(?:[^"\\]|\\.)*")$/.test(inner) ? inner : m)
+        return /^`[^`]*`$/.test(x) ? x.slice(1, -1) : /^"(?:[^"\\]|\\.)*"$/.test(x) ? JSON.parse(x) : '${' + x + '}'
+      }
+      const out = n.quasis.map((q, i) => q.value.cooked + (n.expressions[i] ? part(n.expressions[i]) : '')).join('')
+      return out.includes('${') ? '`' + out + '`' : JSON.stringify(out)
+    }
+    case 'CallExpression': {
+      const x = ctx.calls ? inlineCall(file, n, ctx) : null
+      return x ?? generic(file, n, ctx)
+    }
     case 'MemberExpression': case 'OptionalMemberExpression':
       if (!n.computed && bare(n.object)?.type === 'Identifier') ctx.viaMember?.set(bare(n.object), n.property.name)
       return `${s(n.object)}${n.optional ? '?.' : '.'}${n.computed ? `[${s(n.property)}]` : n.property.name ?? s(n.property)}`
@@ -89,20 +106,58 @@ function serNode(file, n, ctx) {
     }
     case 'FunctionDeclaration': case 'FunctionExpression': case 'ArrowFunctionExpression': case 'ObjectMethod': case 'ClassMethod':
       return fnForm(file, n, ctx)
-    default: {
-      const parts = []
-      for (const k of Object.keys(n)) {
-        if (SKIP.has(k)) continue
-        const v = n[k]
-        if (v == null || v === false) continue
-        if (Array.isArray(v)) parts.push(`${k}=[${v.map(x => x && typeof x.type === 'string' ? s(x) : '_').join(',')}]`)
-        else if (typeof v.type === 'string') parts.push(`${k}=${s(v)}`)
-        else if (typeof v !== 'object') parts.push(`${k}=${v}`)
-        else if (n.type === 'TemplateElement') parts.push(v.cooked)
-      }
-      return `${n.type}(${parts.join(' ')})`
-    }
+    default: return generic(file, n, ctx)
   }
+}
+
+function generic(file, n, ctx) {
+  const s = (x) => ser(file, x, ctx)
+  const parts = []
+  for (const k of Object.keys(n)) {
+    if (SKIP.has(k)) continue
+    const v = n[k]
+    if (v == null || v === false) continue
+    if (Array.isArray(v)) parts.push(`${k}=[${v.map(x => x && typeof x.type === 'string' ? s(x) : '_').join(',')}]`)
+    else if (typeof v.type === 'string') parts.push(`${k}=${s(v)}`)
+    else if (typeof v !== 'object') parts.push(`${k}=${v}`)
+    else if (n.type === 'TemplateElement') parts.push(v.cooked)
+  }
+  return `${n.type}(${parts.join(' ')})`
+}
+
+/** The one expression a function returns, or null. */
+export function singleExpression(fn) {
+  const body = fn.body
+  if (body.type !== 'BlockStatement') return body
+  return body.body.length === 1 && body.body[0].type === 'ReturnStatement' && body.body[0].argument && !body.directives?.length ? body.body[0].argument : null
+}
+
+/** A call written out (opts.calls): null when it isn't a call of a function the checker can read. */
+function inlineCall(file, n, ctx) {
+  const callee = bare(n.callee)
+  if (callee?.type !== 'Identifier') return null
+  const b = findBinding(file, callee.name, callee)
+  if (!b || b.kind === 'param' || b.kind === 'pattern' || (b.kind === 'import' && !/^[./]/.test(b.source))) return null
+  const r = resolveExpr(ctx.calls, file, callee)
+  const fn = r?.node && isFunction(r.node) ? r.node : null
+  if (!fn || n.arguments.some(a => a.type === 'SpreadElement')) return null
+  const args = n.arguments.map(a => ser(file, a, ctx))
+  const body = singleExpression(fn)
+  if (body && (ctx.callDepth ?? 0) < 3 && !fn.async && !fn.generator && fn.params.every(p => p.type === 'Identifier')) {
+    return ser(r.file, body, newCtx(fn, { localNames: true, inline: true, args, calls: ctx.calls, hashCalls: ctx.hashCalls, callDepth: (ctx.callDepth ?? 0) + 1 }))
+  }
+  return `${callee.name}${ctx.hashCalls ? '#' + deepHash(ctx.calls, r.file, fn) : ''}(${args.join(',')})`
+}
+
+/** A hash of a function and everything it uses: changes when any of them does. */
+export function deepHash(project, file, fn) {
+  const memo = project.reportDeepHash ??= new WeakMap()
+  if (!memo.has(fn)) {
+    memo.set(fn, 'cycle')
+    const fp = fingerprint(project, file, fn)
+    memo.set(fn, hash(fp.own + Object.entries(fp.deps).map(([k, v]) => `${k}=${v.h}`).sort().join(',')))
+  }
+  return memo.get(fn)
 }
 
 function fnForm(file, n, ctx) {
@@ -125,6 +180,7 @@ function isFirstParam(file, e, ctx) {
 function ident(file, n, ctx) {
   const b = findBinding(file, n.name, n)
   if (!b) { ctx.globals?.add(n.name); return n.name }
+  if (ctx.bound && b.kind === 'param' && ctx.bound.has(n.name) && !(ctx.root && b.node === ctx.root)) return ctx.bound.get(n.name)
   if (ctx.root && b.node === ctx.root && b.kind === 'param') {
     const i = ctx.root.params.findIndex(p => (p.type === 'AssignmentPattern' ? p.left : p).type === 'Identifier' && (p.type === 'AssignmentPattern' ? p.left : p).name === n.name)
     if (i >= 0) return ctx.args?.[i] ?? `$${i}`
@@ -228,6 +284,8 @@ export function fingerprint(project, file, node, opts = {}) {
       }
       const c = newCtx(r.node)
       deps[name] = { file: project.relPath(r.file.path), h: hash(ser(r.file, r.node, c)) }
+      // what a function returns, case by case (logic.js, set by facts.js): compared when it changes
+      if (project.reportLogic && isFunction(r.node)) deps[name].logic = project.reportLogic(r.file, r.node)
       touchesOf(r.file, r.node, touches)
       if (depth < 5) follow(c, r.file, depth + 1)
     }

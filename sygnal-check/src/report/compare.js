@@ -9,7 +9,7 @@
  *   BehaviourReport {
  *     base, head, commit, summary: { added, removed, changed, attention, notes },
  *     attention: [{ severity: 'high' | 'medium' | 'low', kind, component, action?, sink?, text, at? }]
- *                side effects added to existing actions, removed guards and trigger filters, wider
+ *                side effects added to existing actions, removed or weakened guards and trigger filters, wider
  *                writes (the provisional decision in the research README): what to read first
  *     notes:     the same shape: everything else worth a line. A new action's side effects are in its table row
  *     components: [{ key, name, file, status: 'added' | 'removed' | 'changed', movedFrom?,
@@ -22,17 +22,30 @@
  *   ActionChange { name, change: 'added' | 'removed' | 'changed', trigger: TriggerChange | null,
  *     sinks: [SinkChange] }
  *   SinkChange { sink, change: 'added' | 'removed' | 'changed', reads, writes, removes, guards: { added,
- *     removed }, requests, events, touches, shape, logic: { kinds, notes, confidence } }
- * logic.kinds: 'helper', 'guard', 'branch', 'condition', 'writes', 'value', 'payload', 'other'.
+ *     removed, before, after, relation? }, requests: { added, removed, same: [{ from, to }] }, events,
+ *     touches, shape, logic: { kinds, notes, confidence, helpers, verdicts } }
+ * guards.relation (logic.js relate): the condition under which the sink does nothing, before and after,
+ *   compared case by case ('same' | 'narrower': stops in fewer cases | 'wider' | 'different'); absent
+ *   when it can't be (a switch, more than 12 atoms, no guard on one side). 'same': added / removed are empty.
+ *   A direction is reported only with relation.sameAtoms; otherwise the guards are paired by text as before.
+ * requests.same: a request that is spelled differently (built by a helper now) but whose method, address,
+ *   body, replies and other keys, written out, are equal.
+ * logic.kinds: 'helper', 'guard', 'branch', 'condition', 'writes', 'value', 'payload', 'moved', 'other'.
+ *   'moved': the code differs, but what it writes or sends compares equal, through helpers it now uses.
+ * logic.verdicts: [{ name, verdict: 'same' | 'differs' | 'not-compared', witness?, why?, base, head }] for
+ *   each changed helper the sink uses that exists before and after (base / head: its body's source).
  * logic.confidence 'low': the writes can't be listed, the code mutates locals, or uses state whole.
  */
-import { graphDiff } from '../graphView/diff.js'
+import { graphDiff, diagnosticKey } from '../graphView/diff.js'
 import { CLOCK_GLOBALS } from './canon.js'
+import { relate, sameValues, witnessText, or } from './logic.js'
 
 /** Sinks that stay inside the app: changing them isn't a new side effect. */
 const INTERNAL_SINKS = new Set(['STATE', 'EVENTS', 'PARENT', 'ELEMENT', 'DOM', 'CHILD', 'READY', 'LOG'])
 const SEVERITY = { high: 0, medium: 1, low: 2 }
-const ATTENTION_KINDS = new Set(['side-effect', 'guard-removed', 'trigger-filter-removed', 'writes-widened', 'removes'])
+const ATTENTION_KINDS = new Set(['side-effect', 'guard-removed', 'guard-weakened', 'trigger-filter-removed', 'writes-widened', 'removes'])
+/** Findings of effects outside a declared output: a new one is a new side effect (with its call site). */
+const EFFECT_CODES = /^SYG(265|266|511|512)\b/
 const uniq = (xs) => [...new Set(xs)].sort()
 const listDiff = (a = [], b = []) => { const A = new Set(a), B = new Set(b); return { added: uniq(b.filter(x => !A.has(x))), removed: uniq(a.filter(x => !B.has(x))) } }
 const some = (d) => !!d && (d.added.length > 0 || d.removed.length > 0)
@@ -60,23 +73,48 @@ function triggerDiff(a, b) {
   return { sources: b?.sources ?? [], before: a?.sources ?? [], ...{ added: sources.added, removed: sources.removed }, filters, rewired: some(sources), logic: fp.changed && !some(sources) && !some(filters), helpers: fp.helpers, files: fp.files }
 }
 
-function classify(a, b, fp, writes, external) {
+/** Each changed helper that exists before and after, compared case by case (logic.js). */
+function helperVerdicts(a, b, helpers) {
+  const out = []
+  for (const k of helpers) {
+    const x = a.fp.deps[k]?.logic, y = b.fp.deps[k]?.logic
+    if (!x || !y) continue
+    const v = sameValues(x, y)
+    const why = x.kind === 'unsupported' || y.kind === 'unsupported' ? (x.why || y.why) : !v ? 'more than 12 conditions' : null
+    out.push({ name: k, verdict: !v ? 'not-compared' : v.same ? 'same' : 'differs', ...(v?.witness ? { witness: v.witness } : {}), ...(why ? { why } : {}), base: x.text, head: y.text })
+  }
+  return out
+}
+
+const verdictText = (v) => v.verdict === 'same' ? 'rewritten, same logic' : v.verdict === 'differs' ? 'returns differ' : `not compared: ${v.why}`
+const sigs = (x) => (x.requestSigs || []).map(r => r.sig)
+
+function classify(a, b, fp, writes, external, guards) {
   const kinds = [], notes = []
   let dropped = null
   const guardH = (x) => x.guards.map(g => g.h)
+  const verdicts = helperVerdicts(a, b, fp.helpers)
+  const said = (h) => { const v = verdicts.find(x => x.name === h); return `\`${h}\`${v ? ` (${verdictText(v)})` : ''}` }
   if (!fp.own) {
     kinds.push('helper')
-    notes.push(`code is the same, but ${fp.helpers.map(h => `\`${h}\``).join(', ')} changed`)
+    notes.push(`code is the same, but ${fp.helpers.map(said).join(', ')} changed`)
   }
   {
-    if (some(listDiff(guardH(a), guardH(b)))) kinds.push('guard')
-    if (a.branches !== b.branches) { kinds.push('branch'); notes.push(`${b.branches > a.branches ? 'more' : 'fewer'} branches (${a.branches} → ${b.branches})`) }
+    if (guardChanged(guards, verdicts, fp.helpers)) kinds.push('guard')
+    // (branches and conditions inside a helper both versions call are the helper's: said once, with its
+    // verdict; those of a helper only one side has are compared, so logic moved into one isn't a change)
+    const both = new Set(Object.keys(a.fp.deps).filter(h => b.fp.deps[h]))
+    // (unchanged, or rewritten with the same logic: either way its branches are no change here)
+    const same = new Set([...[...both].filter(h => a.fp.deps[h].h === b.fp.deps[h].h), ...verdicts.filter(v => v.verdict === 'same').map(v => v.name)])
+    const branches = (x) => x.branches - [...both].reduce((n, h) => n + (x.callBranches?.[h] || 0) + (same.has(h) ? x.helperBranches?.[h] || 0 : 0), 0)
+    const inBoth = (list, h) => { const c = list.find(x => x.h === h); return both.has(c?.owner) && (c.via === 'call' || same.has(c.owner)) }
+    if (branches(a) !== branches(b)) { kinds.push('branch'); notes.push(`${branches(b) > branches(a) ? 'more' : 'fewer'} branches (${branches(a)} → ${branches(b)})`) }
     const guardTexts = [...a.guards, ...b.guards].map(g => g.text)
     const inGuard = (t) => guardTexts.some(g => g.includes(t))
     const d = listDiff(a.conds.map(c => c.h), b.conds.map(c => c.h))
     const text = (list, h) => list.find(c => c.h === h)?.text
-    const removed = d.removed.map(h => text(a.conds, h)).filter(t => !inGuard(t))
-    const added = d.added.map(h => text(b.conds, h)).filter(t => !inGuard(t))
+    const removed = d.removed.filter(h => !inBoth(a.conds, h)).map(h => text(a.conds, h)).filter(t => !inGuard(t))
+    const added = d.added.filter(h => !inBoth(b.conds, h)).map(h => text(b.conds, h)).filter(t => !inGuard(t))
     if (removed.length || added.length) {
       kinds.push('condition')
       if (removed.length && !added.length || b.branches < a.branches) dropped = removed
@@ -85,18 +123,85 @@ function classify(a, b, fp, writes, external) {
     }
     if (writes && some(writes)) kinds.push('writes')
     if (a.perKey && b.perKey) {
-      const keys = Object.keys(b.perKey).filter(k => k in a.perKey && a.perKey[k] !== b.perKey[k])
+      // (equal once the app's one-expression helpers are written out: the same value, spelled through a helper)
+      const keys = Object.keys(b.perKey).filter(k => k in a.perKey && a.perKey[k] !== b.perKey[k] && !(a.perKeyDeep?.[k] && a.perKeyDeep[k] === b.perKeyDeep?.[k]))
       if (keys.length) { kinds.push('value'); notes.push(`what it puts in ${keys.map(k => `\`${k}\``).join(', ')} differs${b.mutates || a.mutates ? ' (and it mutates locals, so other keys may too)' : ''}`) }
     }
-    if (!sameList(a.shape, b.shape) || some(listDiff(a.requests, b.requests)) || some(listDiff(a.events, b.events))) kinds.push('payload')
+    // (the sink's own code unchanged: a request that differs only once a changed helper is written out is
+    // that helper's change, said once)
+    const requestsDiffer = a.requestSigs && b.requestSigs && fp.own ? some(listDiff(sigs(a), sigs(b))) : some(listDiff(a.requests, b.requests))
+    if (!sameList(a.shape, b.shape) || requestsDiffer || some(listDiff(a.events, b.events))) {
+      kinds.push('payload')
+      if (requestsDiffer && !some(listDiff(a.requests, b.requests))) notes.push('the request reads the same but differs once its helpers are written out (address, body or another key)')
+    }
+    // the code differs, but what it sends or writes compares equal: rewritten through helpers
+    const fresh = fp.helpers.filter(h => !a.fp.deps[h])
+    const complete = (x) => x.requestSigs?.length > 0 && x.requestSigs.every(r => r.complete)
+    const sameRequests = external && complete(a) && complete(b) && !some(listDiff(sigs(a), sigs(b)))
+    if (kinds.length && sameRequests && fp.own) notes.push(`same request (written out)${fresh.length ? `, now built through ${fresh.map(h => `\`${h}\``).join(', ')}` : ''}`)
+    if (!kinds.length && fp.own) {
+      const helpersOk = fp.helpers.every(h => !a.fp.deps[h] || !b.fp.deps[h] || verdicts.find(v => v.name === h)?.verdict === 'same')
+      const sameWrites = !external && a.perKeyDeep && b.perKeyDeep && sameList(a.perKeyDeep, b.perKeyDeep) && !a.mutates && !b.mutates && !a.opaque && !b.opaque && !(writes && some(writes))
+      if (helpersOk && (sameRequests || sameWrites)) {
+        kinds.push('moved')
+        notes.push(`same ${sameRequests ? 'request (method, address, body and replies, written out)' : 'values written'}${fresh.length ? `, now built through ${fresh.map(h => `\`${h}\``).join(', ')}` : ''}`)
+      }
+    }
     // a driver sink is nothing but its request: when the code differs, the request does
     if (!kinds.length && external) { kinds.push('payload'); notes.push('the request differs: read its arguments') }
     if (!kinds.length) { kinds.push('other'); notes.push('no guard, branch, condition or written key differs: the computation changed, or the code was only rearranged') }
-    if (fp.own && fp.helpers.length) notes.push(`also changed: ${fp.helpers.map(h => `\`${h}\``).join(', ')}`)
+    if (guards.relation?.rel === 'same' && some(listDiff(guardH(a), guardH(b)))) notes.push('guard rewritten, same condition')
+    const others = fp.helpers.filter(h => !(kinds.includes('moved') || sameRequests) || a.fp.deps[h])
+    if (fp.own && others.length) notes.push(`also changed: ${others.map(said).join(', ')}`)
   }
   // (reads that can't be listed in full are marked on the reads; they don't make this classification less sure)
   const why = [(a.opaque || b.opaque) && 'unreadable-value', (a.mutates || b.mutates) && 'mutates', (a.fp.opaque.length > 0 || b.fp.opaque.length > 0) && 'opaque-import', writes?.unknown && 'writes-unknown'].filter(Boolean)
-  return { kinds, notes, confidence: why.length ? 'low' : 'high', why, stateWhole: !!(a.readsPartial || b.readsPartial), helpers: fp.helpers, ...(dropped?.length ? { dropped } : {}) }
+  return { kinds, notes, confidence: why.length ? 'low' : 'high', why, stateWhole: !!(a.readsPartial || b.readsPartial), helpers: fp.helpers, verdicts, ...(dropped?.length ? { dropped } : {}) }
+}
+
+/**
+ * Is the guard a change of this sink's own? Not when it compares the same, and not when it reads as before
+ * and only its atoms differ through a changed helper: that is the helper's change, said once for all the
+ * guards that call it (behaviourReport), or nowhere when the guard reaches it only through a local.
+ */
+function guardChanged(guards, verdicts, helpers) {
+  const r = guards.relation
+  if (!r) return guards.added.length > 0 || guards.removed.length > 0
+  if (r.rel === 'same') return false
+  if (r.sameAtoms || guards.added.length || guards.removed.length) return true
+  return !helpers.length
+}
+
+const calledHelpers = (guards, verdicts) => { const t = guards.after.join(' || '); return verdicts.filter(v => v.verdict !== 'same' && t.includes(`${v.name}(`)).map(v => v.name) }
+
+/** The guards before and after, and (logic.js) how the condition under which the sink does nothing changed. */
+function guardDiff(A, B) {
+  const g = listDiff(A.map(x => x.h), B.map(x => x.h))
+  const text = (list, h) => list.find(x => x.h === h)?.text
+  const out = { added: g.added.map(h => text(B, h)), removed: g.removed.map(h => text(A, h)), before: A.map(x => x.text), after: B.map(x => x.text) }
+  if (A.length && B.length && [...A, ...B].every(x => x.f)) {
+    const r = relate(or(...A.map(x => x.f)), or(...B.map(x => x.f)))
+    if (r) out.relation = r
+  }
+  if (out.relation?.rel === 'same') { out.added = []; out.removed = [] }
+  return out
+}
+
+/** Requests whose text differs but whose written-out keys are equal: { added, removed, same: [{ from, to }] }. */
+function requestDiff(a, b) {
+  const d = listDiff(a.requests, b.requests)
+  const same = []
+  const before = new Map((a.requestSigs || []).filter(x => x.complete).map(x => [x.sig, x.text]))
+  for (const t of [...d.added]) {
+    const s = (b.requestSigs || []).find(x => x.text === t && x.complete)
+    const was = s && before.get(s.sig)
+    if (was && d.removed.includes(was)) {
+      same.push({ from: was, to: t })
+      d.added = d.added.filter(x => x !== t)
+      d.removed = d.removed.filter(x => x !== was)
+    }
+  }
+  return { ...d, same }
 }
 
 function sinkDiff(sink, a, b, ga, gb) {
@@ -109,15 +214,13 @@ function sinkDiff(sink, a, b, ga, gb) {
   const fp = fpDiff(a.fp, b.fp)
   const gChanged = !sameList(w?.base && uniq(w.base), w?.head && uniq(w.head))
   if (!fp.changed && !gChanged) return null
-  const g = listDiff(a.guards.map(x => x.h), b.guards.map(x => x.h))
-  const text = (list, h) => list.find(x => x.h === h)?.text
+  const guards = guardDiff(a.guards, b.guards)
   return {
     sink, change: 'changed',
     reads: b.reads, readsDiff: listDiff(a.reads, b.reads), readsPartial: b.readsPartial, writes: w, removes: !!b.removes, removesBefore: !!a.removes,
-    guards: { added: g.added.map(h => text(b.guards, h)), removed: g.removed.map(h => text(a.guards, h)) },
-    requests: listDiff(a.requests, b.requests), events: listDiff(a.events, b.events), touches: listDiff(a.fp.touches, b.fp.touches),
+    guards, requests: requestDiff(a, b), events: listDiff(a.events, b.events), touches: listDiff(a.fp.touches, b.fp.touches),
     shape: sameList(a.shape, b.shape) ? null : { base: a.shape ?? null, head: b.shape ?? null },
-    logic: classify(a, b, fp, w, !INTERNAL_SINKS.has(sink)), files: fp.files,
+    logic: classify(a, b, fp, w, !INTERNAL_SINKS.has(sink), guards), files: fp.files,
   }
 }
 
@@ -284,12 +387,33 @@ function attentionFor(comp, ctx) {
         const t = s.touches?.added.filter(x => !CLOCK_GLOBALS.test(x)) || []
         if (t.length && a.change !== 'added') push('high', 'side-effect', `${label(a)}'s reducer touches ${t.map(k => `\`${k}\``).join(', ')}`, x)
       }
-      if (s.change === 'changed') {
+      const rel = s.change === 'changed' ? s.guards.relation : null
+      const directed = rel && rel.rel !== 'same' && rel.sameAtoms
+      // other atoms, the same text: the change is in a helper the guard calls (or, with no helper changed, in
+      // a local it reads), and which way it went isn't known. A helper reached only through a local is said
+      // once, as a changed helper
+      if (rel && rel.rel !== 'same' && !rel.sameAtoms && !s.guards.added.length && !s.guards.removed.length) {
+        const called = calledHelpers(s.guards, s.logic?.verdicts || [])
+        if (called.length) out.push({ severity: 'medium', kind: 'guard-through', component: comp.name, helpers: called, user: `${comp.name}.${a.name} ${s.sink}`, at })
+        else if (!s.logic?.helpers?.length) push('medium', 'guard-changed', `${label(a)} ${s.sink}: the guard reads \`${s.guards.after.join(' || ')}\` as before, but its condition changed: a value it reads is computed differently`, x)
+      }
+      if (directed) {
+        const was = s.guards.before.join(' || '), now = s.guards.after.join(' || ')
+        const changed = (s.logic?.verdicts || []).filter(v => v.verdict !== 'same').map(v => v.name)
+        const through = changed.length ? ` (through ${changed.map(h => `\`${h}\``).join(', ')})` : ''
+        const texts = was === now ? `it reads \`${now}\` as before${through}` : `it stopped when \`${was}\`, now when \`${now}\`${through}`
+        if (rel.rel === 'narrower') push('high', 'guard-weakened', `${label(a)} ${s.sink}: the guard no longer stops ${witnessText(rel.witness)}; ${texts}`, x)
+        else if (rel.rel === 'different') push('high', 'guard-weakened', `${label(a)} ${s.sink}: the guard no longer stops ${witnessText(rel.witness)}, and now stops ${witnessText(rel.other)}; ${texts}`, x)
+        else push('medium', 'guard-changed', `${label(a)} ${s.sink}: the guard now also stops ${witnessText(rel.witness)}; ${texts}`, x)
+      }
+      if (s.change === 'changed' && (!rel || (rel.rel !== 'same' && !rel.sameAtoms))) {
         const pairs = Math.min(s.guards.added.length, s.guards.removed.length)
         s.guards.removed.slice(0, pairs).forEach((t, i) => push('medium', 'guard-changed', `${label(a)} ${s.sink}: guard \`${t}\` became \`${s.guards.added[i]}\``, x))
         // (a guard may have moved into a helper that changed in the same edit: guards in helpers aren't read)
         const moved = s.logic?.helpers?.length ? ` (or moved into ${s.logic.helpers.map(h => `\`${h}\``).join(', ')})` : ''
         for (const t of s.guards.removed.slice(pairs)) push(moved ? 'medium' : 'high', 'guard-removed', `${label(a)} ${s.sink}: guard removed, it no longer stops when \`${t}\`${moved}`, x)
+      }
+      if (s.change === 'changed') {
         if (s.writes) {
           if (s.writes.added.length) push('medium', 'writes-widened', `${label(a)} now also writes ${s.writes.added.map(k => `\`${k}\``).join(', ')}`, x)
           if (s.writes.base && s.writes.head === null) push('medium', 'writes-opaque', `${label(a)}: which keys it writes can no longer be listed`, x)
@@ -304,6 +428,7 @@ function attentionFor(comp, ctx) {
   for (const p of ctx.persist) push('high', 'persist', p)
   for (const t of ctx.events) out.push({ component: comp.name, ...t })
   for (const d of ctx.diagnostics) push('medium', 'diagnostic', d)
+  for (const e of ctx.effects) push('high', 'side-effect', e.text, { at: e.at })
   for (const x of ctx.agent) push('high', 'agent', x)
   return out
 }
@@ -353,7 +478,8 @@ export function behaviourReport(base, head, meta = {}) {
   const fieldsOf = new Map(d.changed.map(c => [c.key, c.fields]))
   const G = graphIndex(head.graph, head.facts)
   const nodeB = new Map(baseGraph.components.map(c => [c.key, c])), nodeH = new Map(head.graph.components.map(c => [c.key, c]))
-  const components = [], attention = []
+  const components = []
+  let attention = []
   const explained = new Set()
 
   for (const key of uniq([...Object.keys(baseFacts), ...Object.keys(head.facts)])) {
@@ -382,7 +508,7 @@ export function behaviourReport(base, head, meta = {}) {
       const fields = fieldsOf.get(key) || {}
       if (v.changed || fields.stateReads || fields.children || fields.contextConsumes) comp.view = { changed: v.changed, own: v.own, helpers: v.helpers, reads: fields.stateReads ?? null, children: fields.children ?? null, context: fields.contextConsumes ?? null }
     }
-    const ctx = { persist: [], events: [], diagnostics: [], agent: [] }
+    const ctx = { persist: [], events: [], diagnostics: [], agent: [], effects: [] }
     const pb = b?.persist, ph = h?.persist
     if ((pb || ph) && pb?.text !== ph?.text) {
       const pd = listDiff(pb?.pick ?? [], ph?.pick ?? [])
@@ -407,7 +533,14 @@ export function behaviourReport(base, head, meta = {}) {
       const e = head.graph.events[t]
       if (e?.selectors.length && !e.emitters.length) ctx.events.push({ severity: 'medium', kind: 'event-orphan', text: `\`${comp.name}\` stopped emitting \`${t}\`, and nothing else does: ${e.selectors.join(', ')} still listen${e.selectors.length === 1 ? 's' : ''}` })
     }
-    for (const dx of fields.diagnostics?.added || []) if (!dx.startsWith('SYG5')) ctx.diagnostics.push(`\`${comp.name}\`: new finding: ${dx}`)
+    for (const dx of fields.diagnostics?.added || []) {
+      // an effect outside a declared output (a view, a helper it calls): the checker found the call site
+      if (EFFECT_CODES.test(dx)) {
+        const f = (gh?.diagnostics || []).find(x => diagnosticKey(x) === dx)
+        const message = f?.message ?? dx.replace(/^\S+ /, '')
+        ctx.effects.push({ text: `${message.includes(`'${comp.name}'`) ? '' : `\`${comp.name}\`: `}${message} (${dx.split(' ')[0]})`, at: f?.file ? `${f.file}:${f.line}` : comp.file })
+      } else if (!dx.startsWith('SYG5')) ctx.diagnostics.push(`\`${comp.name}\`: new finding: ${dx}`)
+    }
     if (gb || gh) ctx.agent.push(...agentDiff(gb, gh))
     // (actions, sinks, selectors and state keys are compared above, from the facts)
     const other = Object.keys(fields).filter(x => !['actions', 'sinks', 'selectors', 'stateKeys'].includes(x))
@@ -429,6 +562,18 @@ export function behaviourReport(base, head, meta = {}) {
   for (const name of drivers.removed) attention.push({ severity: 'medium', kind: 'driver', text: `The app no longer gives \`run()\` a driver \`${name}\`` })
   if (some(drivers)) for (const a of head.apps || []) explained.add(a.file)
 
+  // guards that read as before and call a helper that changed: one line per helper, naming the guards
+  const through = new Map()
+  for (const t of attention.filter(a => a.kind === 'guard-through')) {
+    const k = t.helpers.join(', ')
+    const e = through.get(k) || through.set(k, { helpers: t.helpers, users: [], at: t.at }).get(k)
+    e.users.push(t.user)
+  }
+  attention = attention.filter(a => a.kind !== 'guard-through')
+  for (const { helpers, users, at } of through.values()) {
+    const names = helpers.map(h => `\`${h}\``).join(', ')
+    attention.push({ severity: 'medium', kind: 'guard-changed', text: `${users.length > 1 ? 'Guards that read' : 'A guard that reads'} as before but ${users.length > 1 ? 'call' : 'calls'} ${names}, which changed: ${uniq(users).map(u => `\`${u}\``).join(', ')}. Which way they moved isn't worked out: the two versions of ${names} use different conditions`, ...(users.length === 1 ? { at } : {}) })
+  }
   const bySeverity = (x, y) => SEVERITY[x.severity] - SEVERITY[y.severity]
   const notes = attention.filter(a => !ATTENTION_KINDS.has(a.kind)).sort(bySeverity)
   const first = attention.filter(a => ATTENTION_KINDS.has(a.kind)).sort(bySeverity)
@@ -457,6 +602,19 @@ export function behaviourReport(base, head, meta = {}) {
     c.folded = c.status === 'changed' && !c.movedFrom && c.actions.every(a => a.folded) && (!c.view || (!c.view.own && covered(c.view.helpers) && !c.view.reads && !c.view.children && !c.view.context)) &&
       !c.state.length && !c.context.length && !c.calculated.length && !c.statics.length && !c.uses.length && !c.persist
   }
+  // a helper whose returns differ: once, with both versions and a case where they differ
+  const differs = new Map()
+  for (const c of components) for (const a of c.actions) for (const s of a.sinks) for (const v of s.logic?.verdicts || []) {
+    // (a condition: a case where it is true one way and false the other; another value's change is the row's)
+    if (v.verdict !== 'differs' || !v.witness?.env.length || ![v.witness.a, v.witness.b].some(x => x === 'true' || x === 'false')) continue
+    const e = differs.get(v.name) || differs.set(v.name, { v, users: [] }).get(v.name)
+    e.users.push(`${c.name}.${a.name} ${s.sink}`)
+  }
+  const body = (t) => t
+  for (const { v, users } of differs.values()) {
+    notes.push({ severity: 'medium', kind: 'helper-differs', text: `\`${v.name}\` (used by ${uniq(users).map(u => `\`${u}\``).join(', ')}) returns something else ${witnessText(v.witness)}: ${v.witness.a} before, ${v.witness.b} now. Before: \`${body(v.base)}\`. Now: \`${body(v.head)}\`` })
+  }
+  notes.sort(bySeverity)
   const count = (s) => components.filter(c => c.status === s).length
   const out = { base: meta.base ?? 'base', head: meta.head ?? 'working tree' }
   if (meta.commit) out.commit = meta.commit

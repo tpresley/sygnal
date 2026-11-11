@@ -227,18 +227,20 @@ It prints markdown for a pull request comment (`--json` prints the data, `--out`
 - **Actions:** what triggers each one (a click on `.add`, a key, an event from a child), and whether that was added, removed or rewired.
 - **State:** the keys each changed action reads and writes, before and after.
 - **Sinks:** new or removed sinks, the requests they send (`POST /api/save → ok SAVED`), the `EVENTS` they emit.
-- **Guards:** the conditions under which a sink does nothing (`ABORT`, or a reducer returning the state unchanged), including those in helpers it calls.
+- **Guards:** the conditions under which a sink does nothing (`ABORT`, or a reducer returning the state unchanged), including those in helpers it calls. Before and after are compared case by case, so the report can say that a guard now lets through a case it used to stop, and which case.
+- **Helpers:** a changed helper that is made of `if`, `return` and `const` is compared the same way. The report says it was rewritten with the same logic, or shows both versions and a case where they differ.
 - **Blast radius:** which other components read the affected state, through lenses, Collections, context and calculated fields, and which listen to the affected events.
 
-Formatting, comments, renamed parameters and locals, and equivalent forms (`{ ...state, a }` and `set({ a })`) don't count as changes.
+Formatting, comments, renamed parameters and locals, and equivalent forms (`{ ...state, a }` and `set({ a })`) don't count as changes. Neither does moving code into a helper when the result is the same. A guard that only gains parentheses, moves its `!`, or becomes an `if` / `return` chain is unchanged. A request built by a helper is compared with its method, address, body and replies written out, so the report says "same request" rather than "new request". A `map` moved into a helper is "same values written". Where the report can't establish that two versions are the same, it says what changed. It never calls them the same on a guess.
 
-The top of the report is a short list to read first: side effects added to existing actions, removed guards and trigger filters, and wider writes. Everything else worth a line is under "Also changed". Side effects of new actions are in their row of the table, since a new action is what the diff is about anyway.
+The top of the report is a short list to read first: side effects added to existing actions, removed or weakened guards and trigger filters, and wider writes. That includes a new side effect in a view or in a helper the view calls, which the checker reports as SYG265 or SYG266; the report names the call site. Everything else worth a line is under "Also changed". Side effects of new actions are in their row of the table, since a new action is what the diff is about anyway.
 
 ### What it can't tell you
 
 The report says what differs. It doesn't say whether the difference is right, and an empty list doesn't mean a change is safe:
 
-- A changed condition or value is reported as changed. It can't say whether a guard became stricter, or that `n + 1` and `1 + n` are the same.
+- A guard compared case by case treats each comparison as true or false on its own. When both versions use the same comparisons, the report says which way the guard moved. When they use different ones (`n > 3` became `n > 5`), it says only that the guard changed. `.length` is taken to be a whole number of 0 or more.
+- A helper with loops, assignments or `try`, and a condition with more than 12 parts, are reported as changed but not compared. Values aren't compared for meaning: `n + 1` and `1 + n` differ. An address built with `+` is compared as written.
 - What the view renders isn't classified (markup, text, styling, conditional rendering). The report only notes that the view's code changed and which state it reads.
 - Package and driver behaviour, and the data that arrives at run time, are outside it.
 - A wrong value in new code looks like any other new code.
@@ -247,7 +249,7 @@ The end of the report lists what it did not account for: changed files where no 
 
 ### In CI
 
-The report is informational: it exits 0. `--fail-on=high` makes it exit 1 when the list has a new side effect on an existing action or a removed guard. Most pull requests that add a request do so on purpose, so start without it.
+The report is informational: it exits 0. `--fail-on=high` makes it exit 1 when the list has a new side effect on an existing action or a removed or weakened guard. Most pull requests that add a request do so on purpose, so start without it.
 
 This workflow compares a pull request with its merge base and keeps one comment up to date, found by the marker on the report's first line. On a pull request from a fork the token can't comment, so only the job summary is written.
 

@@ -477,7 +477,8 @@ describe('--report: the markdown', () => {
 
       ### What this report did not look at
       - Changed files that aren't code: \`src/a.css\`
-      - Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.
+      - Not analysed at all: what the view renders (markup, text, styling), runtime data and timing. Effects in a view or a helper it calls are reported only as the checker finds them (SYG265, SYG266).
+      - Compared only as changed or not: a helper whose body has statements other than if, return and const, and a condition with more than 12 parts. Addresses built with \`+\` are compared as written, not resolved.
       "
     `)
   })
@@ -486,8 +487,8 @@ describe('--report: the markdown', () => {
 describe('--report: attention and notes', () => {
   it('attention: side effects on existing actions, removed guards, wider writes; the rest are notes', () => {
     const r = report(
-      app(`{ ADD: (s) => { if (s.x) return ABORT; return { ...s, n: 1 } }, SAVE: (s) => (s.a ? ABORT : s), Z: (s) => s }`, { head: ABORT }),
-      app(`{ ADD: (s) => ({ ...s, n: 1, draft: '' }), SAVE: { STATE: (s) => (s.b ? ABORT : s), HTTP: () => ({ url: '/x', ok: 'Z' }) }, Z: (s) => s, NEW: { HTTP: () => ({ url: '/n', ok: 'Z' }) } }`, { head: ABORT }),
+      app(`{ ADD: (s) => { if (s.x) return ABORT; return { ...s, n: 1 } }, SAVE: (s) => (s.a ? ABORT : { ...s, n: 2 }), Z: (s) => s }`, { head: ABORT }),
+      app(`{ ADD: (s) => ({ ...s, n: 1, draft: '' }), SAVE: { STATE: (s) => (s.b ? ABORT : { ...s, n: 2 }), HTTP: () => ({ url: '/x', ok: 'Z' }) }, Z: (s) => s, NEW: { HTTP: () => ({ url: '/n', ok: 'Z' }) } }`, { head: ABORT }),
     )
     expect(r.attention.map(a => a.kind).sort()).toEqual(['guard-removed', 'side-effect', 'writes-widened'])
     expect(r.notes.map(a => a.kind)).toContain('guard-changed')
@@ -575,6 +576,133 @@ describe('--report: the CLI on a git repository', () => {
 
 // What the analysis gets wrong, on purpose: each is written up in the research README. A change here
 // means a limit moved, for better or worse.
+// Minimal versions of three review-eval cases (test/fixtures/report-inbox/README.md): a refactor that
+// changes nothing, a slip inside a helper, an effect in the view; and the negative of each.
+const INBOX = path.join(path.dirname(new URL(import.meta.url).pathname), 'fixtures', 'report-inbox')
+function inbox(...layers) {
+  const out = {}
+  for (const l of layers) {
+    const dir = path.join(INBOX, l)
+    for (const f of fs.readdirSync(dir, { recursive: true })) if (/\.[jt]sx?$/.test(f)) out[f.split(path.sep).join('/')] = fs.readFileSync(path.join(dir, f), 'utf8')
+  }
+  return out
+}
+const comp = (r, name) => r.components.find(c => c.name === name)
+const inboxSink = (r, a, s) => comp(r, 'TicketDetail').actions.find(x => x.name === a).sinks.find(x => x.sink === s)
+
+describe('--report: refactors through helpers, and slips inside them', () => {
+  it('a request moved into a helper unchanged is the same request, not a new side effect', () => {
+    const r = report(inbox('base'), inbox('base', 'refactor'))
+    expect(r.attention).toEqual([])
+    const close = inboxSink(r, 'CLOSE', 'HTTP')
+    expect(close.logic.kinds).toEqual(['moved'])
+    expect(close.logic.notes[0]).toContain('same request')
+    expect(close.requests.same).toHaveLength(1)
+    expect(close.requests.added).toEqual([])
+    expect(inboxSink(r, 'SEND', 'HTTP').logic.kinds).toEqual(['moved'])
+  })
+
+  it('negative: a request through a helper with another address is still a new request', () => {
+    const r = report(inbox('base'), inbox('base', 'refactor', 'new-request'))
+    expect(r.attention).toMatchObject([{ severity: 'high', kind: 'side-effect', action: 'CLOSE' }])
+    expect(r.attention[0].text).toContain('/archive')
+    expect(inboxSink(r, 'SEND', 'HTTP').logic.kinds).toEqual(['moved'])
+  })
+
+  it('negative: a body built by a helper that changed is not the same request', () => {
+    const v = (x) => app(`{ ADD: (s) => s, SAVE: { HTTP: (s) => ({ url: '/save', method: 'POST', json: body(s), ok: 'ADD' }) } }`, { extra: `function body(s) { let o = { n: s.n }; o.x = ${x}; return o }` })
+    const r = report(v(1), v(2))
+    expect(sink(r, 'SAVE', 'HTTP').logic.kinds).toEqual(['helper'])
+    expect(sink(r, 'SAVE', 'HTTP').logic.verdicts).toMatchObject([{ name: 'body', verdict: 'not-compared' }])
+    expect(sink(r, 'SAVE', 'HTTP').logic.notes.join(' ')).not.toContain('same request')
+    // the sink's own code changed too: the request is compared, and differs
+    const w = (x, req) => app(`{ ADD: (s) => s, SAVE: { HTTP: (s) => (${req}) } }`, { extra: `function body(s) { let o = { n: s.n }; o.x = ${x}; return o }` })
+    const t = sink(report(w(1, `{ url: '/save', method: 'POST', json: body(s), ok: 'ADD' }`), w(2, `{ method: 'POST', url: '/save', ok: 'ADD', json: body(s) }`)), 'SAVE', 'HTTP')
+    expect(t.logic.kinds).toContain('payload')
+    expect(t.logic.kinds).not.toContain('moved')
+  })
+
+  it('a guard that only gained parentheses or moved its `!` is unchanged', () => {
+    const r = report(inbox('base'), inbox('base', 'refactor'))
+    const send = inboxSink(r, 'SEND', 'HTTP')
+    expect(send.guards.relation.rel).toBe('same')
+    expect(items(r).map(a => a.kind)).not.toContain('guard-changed')
+    expect(formatReport(r)).not.toContain('Guards (ABORT')
+  })
+
+  it('a `map` moved into a helper is the same values, not a branch removed', () => {
+    const r = report(inbox('base'), inbox('base', 'refactor'))
+    const closed = inboxSink(r, 'CLOSED', 'STATE')
+    expect(closed.logic.kinds).toEqual(['moved'])
+    expect(closed.logic.notes[0]).toContain('`replaceTicket`')
+    expect(items(r).map(a => a.kind)).not.toContain('branch-removed')
+  })
+
+  it('negative: a helper that computes something else is a changed value', () => {
+    const v = (cmp) => app(`{ ADD: (s, t) => ({ ...s, items: swap(s, t) }), SAVE: (s) => s }`, { extra: `const swap = (s, t) => s.items.map((x) => (x.id ${cmp} t.id ? t : x))` })
+    const r = report(app(`{ ADD: (s, t) => ({ ...s, items: s.items.map((x) => (x.id === t.id ? t : x)) }), SAVE: (s) => s }`), v('!=='))
+    expect(sink(r, 'ADD').logic.kinds).not.toContain('moved')
+    expect(sink(r, 'ADD').logic.kinds).toContain('value')
+  })
+
+  it('a helper rewritten with the same logic says so; with a slip, the guard is weaker and both versions are shown', () => {
+    const same = report(inbox('base'), inbox('base', 'refactor'))
+    expect(inboxSink(same, 'SEND', 'HTTP').logic.verdicts).toMatchObject([{ name: 'canSend', verdict: 'same' }])
+    const slip = report(inbox('base'), inbox('base', 'refactor', 'slip'))
+    const send = inboxSink(slip, 'SEND', 'HTTP')
+    expect(send.guards.relation).toMatchObject({ rel: 'narrower', sameAtoms: true })
+    expect(send.logic.verdicts).toMatchObject([{ name: 'canSend', verdict: 'differs' }])
+    const first = slip.attention.find(a => a.kind === 'guard-weakened')
+    expect(first).toMatchObject({ severity: 'high', action: 'SEND' })
+    expect(first.text).toContain("when `ticket.status === 'open'` is false and `draft.trim().length === 0` is false")
+    const note = slip.notes.find(a => a.kind === 'helper-differs')
+    expect(note.text).toContain("Before: `return ticket.status === 'open' && draft.trim().length > 0`")
+    expect(note.text).toContain('Now: `if (ticket.status !== "open" && draft.trim().length === 0) return false; return true`')
+    // the honest refactor and the slip no longer read alike
+    expect(formatReport(slip)).not.toEqual(formatReport(same))
+  })
+
+  it('negative: a helper condition on other atoms is a changed guard, without a direction', () => {
+    const r = report(inbox('base'), inbox('base', 'refactor', 'guard-helper'))
+    const g = r.notes.find(a => a.kind === 'guard-changed')
+    expect(g.text).toContain('A guard that reads as before but calls `canSend`, which changed: `TicketDetail.SEND HTTP`')
+    expect(g.text).toContain("Which way they moved isn't worked out")
+    expect(r.notes.map(a => a.kind)).toContain('helper-differs')
+    expect(r.attention.map(a => a.kind)).not.toContain('guard-weakened')
+  })
+
+  it('guards in several actions that call one changed helper are one line', () => {
+    const v = (x) => app(`{ ADD: (s) => (ok(s) ? { ...s, n: 1 } : ABORT), SAVE: (s) => (ok(s) ? { ...s, n: 2 } : ABORT) }`, { head: ABORT, extra: `function ok(s) { return s.n > ${x} }` })
+    const r = report(v(1), v(2))
+    const lines = r.notes.filter(a => a.kind === 'guard-changed')
+    expect(lines).toHaveLength(1)
+    expect(lines[0].text).toContain('Guards that read as before but call `ok`, which changed: `App.ADD STATE`, `App.SAVE STATE`')
+    expect(r.notes.map(a => a.kind)).not.toContain('unclear')
+  })
+
+  it('a helper that is more than if / return / const is said to be not compared, never the same', () => {
+    const v = (x) => app(`{ ADD: (s) => (ok(s) ? { ...s, n: 1 } : ABORT), SAVE: (s) => s }`, { head: ABORT, extra: `function ok(s) { let c = 0; for (const i of s.items) c += i; return c > ${x} }` })
+    const r = report(v(1), v(2))
+    expect(sink(r, 'ADD').logic.verdicts).toMatchObject([{ name: 'ok', verdict: 'not-compared' }])
+    expect(sink(r, 'ADD').logic.notes.join(' ')).toContain('not compared')
+    expect(sink(r, 'ADD').guards.relation?.rel).not.toBe('same')
+  })
+
+  it('an effect the view adds through a helper is a new side effect, with its call site', () => {
+    const r = report(inbox('base'), inbox('base', 'refactor', 'beacon'))
+    const e = r.attention.find(a => a.kind === 'side-effect')
+    expect(e.severity).toBe('high')
+    expect(e.text).toContain('navigator.sendBeacon')
+    expect(e.text).toContain('(SYG265)')
+    expect(e.at).toMatch(/^src\/TicketDetail\.jsx:9$/)
+    expect(r.notes.map(a => a.kind)).not.toContain('diagnostic')
+  })
+
+  it('negative: an effect that was already there is not new', () => {
+    expect(report(inbox('base', 'refactor', 'beacon'), inbox('base', 'refactor', 'beacon')).attention).toEqual([])
+  })
+})
+
 describe('--report: known limits (false alarms and false calm)', () => {
   it('fixed: a guard moved into a helper is the same guard, also with the parameters in another order', () => {
     const move = (extra, call) => report(
@@ -594,9 +722,12 @@ describe('--report: known limits (false alarms and false calm)', () => {
     expect(items(r)[0].text).toContain('or moved into `add`')
   })
 
-  it('false alarm: an equivalent condition is a changed guard', () => {
+  it('fixed: an equivalent condition (De Morgan, parentheses) is the same guard', () => {
     const v = (c) => app(`{ ADD: (s) => (${c} ? ABORT : { ...s, n: 1 }), SAVE: (s) => s }`, { head: ABORT })
-    expect(kinds(report(v('!(s.a && s.b)'), v('!s.a || !s.b')))).toContain('guard-changed')
+    const r = report(v('!(s.a && s.b)'), v('(!s.a || !s.b)'))
+    expect(kinds(r)).not.toContain('guard-changed')
+    expect(sink(r, 'ADD').guards).toMatchObject({ added: [], removed: [], relation: { rel: 'same' } })
+    expect(sink(r, 'ADD').logic.notes).toContain('guard rewritten, same condition')
   })
 
   it('false alarm: an equivalent value is a changed value', () => {

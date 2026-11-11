@@ -67,10 +67,12 @@ function facets(c, keyById) {
     eventsSelected: uniq(c.eventsSelected || []),
     children: uniq((c.children || []).map(ch => ((ch.id != null && keyById.get(ch.id)) || (ch.external ? `${ch.external}:${ch.name}` : ch.name)) + via(ch.via))),
     selectors: uniq((c.selectors || []).map(s => s.control ? `control ${s.control}` : String(s.selector))),
-    // (a message that names a line is the same finding when the code moves)
-    diagnostics: uniq((c.diagnostics || []).map(d => `${d.code} ${d.message.replace(/ ?\(line \d+\)/g, '').replace(/\bline \d+\b/g, 'line …')}`)),
+    diagnostics: uniq((c.diagnostics || []).map(diagnosticKey)),
   }
 }
+
+/** A finding as the diff compares it: a message that names a line is the same finding when the code moves. */
+export const diagnosticKey = (d) => `${d.code} ${d.message.replace(/ ?\(line \d+\)/g, '').replace(/\bline \d+\b/g, 'line …')}`
 
 const scalar = (c, f) => f === 'entry' ? (c.entry ?? false) : f === 'route' ? (c.route ?? null) : c[f] ?? null
 

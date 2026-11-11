@@ -98,7 +98,7 @@ export const TOOLS = [
   {
     name: 'report',
     title: 'What a code change does (experimental)',
-    description: "What a change does to the app, per component, worked out from the code of two git versions (static analysis): each changed action's triggers, the state keys it reads and writes, its sinks and requests, its guards (ABORT conditions), and which other components see the affected state or events. `attention` lists side effects added to existing actions, removed guards and wider writes; `notes` the rest; `coverage` what was not explained. Use it to check a change or a PR description against the code. It says what differs, not whether the difference is right, and an empty report doesn't mean the change is safe: view output, helper internals, data at run time and package behaviour aren't analysed.",
+    description: "What a change does to the app, per component, worked out from the code of two git versions (static analysis): each changed action's triggers, the state keys it reads and writes, its sinks and requests, its guards (ABORT conditions), and which other components see the affected state or events. `attention` lists side effects added to existing actions (also an effect a view newly runs), removed or weakened guards and wider writes; `notes` the rest; `coverage` what was not explained. Use it to check a change or a PR description against the code. It says what differs, not whether the difference is right, and an empty report doesn't mean the change is safe: view output, helpers with loops or assignments (reported as not compared), data at run time and package behaviour aren't analysed.",
     inputSchema: {
       type: 'object',
       properties: {

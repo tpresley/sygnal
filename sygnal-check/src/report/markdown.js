@@ -11,9 +11,9 @@ const KIND = {
   'side-effect': 'New side effect', 'side-effect-removed': 'Side effect removed', 'guard-removed': 'Guard removed', 'guard-changed': 'Guard changed',
   'trigger-filter-removed': 'Trigger filter removed', 'trigger-filter-changed': 'Trigger filter changed', 'writes-widened': 'Wider writes', 'writes-opaque': 'Writes unknown',
   clock: 'Clock in reducer', driver: 'Driver', removes: 'Can remove item', persist: 'Persistence', payload: 'Payload', agent: 'Agent surface', diagnostic: 'New finding',
-  'branch-removed': 'Branch removed', 'event-no-listener': 'Event without listener', 'event-new': 'New event', 'event-orphan': 'Listener left behind', unclear: 'Unclear',
+  'branch-removed': 'Branch removed', 'guard-weakened': 'Guard weakened', 'helper-differs': 'Helper differs', 'event-no-listener': 'Event without listener', 'event-new': 'New event', 'event-orphan': 'Listener left behind', unclear: 'Unclear',
 }
-const KINDS = { helper: 'helper changed', guard: 'guard', branch: 'branches', condition: 'conditions', writes: 'written keys', value: 'values', payload: 'payload', other: 'computation' }
+const KINDS = { helper: 'helper changed', guard: 'guard', branch: 'branches', condition: 'conditions', writes: 'written keys', value: 'values', payload: 'payload', moved: 'rewritten', other: 'computation' }
 
 const esc = (s) => String(s).replace(/\|/g, '\\|')
 
@@ -125,7 +125,7 @@ export function formatReport(r, { max = 6 } = {}) {
   if (r.attention.length) {
     out.push('', '### Look at these first')
     for (const a of r.attention) out.push(item(a))
-  } else if (r.components.length) out.push('', 'No side effect was added to an existing action, and no guard removed or write widened. That is all this line says: read the changes below.')
+  } else if (r.components.length) out.push('', 'No side effect was added to an existing action, and no guard removed or weakened, or write widened. That is all this line says: read the changes below.')
   if (r.notes.length) out.push('', '### Also changed', ...r.notes.map(item))
   if (!r.components.length) out.push('', 'No difference in component behaviour was found.')
   if (r.sharedHelpers.length) {
@@ -146,7 +146,8 @@ export function formatReport(r, { max = 6 } = {}) {
     if (cov.nonCode.length) out.push(`- Changed files that aren't code: ${codes(cov.nonCode)}`)
     if (cov.tests.length) out.push(`- Changed tests: ${n(cov.tests.length, cov.tests.length === 1 ? 'file' : 'files')}`)
     if (cov.partial.length) out.push(`- Components whose model or intent can't be listed whole: ${codes(cov.partial)}`)
-    out.push('- Not analysed at all: what the view renders (markup, text, styling), what happens inside helpers beyond whether they changed, runtime data and timing.')
+    out.push('- Not analysed at all: what the view renders (markup, text, styling), runtime data and timing. Effects in a view or a helper it calls are reported only as the checker finds them (SYG265, SYG266).')
+    out.push('- Compared only as changed or not: a helper whose body has statements other than if, return and const, and a condition with more than 12 parts. Addresses built with `+` are compared as written, not resolved.')
   }
   return out.join('\n') + '\n'
 }

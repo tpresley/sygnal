@@ -2,7 +2,7 @@
 # (GitHub only runs workflows at the repository root's .github/).
 # Posts `sygnal-check --report` on a pull request and updates its own comment on each push. The docs
 # have the short form (guide/app-graph). Add --fail-on=high to fail the check on a new side effect on
-# an existing action or a removed guard.
+# an existing action or a removed or weakened guard.
 # Assumes the app is the repository root and that sygnal-check is a devDependency. For this monorepo
 # see "What it would take for this repo" in the research README (a matrix over the changed examples).
 name: Behaviour report
