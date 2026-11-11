@@ -20,7 +20,11 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   --fix` writes the static for SYG643 / SYG609, and `--graph` lists a root's drivers and where each came from.
 - **`sygnal-check --report --base <ref>` (experimental).** What a change newly sends, writes and stops checking,
   computed from the two app graphs. It is an inventory for a reviewer, not a verdict: informational unless
-  `--fail-on=high` is given. Also an MCP tool, `report`.
+  `--fail-on=high` is given. Also an MCP tool, `report`. Guards and the app's `if` / `return` helpers are
+  compared case by case, so a guard weakened inside a helper is on the list to read first, with a case it
+  now lets through and both versions of the helper. A request or a value moved into a helper unchanged is
+  "same request" / "same values written", not a new side effect. A new SYG265 / SYG266 (an effect in a view
+  or a helper it calls) is a new side effect, with its call site.
 - **Side effects outside a declared output.** SYG265 (error): a network request in a view, reducer, intent or a
   helper they call. SYG266 (warning): other side effects there. Strict: SYG511 (a network call inside `EFFECT`)
   and SYG512 (a module-level variable written outside an output). The check follows the project's own helpers

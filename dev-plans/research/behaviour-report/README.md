@@ -171,12 +171,13 @@ What it cannot do, each pinned by a test in the "known limits" block:
 |---|---|---|
 | A sort comparator flipped, or any change of meaning in an expression | "value of `items` differs", no attention item | **False calm**: the order is reversed and nothing is flagged |
 | The data the reducer receives changes meaning (the intent's `.map`) | a trigger note on the action, no change on the reducer, no attention item | **False calm** |
-| A guard changed in a helper | a note, "guard changed" | Softer than a removed guard |
+| A guard changed in a helper | with the same comparisons: "guard weakened" (first list) or "now also stops", with a case; otherwise "guard changed" (section 10) | Direction only when it can be worked out |
 | A wrong literal in a request (`modal_vllm` for `modal_pool`) | "the request differs: read its arguments" in the table | **False calm**: section 9 |
 | Library, driver or package behaviour changes | nothing; a version bump in `package.json` is a non-code file | **False calm** |
 | View output | "view code changed" and the state reads. Conditional rendering, text, a11y are not classified | Out of scope, said in the report |
 | A guard moved where the walk doesn't reach (`const t = add(s); return t`) | "guard removed", medium, names the helper | False alarm (softened) |
-| An equivalent rewrite (`!(a && b)` → `!a \|\| !b`, `n + 1` → `1 + n`) | changed guard or value | False alarm |
+| An equivalent rewrite of a guard (`!(a && b)` → `!a \|\| !b`, parentheses, an if / return chain) | "guard rewritten, same condition" (section 10) | Fixed |
+| An equivalent rewrite of a value (`n + 1` → `1 + n`) | changed value | False alarm |
 | A reducer that mutates locals or dispatches through a table | low confidence, "read the diff" | Honest |
 
 The false-calm row is the one to be careful about. The classifier sees that an expression differs, and cannot say whether the difference matters. A guard with a changed condition can't be
@@ -275,7 +276,41 @@ What the trial changed, all fixed:
 
 Blame is rough here (comments and imports count as written lines), so read this as "no evidence it finds bugs", not a measured miss rate.
 
-## 10. What stands between this and a release
+## 10. Three fixes from the review eval (for 7.5)
+
+The read-side review eval (`dev-plans/research/read-side-eval`, the claims tier's closing statement, on another branch) found three defects in the report. It used tasks 80 (an honest refactor of an inbox app), 85 (a beacon sent from the view) and 86 (a De Morgan slip in `canSend`). Minimal versions of the three are this package's own fixtures (`sygnal-check/test/fixtures/report-inbox`), each with its negative.
+
+**1. A change inside a helper body was invisible.** Guards are now boolean formulas (`src/report/logic.js`): `&&`, `||`, `!`, `?:` and literals are structure, and everything else is an atom (a comparison, with `!==` as `===` negated and operands sorted). A call to one of the app's functions made of `if`, `return` and `const` is written out with its arguments. The condition under which a sink does nothing is compared before and after by truth table, up to 12 atoms. The report states a direction only when both versions use the same atoms: a truth table treats `n > 3` and `n > 5` as independent, so a case built from atoms only one side has may be impossible. "Same" needs no such care: two formulas that agree on every assignment agree on every possible one. Each changed helper that exists before and after is also compared case by case ("rewritten, same logic", "returns differ", or "not compared" with the reason). A helper whose returns differ as a condition gets one note with both versions and a case.
+
+**2. A pure refactor produced top-priority lines.** Each request now carries a signature: every key's value written out, with a helper's parameters as the call passed them, the app's one-expression functions inlined, nested templates spliced (`${ticketUrl(id)}/close` = `/api/tickets/${id}/close`), and any other helper named with a hash of it and what it uses. A request whose text differs and whose signature is equal is "same request", not a new side effect. Guards that differ only in parentheses or in where the `!` sits compare as the same formula. Conditions and branches inside a helper count with the helper. Those of a helper only one version has are compared, so a `map` moved into `replaceTicket` is "same values written". A helper both versions call is reported once, as that helper's change. The kind for "the code differs but what it sends or writes compares equal" is `moved`, shown as "rewritten". It needs every changed helper the sink uses to be new or to compare the same.
+
+**3. Effects outside an output barely registered.** A SYG265 / SYG266 (and strict SYG511 / SYG512) that the change introduces is a new side effect on the first list, with the call site the checker found. On the merged branch, SYG265 had reached the report only as an "Also changed: New finding" line. In the eval's generated report it wasn't there at all.
+
+The three cases, the first list and the changed rows, before → after (generated from the eval's trees with `generate.mjs`'s materialiser, outside the repo):
+
+| Task | Before | After |
+|---|---|---|
+| 80 honest | 2 × "New side effect: sends a new HTTP request" (CLOSE, SEND), "Branch removed: `t.id === ticket.id`", "Guard changed: `!canSend(…)` became `!(canSend(…))`" | none of those. Rows: CLOSE / SEND "rewritten: same request …, now built through `closeRequest` / `replyRequest`, `ticketUrl`"; CLOSED "rewritten: same values written, now built through `replaceTicket`"; SEND "also changed: `canSend` (rewritten, same logic)" |
+| 86 slip | byte-identical to 80's | "**Guard weakened**: `TicketDetail.SEND` HTTP: the guard no longer stops when `ticket.status === 'open'` is false and `draft.trim().length === 0` is false; it reads `!canSend(state.selected, draftOf(state))` as before (through `canSend`)", plus "Helper differs: `canSend` … false before, true now. Before: `return ticket.status === 'open' && draft.trim().length > 0`. Now: `if (ticket.status !== "open" && draft.trim().length === 0) return false; return true`" |
+| 85 beacon | 80's lines plus "Also changed: New finding: SYG265 …" | "**New side effect**: the view of 'TicketDetail' calls `markSeen(state.selectedId)`, which runs `navigator.sendBeacon`: a network request that no model entry declares (SYG265) (`src/TicketDetail.jsx:8`)", and otherwise 80's report |
+
+The one line all three keep on the first list, "Wider writes: `App.PICK_FOLDER` now also writes `query`", is a real change in the pull request.
+
+**History, old code against new on the same commits.**
+
+- Examples (103 commits): the first list is unchanged (8 items). Notes go from 103 to 105. Both new ones are real: a guard that now reads `previousState`, in the 7.0 migration, and branches in a new helper. 7 rows go from "the computation changed" to "rewritten". All 7 checked by hand: 6 are `return state` → `return ABORT`, the same no-op, and one is a move into a helper. Request signatures add "payload" to 7 LLM rows in the 7.0 migration, where the request now reads `previousState`: also real. Time per report: 264 → 268 ms.
+- Sift and Temper (the 47 commits of section 9): the first list goes from 25 to 26 items. The new one is a SYG266 storage write in a reducer (`rememberView` → `localStorage.setItem`), moved up from "New finding". Notes stay at 34, with 7 commits changed. One commit where a helper used by five guards changed (`redirectFor`) now has one line naming the five guards. A `branch-removed` for a deleted helper (`editorStamp` and its `creating` condition) is new and true. A `branch-removed` attributed to a helper both versions call (`resumeStep`) is gone; that commit now shows the real new condition (`to === 'publish' && !canPublish(state)`). Guard texts lose redundant parentheses (`!(account)` → `!account`). Time per report: 2.0 → 2.3 s, measured on a loaded machine (load average 14–27).
+
+What is still not precise:
+
+- Atoms are independent, so a direction ("weakened", "now also stops") is given only when both versions use the same atoms. A threshold change (`> 3` → `> 5`) is "guard changed" without a direction, as before.
+- `.length` is taken to be a whole number of 0 or more (`> 0` = `!== 0` = `>= 1`). An object whose `length` is negative or fractional would make that wrong.
+- A helper with loops, `let`, assignments or `try` is "not compared", never "same". So is a condition with more than 12 atoms.
+- Values aren't compared for meaning (`n + 1` vs `1 + n` still differ), and an address built with `+` is compared as written.
+- The displayed request text is still as written (`POST ${ticketUrl(id)}/close`). The signature behind "same request" is not shown.
+- A guard whose text is unchanged, and whose atoms changed through a helper it reaches only through a local (`const w = newWorld(…); if (w === state)`), isn't a guard change: the helper's change is reported once as a changed helper. That keeps the history quiet. It also means such a guard change is said only through the helper line.
+
+## 11. What stands between this and a release
 
 1. The maintainer's view on the provisional decisions, and on promoting "guard changed" (question 2).
 2. The report's JSON has no schema file and is unversioned. It needs one before anyone depends on it, as `inspect.schema.json` does for the graph.
