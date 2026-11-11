@@ -2,6 +2,54 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.5.0 — 2026-11-10
+
+With `sygnal-check` 0.17.0 (`--report`, SYG265 / SYG266 / SYG511 / SYG512, SYG646), `create-sygnal-app` 2.15.0
+(templates on `sygnal` ^7.5.0, `sygnal-check` ^0.17.0, drivers on `App.drivers`), the VS Code extension 0.14.0
+and the Claude Code plugin 0.2.6 (the compact skill).
+
+- **A third of the agent context.** `llms.txt` is now a 22 KB core (it was 66.5 KB): the mental model, the
+  anatomy, one canonical example per concept, and a table of which file in `llms/` to read before a feature.
+  The option lists, the full wiring rules and diagnostics, the testing reference and the long forms of the
+  examples moved verbatim to topic files (`llms/http.md`, `resources.md`, `sockets.md`, `router.md`,
+  `forms.md`, `behaviors.md`, `commands.md`, `widgets.md`, `testing.md`, `diagnostics.md`, `api-facts.md`,
+  `details.md`, `examples.md`); `llms-full.txt` still has all of it. The `sygnal-dev` skill's `SKILL.md` is
+  now generated from `llms.txt` (56 KB to 23 KB), with the topic files as its references. In the agent eval
+  the compact core cost 14% less on Sonnet and the generated skill 22% less than the old one, with no
+  pass-rate loss detected (`dev-plans/research/agent-docs`). The driver recipes use `App.drivers`.
+- **`App.drivers`: a feature's drivers on the root component.** `App.drivers = { HTTP: makeFetchDriver() }` in
+  the file that uses the driver, with `main.js` left as `run(App)`. This is now the canonical form; `run()`'s
+  second argument still works, overrides the static by name, and is for what differs per environment.
+  `renderComponent` ignores the static. `drivers` on a component that is not the root is SYG646. `sygnal-check
+  --fix` writes the static for SYG643 / SYG609, and `--graph` lists a root's drivers and where each came from.
+- **`sygnal-check --report --base <ref>` (experimental).** What a change newly sends, writes and stops checking,
+  computed from the two app graphs. It is an inventory for a reviewer, not a verdict: informational unless
+  `--fail-on=high` is given. Also an MCP tool, `report`. Guards and the app's `if` / `return` helpers are
+  compared case by case, so a guard weakened inside a helper is on the list to read first, with a case it
+  now lets through and both versions of the helper. A request or a value moved into a helper unchanged is
+  "same request" / "same values written", not a new side effect. A new SYG265 / SYG266 (an effect in a view
+  or a helper it calls) is a new side effect, with its call site.
+- **Side effects outside a declared output.** SYG265 (error): a network request in a view, reducer, intent or a
+  helper they call. SYG266 (warning): other side effects there. Strict: SYG511 (a network call inside `EFFECT`)
+  and SYG512 (a module-level variable written outside an output). The check follows the project's own helpers
+  through imports; calls into packages it does not know and functions that arrive as values are not covered.
+- **`dataset={{ … }}` on an element is `data={{ … }}`.** It was set as a DOM property, which the element's
+  getter-only `dataset` rejects, and `renderComponent`'s mock DOM printed `dataset="[object Object]"`, so
+  `.data('id')` read `undefined` with no diagnostic. A component's own `dataset` prop is unchanged.
+- **SYG222 no longer reports a `NaN` field** as changed in place when a reducer returns the state it got.
+- **App graph fixes (`sygnal-check --graph`).** `CHILD.select` of a function no view renders no longer crashes
+  the graph; a model entry written as `emit('T', fn)` is an EVENTS sink; and in a graph diff, a diagnostic
+  whose message names a line is not "changed" when code only moved.
+
+**Measured impact.** Size: the kanban gate is (a) 40,473 B with `nativeGlobalThis: false` (7.4.1: 40,457 B;
+budget 40,473 B: +16 B for the element `dataset` form, `App.drivers` and the effect checks) and
+(b) 35,687 B by default (7.4.1: 35,680 B). Agent eval on this release against the same tasks in React
+(Sonnet 5.5, 45 shared tasks, 2 trials each, `rc75-react-sonnet`): hidden tests passed in 98 of 98 Sygnal
+trials and 87 of 90 React trials; a Sygnal task took 1.75× the time and 2.35× the cost of the React one
+(1.49× and 2.26× when neither arm writes tests, `rc75-no-test-sonnet`), most of the extra cost being the
+context the agent loads. With `App.drivers` no trial edited the entry file, and a change touches 1.07× the
+source files of the React one (1.12× before).
+
 ## 7.4.1 — 2026-11-09
 
 `sygnal` only. `sygnal-check`, `create-sygnal-app` (its templates' `^7.4.0` range includes this release), the

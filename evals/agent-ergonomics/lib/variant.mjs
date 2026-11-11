@@ -27,7 +27,8 @@
 //       "taskDir": "<path>",                           // <path>/<NN-slug>/ (if present) is copied over that task's
 //                                                      // starter, after "dir" (per-task starter overlays, PLAN-4 1-E)
 //       "copy": { "AGENTS.md": "<path>" },             // written from a file (replace), after "files"
-//       "afterInstall": { "node_modules/sygnal/llms.txt": "<path>" }
+//       "afterInstall": { "node_modules/sygnal/llms.txt": "<path>" },
+//       "removeAfterInstall": ["node_modules/sygnal/dist/reference.md"]   // package files an arm must not have
 //                                                      // written from a file after `npm install` (e.g. a package's docs)
 //     }
 //   },
@@ -35,6 +36,7 @@
 //                                                      // Its kit overlay goes under the variant's own overlay.
 //                                                      // 1 = bare starters (all runs up to Phase 3)
 //   "prompt": { "prefix": "text", "suffix": "text", "arms": ["sygnal", "react"] },   // default arms: both
+//            "skillLine": false drops "Use the sygnal-dev skill." from a "skill": "none" variant's prompt
 //   "mcp": { "arms": ["sygnal"], "mcpServers": { "<name>": { "command": "...", "args": [...] } } }
 // }
 //
@@ -56,7 +58,7 @@ import { STARTERS, CURRENT_STARTER, parseStarter } from './starter.mjs'
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const TOP_KEYS = new Set(['description', 'model', 'effort', 'sygnal', 'skill', 'overlay', 'starter', 'prompt', 'mcp'])
-const OVERLAY_KEYS = new Set(['dir', 'files', 'append', 'packageJson', 'packs', 'taskDir', 'copy', 'afterInstall'])
+const OVERLAY_KEYS = new Set(['dir', 'files', 'append', 'packageJson', 'packs', 'taskDir', 'copy', 'afterInstall', 'removeAfterInstall'])
 const ARM_KEYS = ['all', 'sygnal', 'react']
 const ARMS = ['sygnal', 'react']
 export const ISOLATED_SETTING_SOURCES = 'project,local'
@@ -121,6 +123,10 @@ export function validateVariant(spec) {
           safeRel(rel, err)
         }
       }
+      if (ov.removeAfterInstall != null) {
+        if (!Array.isArray(ov.removeAfterInstall) || ov.removeAfterInstall.some((r) => typeof r !== 'string')) err(`overlay.${arm}.removeAfterInstall must be a list of paths`)
+        else for (const r of ov.removeAfterInstall) safeRel(r, err)
+      }
       if (ov.packageJson != null && !isObj(ov.packageJson)) err(`overlay.${arm}.packageJson must be an object`)
       if (ov.packs != null) {
         if (!isObj(ov.packs)) err(`overlay.${arm}.packs must be an object`)
@@ -140,7 +146,9 @@ export function validateVariant(spec) {
   }
   if (spec.prompt != null) {
     if (!isObj(spec.prompt)) err('"prompt" must be an object')
-    for (const k of Object.keys(spec.prompt)) if (!['prefix', 'suffix', 'arms'].includes(k)) err(`unknown prompt key "${k}"`)
+    for (const k of Object.keys(spec.prompt)) if (!['prefix', 'suffix', 'arms', 'skillLine'].includes(k)) err(`unknown prompt key "${k}"`)
+    if (spec.prompt.skillLine != null && spec.prompt.skillLine !== false) err('prompt.skillLine can only be false')
+    if (spec.prompt.skillLine === false && spec.skill !== 'none') err('prompt.skillLine: false is for a variant with "skill": "none"')
     for (const k of ['prefix', 'suffix']) if (spec.prompt[k] != null && typeof spec.prompt[k] !== 'string') err(`prompt.${k} must be text`)
     checkArms(spec.prompt.arms, 'prompt.arms', err)
   }
@@ -255,7 +263,7 @@ export function resolveVariant({ name, file, spec }, { repoRoot, model, effort }
       ;[starter.overlay[arm], paths.starter[arm]] = resolveOverlay(ov, SP)
     }
   }
-  const prompt = spec.prompt ? { prefix: spec.prompt.prefix ?? '', suffix: spec.prompt.suffix ?? '', arms: spec.prompt.arms ?? ARMS } : null
+  const prompt = spec.prompt ? { prefix: spec.prompt.prefix ?? '', suffix: spec.prompt.suffix ?? '', arms: spec.prompt.arms ?? ARMS, ...(spec.prompt.skillLine === false ? { skillLine: false } : {}) } : null
   const mcp = spec.mcp ? { arms: spec.mcp.arms ?? ['sygnal'], mcpServers: spec.mcp.mcpServers } : null
   // Starter 1 adds nothing to the hashed object, so a variant on it hashes as before starter versions existed.
   const resolved = { name, model: model ?? spec.model ?? null, effort: effort ?? spec.effort ?? null, sygnal, skill, overlay, ...(starter ? { starter } : {}), prompt, mcp }
@@ -285,6 +293,7 @@ function resolveOverlay(ov, P) {
       o[k][rel] = { source: src, sha256: sha(fs.readFileSync(po[k][rel])) }
     }
   }
+  if (ov.removeAfterInstall) o.removeAfterInstall = ov.removeAfterInstall
   if (ov.append) o.append = ov.append
   if (ov.packageJson) o.packageJson = ov.packageJson
   if (ov.packs) {
@@ -350,7 +359,7 @@ export function materializeVariant(v, outDir, { repoRoot, npmPack = defaultNpmPa
       ...['all', arm].filter((k) => v.starter?.overlay[k]).map((k) => [v.starter.overlay[k], v.paths.starter?.[k] ?? {}]),
       ...['all', arm].filter((k) => v.overlay[k]).map((k) => [v.overlay[k], v.paths.overlay[k] ?? {}]),
     ]
-    const ov = { dirs: [], taskDirs: [], files: {}, copy: {}, append: {}, afterInstall: {}, packageJson: null, vendor: [] }
+    const ov = { dirs: [], taskDirs: [], files: {}, copy: {}, append: {}, afterInstall: {}, removeAfterInstall: [], packageJson: null, vendor: [] }
     for (const [o, po] of layers) {
       if (po.dir) ov.dirs.push(po.dir)
       if (po.taskDir) ov.taskDirs.push(po.taskDir)
@@ -362,6 +371,7 @@ export function materializeVariant(v, outDir, { repoRoot, npmPack = defaultNpmPa
         ov.copy[rel] = src
       }
       Object.assign(ov.afterInstall, po.afterInstall ?? {})
+      ov.removeAfterInstall.push(...(o.removeAfterInstall ?? []))
       for (const [rel, text] of Object.entries(o.append ?? {})) ov.append[rel] = (ov.append[rel] ?? '') + text
       if (o.packageJson) ov.packageJson = deepMerge(ov.packageJson ?? {}, o.packageJson)
       for (const [n, p] of Object.entries(o.packs ?? {})) {
@@ -372,7 +382,7 @@ export function materializeVariant(v, outDir, { repoRoot, npmPack = defaultNpmPa
         ov.vendor.push({ name: n, tarball: tgz, dependency: p.dependency })
       }
     }
-    const prompt = v.prompt && v.prompt.arms.includes(arm) ? { prefix: v.prompt.prefix, suffix: v.prompt.suffix } : null
+    const prompt = v.prompt && v.prompt.arms.includes(arm) ? { prefix: v.prompt.prefix, suffix: v.prompt.suffix, ...(v.prompt.skillLine === false ? { skillLine: false } : {}) } : null
     prepare.arms[arm] = { overlay: layers.length ? ov : null, prompt }
   }
   fs.writeFileSync(out.prepareSpec, JSON.stringify(prepare, null, 2) + '\n')
@@ -494,6 +504,10 @@ export function applyAfterInstall(dest, ov) {
     fs.mkdirSync(path.dirname(p), { recursive: true })
     fs.copyFileSync(src, p)
     touched.push(rel)
+  }
+  for (const rel of ov?.removeAfterInstall ?? []) {
+    fs.rmSync(path.join(dest, rel), { force: true })
+    touched.push(`-${rel}`)
   }
   return touched
 }

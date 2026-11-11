@@ -15,13 +15,13 @@ Decision models in this shape:
 | Vercel AI Gateway | the gateway's decisions endpoint (through your server) | the model's gateway id |
 | OpenAI Decisions | `POST /v1/decisions` (through your server), with [`decide.openai()`](#openai-decisions) | e.g. `'gpt-6-luna'` |
 
-A decision is an ordinary HTTP request, so there is no new driver: `decide()` from `sygnal/ai` builds a request for the [fetch driver](/guide/http/). Register it in `main.js` as usual:
+A decision is an ordinary HTTP request, so there is no new driver: `decide()` from `sygnal/ai` builds a request for the [fetch driver](/guide/http/). Register it on the root component as usual:
 
 ```js
-import { run, makeFetchDriver } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeFetchDriver } from 'sygnal'
 
-run(App, { HTTP: makeFetchDriver() })
+App.drivers = { HTTP: makeFetchDriver() }
 ```
 
 To try it with no key, pull a decision model into Ollama (`ollama pull nimble`) and point `decide()` at it: `decide({ url: 'http://localhost:11434/v1/systemone', model: 'nimble', ... })`.

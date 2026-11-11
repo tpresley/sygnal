@@ -179,8 +179,7 @@ describe('PLAN-4.6 R2 review fixes (next core)', () => {
     expect(starts).toBe(1)
     expect(stops).toBe(0)
     m.rt.setState('root', { show: false, v: 1 })
-    await sleep(5)
-    expect(stops).toBe(1)
+    await vi.waitFor(() => expect(stops).toBe(1))
   })
 
   it('G-303: a driver that throws on a sink value reaches the app hooks onError too', async () => {

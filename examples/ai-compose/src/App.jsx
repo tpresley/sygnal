@@ -1,9 +1,10 @@
 // The app: the models on offer, and the workspace for the picked one's kind.
-import { ABORT, Switchable } from 'sygnal'
+import { ABORT, Switchable, makeFetchDriver } from 'sygnal'
 import { catalog } from './catalog.js'
 import { OLLAMA, backendChoices } from './backends.js'
 import { DecisionsWorkspace, LlmWorkspace } from './Workspace.jsx'
 import { TASKS } from './data.js'
+import { makeChatDriver, chatCompletions } from 'sygnal/ai'
 
 function App({ state }) {
   return (
@@ -15,6 +16,16 @@ function App({ state }) {
       <Switchable of={{ decisions: DecisionsWorkspace, llm: LlmWorkspace }} current={state.backend?.kind ?? 'decisions'} />
     </div>
   )
+}
+
+App.drivers = {
+  // the model list, Jev's availability, and compose.decisions()' decide() requests
+  HTTP: makeFetchDriver(),
+  // compose.llm()'s structured-output requests: Ollama's OpenAI-compatible endpoint, thinking off
+  // (reasoning_effort 'none': 5–15x faster for qwen3, no better layouts), deterministic
+  LLM: makeChatDriver({
+    transport: chatCompletions({ baseURL: `${OLLAMA}/v1`, body: { temperature: 0, reasoning_effort: 'none' } }),
+  }),
 }
 
 App.initialState = {

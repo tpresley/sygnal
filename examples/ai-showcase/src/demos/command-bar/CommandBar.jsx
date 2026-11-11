@@ -2,6 +2,7 @@
 // app holds the cards and the decision log; each Board shares them (Board.jsx).
 import { providersResource, pickerState, pickerIntent, pickerModel, choicesOf, pickedModel, modelPicker } from '../../shared/picker.jsx'
 import { boardFor } from './Board.jsx'
+import { makeFetchDriver } from 'sygnal'
 
 const PICK = { need: 'decision' }
 
@@ -21,6 +22,10 @@ export default function CommandBar({ state }) {
     </div>
   )
 }
+
+// The command bar's decisions are HTTP requests (decide()), on the same fetch driver as the
+// model list. No LLM driver: nothing here writes text.
+CommandBar.drivers = { HTTP: makeFetchDriver() }
 
 CommandBar.initialState = {
   ...pickerState,

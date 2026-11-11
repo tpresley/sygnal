@@ -71,14 +71,14 @@ Writes stay [reply actions](/guide/http/): `{ url, method: 'PUT', json, ok: 'SAV
 The cache is off by default, and it is a separate export, so an app that only sends requests doesn't ship it. Give the driver one:
 
 ```javascript
-import { run, makeFetchDriver, queryCache } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeFetchDriver, queryCache } from 'sygnal'
 
-run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })
+App.drivers = { HTTP: makeFetchDriver({ cache: queryCache() }) }
 // or: queryCache({ staleTime: 30000, gcTime: 300000, refetchOnFocus: true, refetchOnReconnect: true })
 ```
 
-**The cache goes in `main.js` and in each test**: `renderComponent(App, { http: { cache: queryCache() } })` ([Testing](#testing)). A component rendered without one gets no caching. Put `staleTime` on the resource's request (`{ url: '/api/items', staleTime: 2000 }`) rather than on the cache, so the app and its tests use the same freshness; a `staleTime` sent to a driver without a `queryCache()` is reported as [SYG635](/reference/errors/#syg635).
+**The cache goes on the driver and in each test**: `renderComponent(App, { http: { cache: queryCache() } })` ([Testing](#testing)). A component rendered without one gets no caching. Put `staleTime` on the resource's request (`{ url: '/api/items', staleTime: 2000 }`) rather than on the cache, so the app and its tests use the same freshness; a `staleTime` sent to a driver without a `queryCache()` is reported as [SYG635](/reference/errors/#syg635).
 
 With the cache on:
 
@@ -141,7 +141,7 @@ App.model = {
 }
 ```
 
-Register the driver with the same cache: `run(App, { ROUTER: router.driver, HTTP: makeFetchDriver({ cache }) })`. Navigating to the task then renders it at once, with no request while the entry is fresh.
+Register the driver with the same cache: `App.drivers = { ROUTER: router.driver, HTTP: makeFetchDriver({ cache }) }`. Navigating to the task then renders it at once, with no request while the entry is fresh.
 
 ## Server rendering
 
@@ -483,9 +483,9 @@ App.model = {
 ```
 
 ```javascript
-// main.js
+// App.jsx
 // the tests use renderComponent(App, { http: { cache: queryCache() } })
-run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })
+App.drivers = { HTTP: makeFetchDriver({ cache: queryCache() }) }
 ```
 
 - `state.items` and `state.item` are undefined until their first write, hence the `?.`.
@@ -548,7 +548,7 @@ When logout replaces the whole app with a sign-in page, the user-data components
 
 ```jsx title="SignOut.jsx"
 import { event } from 'sygnal'
-import { cache } from './cache.js'   // export const cache = queryCache(), given to makeFetchDriver in main.js
+import { cache } from './cache.js'   // export const cache = queryCache(), given to makeFetchDriver in App.drivers
 
 function SignOut() {
   return <button className="sign-out">Sign out</button>
@@ -592,7 +592,7 @@ it('refreshes in place, and shows the cached quote when coming back', async () =
 ```
 
 - A resource's request is sent after the state changes, not during the event that caused it. `t.respond` / `t.fail` by resource name right after a `simulateEvent` / `simulateAction` that hasn't produced its state yet waits (up to 1 s) for that fetch; otherwise, as for any request, they throw at the call when nothing matches.
-- `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake: give it the same `queryCache()` as `main.js`, or the test runs without a cache. A seeded cache: `queryCache({ initial: snapshot })`.
+- `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake: give it the same `queryCache()` as the real driver, or the test runs without a cache. A seeded cache: `queryCache({ initial: snapshot })`.
 - `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags, headers }` (`headers` with `keepHeaders`).
 - A `{ prefetch }` fetch is listed in `t.requests('HTTP')` as `{ url, ...request, prefetch: true }`; answer it like any other, e.g. `t.respond('HTTP', data, '/api/quotes/2')`.
 - `t.focus()` and `t.online()` simulate the browser events; the test's own window events never trigger refetches.

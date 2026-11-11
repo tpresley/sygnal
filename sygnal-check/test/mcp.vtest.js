@@ -61,7 +61,7 @@ describe('sygnal-check mcp (stdio)', () => {
     expect((await s.request('ping')).result).toEqual({})
 
     const list = await s.request('tools/list', {})
-    expect(list.result.tools.map(t => t.name)).toEqual(['check', 'graph', 'explain'])
+    expect(list.result.tools.map(t => t.name)).toEqual(['check', 'graph', 'explain', 'report'])
     for (const t of list.result.tools) {
       expect(t.inputSchema.type).toBe('object')
       expect(typeof t.description).toBe('string')
@@ -140,7 +140,7 @@ describe('createMcpServer().handle never throws (R2)', () => {
       expect(init.result.protocolVersion).toBe('2025-11-25')
       const call = handle({ jsonrpc: '2.0', id: 2, method: 'tools/call', params })
       expect(call.error).toEqual({ code: -32602, message: 'Unknown tool: undefined' })
-      expect(handle({ jsonrpc: '2.0', id: 3, method: 'tools/list', params }).result.tools.length).toBe(3)
+      expect(handle({ jsonrpc: '2.0', id: 3, method: 'tools/list', params }).result.tools.length).toBe(4)
     }
   })
   it('turns a throwing handler into a -32603 Internal error', () => {

@@ -1,0 +1,5 @@
+{
+  "description": "agent-docs spike, control without a skill: the package as shipped (llms.txt 66.5 KB + topic files) and the current starter's AGENTS.md. Same content as llms-ctx-new-noskill, under its own name and hash (dev-plans/research/agent-docs)",
+  "sygnal": "branch",
+  "skill": "none"
+}

@@ -53,6 +53,7 @@
  * | SYG238 | a root with a model but no initialState: renders nothing | state.ts       |
  * | SYG223 | persist pick/omit key not in initialState              | persist.ts     |
  * | SYG224 | persist on a component that isn't the root             | persist.ts     |
+ * | SYG646 | drivers on a component that isn't the root             | timers.ts      |
  * | SYG645 | viewTransitions without makeViewTransitionDOMDriver(), or not an array | viewTransitions.ts |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |
@@ -109,6 +110,7 @@ import {staticsCheck} from './statics'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 import {nextHooks} from './next'
+import {installEffectHooks} from './effects'
 
 export {checkEventBus} from './events'
 export {configureStrict, isStrictEnabled} from './strict'
@@ -170,11 +172,13 @@ export function installChecks(): () => void {
   const uninstallForms = installFormHooks()
   const uninstallBag = installBagHooks()
   const uninstallSortable = installSortableHooks()
+  const uninstallEffects = installEffectHooks()
   // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
   const uninstall = () => {
     core.layers?.delete(nextHooks)
     unregister.forEach(fn => fn())
+    uninstallEffects()
     uninstallHints()
     uninstallInspect()
     uninstallRouter()

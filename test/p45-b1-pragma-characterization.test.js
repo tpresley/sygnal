@@ -20,6 +20,9 @@
 //
 // PLAN-5 3-M (G-485): regenerated; the only change is `u: 1` on the chained hook of the two cases
 // whose own hook has an insert and no postpatch (hydration makes that element again).
+//
+// 7.4.2: regenerated; the only change is an element's `dataset: {…}`, now the data module's
+// bucket (it was a prop, which the DOM's getter-only `dataset` rejects); the case is renamed.
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createElement as h, createElementWithModules } from '../src/pragma/index.js'
@@ -139,7 +142,7 @@ const corpus = {
   'data object': () => h('div', { data: { id: '1', fooBar: 'x' } }),
   'data-* keys': () => h('div', { 'data-id': '7', 'data-task-id': 't', 'data-a-b-c': 1, 'data-x': undefined }),
   'data object + data-*': () => h('div', { data: { a: '1' }, 'data-b': '2' }),
-  'dataset key (not a module)': () => h('div', { dataset: { a: 1 } }),
+  'dataset key (an element: the data module)': () => h('div', { dataset: { a: 1 } }),
   'hyphenated non-module keys': () => h('div', { 'x-foo': 1, 'aria-x-y': 2, '-lead': 3 }),
   'ref function': () => h('div', { ref: refFn }),
   'ref object': () => h('div', { ref: { current: null } }),

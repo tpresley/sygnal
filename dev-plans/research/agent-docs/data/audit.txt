@@ -1,0 +1,26 @@
+
+llms.txt: 66548 B ≈ 18486 tok
+kind | by paragraph | sentence-refined | %
+a mental model, canonical forms | 16334 | 14105 | 21%
+b option / API reference | 33928 | 28845 | 43%
+c trap warnings | 1970 | 7435 | 11%
+d migration / version | 0 | 1731 | 3%
+e non-core subpaths | 4131 | 4339 | 7%
+f testing | 9801 | 9709 | 15%
+n navigation | 375 | 375 | 1%
+sum refined 66539 (the rest is blank lines)
+
+skills/sygnal-dev/SKILL.md: 56221 B ≈ 15617 tok
+kind | by paragraph | sentence-refined | %
+a mental model, canonical forms | 17721 | 16227 | 29%
+b option / API reference | 21123 | 19035 | 34%
+c trap warnings | 3523 | 6031 | 11%
+d migration / version | 439 | 1513 | 3%
+e non-core subpaths | 5355 | 5355 | 10%
+f testing | 6791 | 6791 | 12%
+n navigation | 1248 | 1248 | 2%
+sum refined 56200 (the rest is blank lines)
+
+duplication (8-word shingles)
+llms.txt found in SKILL: 18932 28% of 66539 code: 8442 / 10946
+SKILL found in llms.txt: 19170 34% of 56200 code: 8393 / 12638

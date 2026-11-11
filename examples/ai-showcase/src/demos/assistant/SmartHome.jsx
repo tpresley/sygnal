@@ -6,12 +6,13 @@
 // The right-hand panel is what the model gets: the tool list and the app state come from
 // `agentTools(app)` (the AGENT source, wired in index.js), not from a copy of the declaration.
 import { z } from 'zod'
-import { xs, Collection, classes } from 'sygnal'
+import { xs, Collection, classes, makeFetchDriver } from 'sygnal'
 import { chat, messageText } from 'sygnal/ai'
 import { pickerState, providersResource, pickerIntent, pickerModel, pickedModel, modelPicker } from '../../shared/picker.jsx'
 import Room from './Room.jsx'
 import { ROOMS, SCENES, MODES, TEMP, applyScene, energy } from './home.js'
 import { modelSees } from './modelSees.jsx'
+import { makeLLM } from '../../shared/providers.js'
 
 const PICK = { need: 'tools' }
 
@@ -147,6 +148,11 @@ function assistantPanel(a, { busy, model }) {
       </form>
     </section>
   )
+}
+
+SmartHome.drivers = {
+  LLM: makeLLM(),             // the chat driver; the routed transport picks the provider per request
+  HTTP: makeFetchDriver(),    // the model list (GET /api/providers)
 }
 
 SmartHome.initialState = {

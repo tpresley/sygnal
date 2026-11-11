@@ -9,17 +9,11 @@ For HTTP use [`makeFetchDriver()`](/guide/http/), and for WebSocket and SSE [`ma
 
 `driverFromAsync(fn)` turns a promise-returning function into a driver. A request names the reply actions with `ok` and `error`, like an HTTP request:
 
-```javascript
-// main.js
-import { run, driverFromAsync } from 'sygnal'
-import { geocode } from './geo.js'   // async (address) => ({ lat, lng })
-import Place from './Place.jsx'
-
-run(Place, { GEO: driverFromAsync(geocode) })
-```
-
 ```jsx
 // Place.jsx
+import { driverFromAsync } from 'sygnal'
+import { geocode } from './geo.js'   // async (address) => ({ lat, lng })
+
 export default function Place({ state }) {
   return (
     <div>
@@ -29,6 +23,7 @@ export default function Place({ state }) {
     </div>
   )
 }
+Place.drivers = { GEO: driverFromAsync(geocode) }
 Place.initialState = { address: '', status: '', coords: null }
 Place.intent = ({ DOM }) => ({
   ADDRESS: DOM.input('.address').value(),
@@ -90,7 +85,7 @@ Search.model = {
   RESULTS: (state, { id, results }) => (id !== state.reqId ? ABORT : { ...state, loading: false, results }),
   FAILED:  (state, { request }) => (request.value.id !== state.reqId ? ABORT : { ...state, loading: false, error: 'Search failed.' }),
 }
-// main.js: run(Search, { API: driverFromAsync(async ({ id, q }) => ({ id, results: await searchApi(q) })) })
+Search.drivers = { API: driverFromAsync(async ({ id, q }) => ({ id, results: await searchApi(q) })) }
 ```
 
 - STATE runs first, so the `API` sink reads the incremented `state.reqId` ([Model](/guide/model/#what-state-each-sink-sees)).
@@ -124,7 +119,7 @@ function makeClockDriver() {
   }
 }
 
-// main.js: run(App, { CLOCK: makeClockDriver() })
+// root:    App.drivers = { CLOCK: makeClockDriver() }
 // intent:  TICK: CLOCK.select()
 // model:   START: { CLOCK: () => ({ start: true, ms: 1000 }) }
 ```
@@ -166,7 +161,7 @@ export function makeUploadDriver(send) {
   }
 }
 
-// main.js: run(App, { UPLOAD: makeUploadDriver(sendToS3) })
+// root: App.drivers = { UPLOAD: makeUploadDriver(sendToS3) }
 ```
 
 ```jsx

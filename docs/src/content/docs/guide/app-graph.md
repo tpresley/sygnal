@@ -139,7 +139,8 @@ Select a card (click it, or press Enter on it) to see:
 - context it provides and reads, and where each field comes from;
 - the EVENTS it emits and selects;
 - its DOM inputs, each marked ✓ (the view renders it), ✗ (it doesn't, or the element is inside a child component) or ? (not known statically);
-- controls, `ELEMENT` commands, timers, `uses` and agent tools.
+- controls, `ELEMENT` commands, timers, `uses` and agent tools;
+- a root's drivers, and whether each comes from its `drivers` static or `run()`'s argument.
 
 Every line number opens your editor at that place. **Copy JSON** copies the component's part of the graph.
 
@@ -206,6 +207,98 @@ In CI, fetch the base first:
 ```
 
 `--base` exits with code 2 when the directory isn't in a git repository, the ref doesn't exist, or a scanned path is outside the repository.
+
+`--head <ref>` compares with another commit instead of the working tree.
+
+## What a change does (`--report`)
+
+:::caution[Experimental]
+`--report` and its JSON shape may change between releases.
+:::
+
+The graph comparison says which components, actions and sinks exist that didn't before. `--report` also compares what is inside them, so a reviewer can see what a change does without trusting its description:
+
+```bash
+npx --no-install sygnal-check --report --base main
+```
+
+It prints markdown for a pull request comment (`--json` prints the data, `--out` writes a file). For each changed component:
+
+- **Actions:** what triggers each one (a click on `.add`, a key, an event from a child), and whether that was added, removed or rewired.
+- **State:** the keys each changed action reads and writes, before and after.
+- **Sinks:** new or removed sinks, the requests they send (`POST /api/save → ok SAVED`), the `EVENTS` they emit.
+- **Guards:** the conditions under which a sink does nothing (`ABORT`, or a reducer returning the state unchanged), including those in helpers it calls. Before and after are compared case by case, so the report can say that a guard now lets through a case it used to stop, and which case.
+- **Helpers:** a changed helper that is made of `if`, `return` and `const` is compared the same way. The report says it was rewritten with the same logic, or shows both versions and a case where they differ.
+- **Blast radius:** which other components read the affected state, through lenses, Collections, context and calculated fields, and which listen to the affected events.
+
+Formatting, comments, renamed parameters and locals, and equivalent forms (`{ ...state, a }` and `set({ a })`) don't count as changes. Neither does moving code into a helper when the result is the same. A guard that only gains parentheses, moves its `!`, or becomes an `if` / `return` chain is unchanged. A request built by a helper is compared with its method, address, body and replies written out, so the report says "same request" rather than "new request". A `map` moved into a helper is "same values written". Where the report can't establish that two versions are the same, it says what changed. It never calls them the same on a guess.
+
+The top of the report is a short list to read first: side effects added to existing actions, removed or weakened guards and trigger filters, and wider writes. That includes a new side effect in a view or in a helper the view calls, which the checker reports as SYG265 or SYG266; the report names the call site. Everything else worth a line is under "Also changed". Side effects of new actions are in their row of the table, since a new action is what the diff is about anyway.
+
+### What it can't tell you
+
+The report says what differs. It doesn't say whether the difference is right, and an empty list doesn't mean a change is safe:
+
+- A guard compared case by case treats each comparison as true or false on its own. When both versions use the same comparisons, the report says which way the guard moved. When they use different ones (`n > 3` became `n > 5`), it says only that the guard changed. `.length` is taken to be a whole number of 0 or more.
+- A helper with loops, assignments or `try`, and a condition with more than 12 parts, are reported as changed but not compared. Values aren't compared for meaning: `n + 1` and `1 + n` differ. An address built with `+` is compared as written.
+- What the view renders isn't classified (markup, text, styling, conditional rendering). The report only notes that the view's code changed and which state it reads.
+- Package and driver behaviour, and the data that arrives at run time, are outside it.
+- A wrong value in new code looks like any other new code.
+
+The end of the report lists what it did not account for: changed files where no difference was found, files that aren't code, and components it couldn't read whole.
+
+### In CI
+
+The report is informational: it exits 0. `--fail-on=high` makes it exit 1 when the list has a new side effect on an existing action or a removed or weakened guard. Most pull requests that add a request do so on purpose, so start without it.
+
+This workflow compares a pull request with its merge base and keeps one comment up to date, found by the marker on the report's first line. On a pull request from a fork the token can't comment, so only the job summary is written.
+
+```yaml title=".github/workflows/behaviour-report.yml"
+name: Behaviour report
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the base commit is read with git
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Write the report
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          npx --no-install sygnal-check --report --base "$base" --head "$HEAD_SHA" --out report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Post or update the comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.body | startswith("<!-- sygnal-behaviour-report -->"))][0].id // empty')
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@report.md
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@report.md
+          fi
+```
+
+Use the merge base, not the base branch's tip: otherwise commits merged to the base branch since the pull request was opened read as the pull request undoing them. GitHub refuses comments over 65,536 characters; on a very large pull request, cut the file before posting it.
+
+The MCP server (`sygnal-check mcp`) has the same report as the `report` tool (`{ base, head?, paths? }`), so an agent can compare what it wrote with what it says it did.
 
 ## Mermaid and JSON
 

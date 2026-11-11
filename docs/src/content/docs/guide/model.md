@@ -147,7 +147,7 @@ The built-in sinks are:
 | `READY` | A readiness flag for [Suspense](/advanced/suspense/) |
 | `LOG` | Any value, logged to the console |
 
-Any custom driver passed to `run()` is a sink as well, by its name (for example `API` or `DND`).
+Any driver the root registers is a sink as well, by its name (for example `API` or `DND`).
 
 A non-STATE reducer can return `ABORT` to send nothing.
 

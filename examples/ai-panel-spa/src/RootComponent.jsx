@@ -1,4 +1,4 @@
-import { ABORT, persist } from 'sygnal'
+import { ABORT, persist, makeFetchDriver, makeBrowserDriverWith, clipboardSource } from 'sygnal'
 import {
   analyzeRequest,
   appendLog,
@@ -28,6 +28,7 @@ import PanelRosterCard from './components/PanelRosterCard.jsx'
 import TranscriptCard from './components/TranscriptCard.jsx'
 import HistoryDrawer from './components/HistoryDrawer.jsx'
 import DebugLogDrawer from './components/DebugLogDrawer.jsx'
+import { makeChatDriver, openResponses } from 'sygnal/ai'
 
 function RootComponent({ state }) {
   return (
@@ -44,6 +45,15 @@ function RootComponent({ state }) {
       <TranscriptCard />
     </main>
   )
+}
+
+RootComponent.drivers = {
+  // chat turns stream from Ollama; each request names its model (the Setup dropdown)
+  LLM: makeChatDriver({ transport: openResponses({ baseURL: `${OLLAMA_URL}/v1` }) }),
+  // the installed models (a resource) and the decision model's requests (decide())
+  HTTP: makeFetchDriver(),
+  // Copy Markdown
+  BROWSER: makeBrowserDriverWith(clipboardSource),
 }
 
 RootComponent.initialState = {

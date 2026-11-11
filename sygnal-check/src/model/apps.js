@@ -90,6 +90,33 @@ function driverStatics(project, file, arg) {
   return out
 }
 
+/** One driver of an object literal: { name, driver, from, node, file }; `driver` is the factory called, else the value's text. */
+function driverEntries(project, file, arg, from) {
+  const r = arg && arg.type !== 'SpreadElement' ? resolveExpr(project, file, arg) : null
+  const obj = unwrap(r?.node)
+  if (obj?.type !== 'ObjectExpression') return []
+  const out = []
+  for (const p of obj.properties) {
+    const name = p.type === 'ObjectProperty' ? propName(p) : null
+    if (name == null) continue
+    const v = unwrap(p.value)
+    const text = (n) => r.file.source.slice(n.start, n.end)
+    out.push({ name, driver: v.type === 'CallExpression' ? text(v.callee) : v ? text(v) : null, from, node: p.key, file: r.file })
+  }
+  return out
+}
+
+/** The drivers a root is wired with, by name: its `drivers` static, then run()'s argument (which overrides it). */
+export function rootDrivers(project, comp) {
+  const byName = new Map()
+  for (const e of driverEntries(project, comp.file, comp.staticProps?.drivers, 'static')) byName.set(e.name, e)
+  for (const a of findApps(project)) {
+    if (a.root !== comp) continue
+    for (const e of driverEntries(project, a.file, a.call.arguments[1], 'run')) byName.set(e.name, e)
+  }
+  return [...byName.values()]
+}
+
 /** The components a root renders (its own and its children's views, depth-first). */
 function reachable(project, ref) {
   const out = new Set()
@@ -139,12 +166,17 @@ function fileApps(project, file) {
       const [root, drivers] = n.arguments
       const r = root && resolveExpr(project, file, root)
       const ref = r?.node && isFunction(r.node) ? { file: r.file, node: r.node } : null
+      const rootComp = ref ? project.componentForFunction(ref.node) || null : null
+      // the root's `drivers` static is wired too (run()'s argument overrides it by name)
+      const own = rootComp?.staticProps?.drivers
+      const ownFile = rootComp?.file
+      const union = (a, b) => (a && b ? new Set([...a, ...b]) : null)
       apps.push({
         call: n,
         file,
-        root: ref ? project.componentForFunction(ref.node) || null : null,
-        statics: drivers?.type === 'SpreadElement' ? null : driverStatics(project, file, drivers),
-        drivers: driverNames(project, file, drivers),
+        root: rootComp,
+        statics: union(drivers?.type === 'SpreadElement' ? null : driverStatics(project, file, drivers), driverStatics(project, ownFile, own)),
+        drivers: union(driverNames(project, file, drivers), driverNames(project, ownFile, own)),
         components: ref ? reachable(project, ref) : new Set(),
       })
       return true

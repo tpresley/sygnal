@@ -1,0 +1,64 @@
+# `sygnal-check --report` on every pull request: what the change makes the example apps newly send,
+# write and stop checking, computed from the code (guide/app-graph, "What a change does"). It uses
+# this checkout's sygnal-check, so the report is also a trial of the checker on its own repository.
+# Informational: it never fails the pull request. One comment is kept up to date, found by the
+# marker on the report's first line; a pull request from a fork gets the job summary only (its
+# token can't comment).
+name: Behaviour report
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: behaviour-report-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # the base commit is read with git
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: sygnal-check/package-lock.json
+      - name: Install sygnal-check
+        run: npm ci --prefix sygnal-check
+      - name: Write the report
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # the merge base, not the base branch's tip: commits merged to main since would read as undone
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          node sygnal-check/bin/sygnal-check.js --report --base "$base" --head "$HEAD_SHA" --out report.md examples
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Post or update the comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # GitHub refuses a comment over 65,536 characters; the job summary has the whole report
+          if [ "$(wc -c < report.md)" -gt 60000 ]; then
+            head -c 60000 report.md > cut.md
+            printf '\n\n(cut: the whole report is in the job summary)\n' >> cut.md
+            mv cut.md report.md
+          fi
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.body | startswith("<!-- sygnal-behaviour-report -->"))][0].id // empty')
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@report.md
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@report.md
+          fi

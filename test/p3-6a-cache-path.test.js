@@ -16,6 +16,7 @@ import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 import { setupChecks, diagnostics } from './diagnostics/helpers.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
 import { clickWhenRendered } from './support/wait.js'
+import { llmsText, skillText } from './helpers/agent-context.js'
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -392,8 +393,8 @@ describe('guides shipped in the package (offline)', () => {
   it('the skill and llms.txt point at the shipped paths, and the package ships dist', async () => {
     const fs = await import('node:fs')
     const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8')
-    const skill = read('../skills/sygnal-dev/SKILL.md')
-    const llms = read('../llms.txt')
+    const skill = skillText()   // SKILL.md + its references, as an agent reads them
+    const llms = llmsText()     // llms.txt + llms/
     for (const text of [skill, llms]) expect(text).toContain('node_modules/sygnal/dist/guide/resources.md')
     expect(llms).toContain('node_modules/sygnal/dist/guide/http.md')
     // 4-G1: the PLAN-4 pages are linked locally, never by a site URL

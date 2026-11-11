@@ -11,10 +11,10 @@
     "check": "sygnal-check --strict && tsc --noEmit"
   },
   "dependencies": {
-    "sygnal": "^7.4.0"
+    "sygnal": "^7.5.0"
   },
   "devDependencies": {
-    "sygnal-check": "^0.16.0",
+    "sygnal-check": "^0.17.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"

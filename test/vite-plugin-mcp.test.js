@@ -88,7 +88,7 @@ describe('sygnal({ mcp: true }) on a dev server', () => {
     const note = await fetch(base + '/__sygnal/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) })
     expect(note.status).toBe(202)
     const names = (await rpc('tools/list')).body.result.tools.map((t) => t.name)
-    expect(names).toEqual(['get_state', 'dispatch', 'component_tree', 'recent_actions', 'get_diagnostics', 'copy_as_test', 'agent_tools', 'apps', 'tabs', 'check', 'graph', 'explain'])
+    expect(names).toEqual(['get_state', 'dispatch', 'component_tree', 'recent_actions', 'get_diagnostics', 'copy_as_test', 'agent_tools', 'apps', 'tabs', 'check', 'graph', 'explain', 'report'])
   })
 
   it('refuses a foreign Origin and a rebound Host (403)', async () => {

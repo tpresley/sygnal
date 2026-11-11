@@ -533,8 +533,8 @@ export interface Started {
 }
 
 /**
- * Start an app: the drivers (run()'s defaults unless useDefaultDrivers is
- * false), the root instance, the first flush. Returns run()'s shape (sources with the root's
+ * Start an app: the drivers (run()'s defaults and the root's `drivers` static unless useDefaultDrivers
+ * is false; run()'s argument overrides both), the root instance, the first flush. Returns run()'s shape (sources with the root's
  * STATE, sinks: one stream per driver sink, DOM and the root's PARENT) plus the runtime API.
  */
 export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts: StartOptions = {}): Started {
@@ -548,7 +548,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
     callHook(app.hooks.onError, e, i)
   }
   const all: Record<string, any> = {
-    ...(useDefaultDrivers && {EVENTS: eventBusDriver, DOM: makeDOMDriver(mountPoint as any), LOG: logDriver, __m: () => mountPoint}),
+    ...(useDefaultDrivers && {EVENTS: eventBusDriver, DOM: makeDOMDriver(mountPoint as any), LOG: logDriver, __m: () => mountPoint, ...(Root as any).drivers}),
     ...drivers,
   }
   // the Cycle run loop, reduced: a proxy sink per driver, the driver's source, then the app's

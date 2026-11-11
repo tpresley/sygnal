@@ -11,7 +11,7 @@
  *   list for a screen reader. The camera is state, moved by `follow()` after each step (camera.ts).
  * - The HUD and the title / pause / game-over screens are HTML over the canvas.
  */
-import {ABORT, keymap, type Component, type TimerFrame} from 'sygnal'
+import {ABORT, keymap, makeTimerDriver, type Component, type TimerFrame} from 'sygnal'
 import {Canvas} from 'sygnal/canvas'
 import {step, menu, timeLeft, RUNNING, STEP, MAX_STEPS, type Button, type World} from './sim'
 import {BUTTONS, MENU} from './keys'
@@ -60,6 +60,8 @@ export const Game: Component<State> = function Game({state}) {
 
 // while the world runs: one STEP per fixed step, with the keys sampled for the frame
 Game.timers = (state: State) => ({loop: RUNNING.includes(state.mode) && {frame: 'STEP', step: STEP, max: MAX_STEPS, keys: BUTTONS}})
+
+Game.drivers = {TIMER: makeTimerDriver()}
 
 Game.intent = ({DOM}) => keymap(DOM, MENU)
 

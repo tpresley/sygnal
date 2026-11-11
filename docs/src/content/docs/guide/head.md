@@ -6,10 +6,10 @@ description: The page title, meta and link tags with makeHeadDriver() and the he
 `makeHeadDriver()` manages the document's `<title>`, `<meta>` and `<link>` tags. Components declare what they want in the head as a function of their state; the driver merges the declarations of every mounted component and updates the document.
 
 ```javascript
-import { run, makeHeadDriver } from 'sygnal'
-import App from './App.jsx'
+// App.jsx
+import { makeHeadDriver } from 'sygnal'
 
-run(App, { HEAD: makeHeadDriver({ titleTemplate: '%s · Tasks' }) })
+App.drivers = { HEAD: makeHeadDriver({ titleTemplate: '%s · Tasks' }) }
 ```
 
 `titleTemplate` is optional; `%s` is replaced by each title.

@@ -28,6 +28,7 @@
  *   check({ paths?, strict?, a11y? })  → { diagnostics: Diagnostic[], summary }
  *   graph({ paths?, strict?, a11y? })  → InspectGraph (schema/inspect.schema.json)
  *   explain({ code })           → Explanation (title, severity, explanation, fix, docsUrl)
+ *   report({ base, head?, paths? }) → BehaviourReport (src/report/compare.js, experimental)
  * Each result is returned as structuredContent and as JSON text content.
  * check and graph apply the config file found from the server's working directory
  * (sygnal-check.config.json / package.json "sygnal-check", re-read on each call; src/config.js):
@@ -48,6 +49,8 @@ import { graphFiles } from './graph.js'
 import { resolveOptions } from './config.js'
 import { createParseCache } from './cache.js'
 import { getExplanation, suggestCodes } from './explain.js'
+import { runReport } from './report/run.js'
+import { GitBaseError } from './gitBase.js'
 
 /** the stateless revisions (per-request `_meta`, no initialize), newest first */
 export const MODERN_VERSIONS = ['2026-07-28']
@@ -55,7 +58,7 @@ export const MODERN_VERSIONS = ['2026-07-28']
 export const LEGACY_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
 export const SUPPORTED_VERSIONS = [...MODERN_VERSIONS, ...LEGACY_VERSIONS]
 const META = 'io.modelcontextprotocol/'
-const INSTRUCTIONS = 'Static checker for Sygnal apps. Use graph to see the app structure, check for wiring diagnostics, explain for any SYG code.'
+const INSTRUCTIONS = 'Static checker for Sygnal apps. Use graph to see the app structure, check for wiring diagnostics, report for what a change does (compared with a git ref), explain for any SYG code.'
 /** 2026-07-28 cacheable results (tools/list, server/discover): fixed for the life of the process */
 const CACHE = { ttlMs: 3_600_000, cacheScope: 'private' }
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'))
@@ -89,6 +92,21 @@ export const TOOLS = [
       type: 'object',
       properties: { code: { type: 'string', description: "Diagnostic code, e.g. 'SYG104' (also 'syg104' or '104')" } },
       required: ['code'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'report',
+    title: 'What a code change does (experimental)',
+    description: "What a change does to the app, per component, worked out from the code of two git versions (static analysis): each changed action's triggers, the state keys it reads and writes, its sinks and requests, its guards (ABORT conditions), and which other components see the affected state or events. `attention` lists side effects added to existing actions (also an effect a view newly runs), removed or weakened guards and wider writes; `notes` the rest; `coverage` what was not explained. Use it to check a change or a PR description against the code. It says what differs, not whether the difference is right, and an empty report doesn't mean the change is safe: view output, helpers with loops or assignments (reported as not compared), data at run time and package behaviour aren't analysed.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base: { type: 'string', description: "The git ref to compare with (a branch, tag or commit, e.g. 'main' or 'HEAD~1')" },
+        head: { type: 'string', description: 'The git ref to compare it to (default: the working tree)' },
+        paths: pathsSchema,
+      },
+      required: ['base'],
       additionalProperties: false,
     },
   },
@@ -134,6 +152,18 @@ function callTool(name, args, cwd, cache, session) {
   if (name === 'graph') {
     const { files, options, configDiagnostics } = settingsFor(cwd, args)
     return graphFiles(files, { ...options, cache, extraDiagnostics: configDiagnostics })
+  }
+  if (name === 'report') {
+    if (typeof args.base !== 'string' || !args.base) throw new ToolError('base must be a git ref')
+    if (args.head !== undefined && (typeof args.head !== 'string' || !args.head)) throw new ToolError('head must be a git ref')
+    const { files, options, configDiagnostics } = settingsFor(cwd, args)
+    const paths = args.paths?.length ? args.paths : options.paths
+    try {
+      return runReport({ base: args.base, head: args.head, cwd, files, paths, settings: options, extraDiagnostics: configDiagnostics, refOptions: { paths: args.paths || [] }, stderr: { write() {} } })
+    } catch (err) {
+      if (err instanceof GitBaseError) throw new ToolError(err.message)
+      throw err
+    }
   }
   if (name === 'explain') {
     const e = typeof args.code === 'string' ? getExplanation(args.code) : undefined

@@ -1,0 +1,3985 @@
+{
+  "meta": {
+    "run": "agent-docs-compact-haiku",
+    "generatedAt": "2026-11-10T07:44:42.341Z",
+    "trialsInMap": 15,
+    "trialsAnalyzed": 15,
+    "trialsScored": 15,
+    "skillDir": "/Users/troy/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnals-features-showcase-5a7f2b/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-haiku-5-5"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "11-search-debounce",
+      "23-quote-resource",
+      "24-list-detail-cache",
+      "25-router-spa",
+      "30-checkout-form"
+    ],
+    "sharedTasks": [],
+    "byTask": {
+      "11-search-debounce": {
+        "sygnal": {
+          "n": 3,
+          "pass": 3,
+          "scored": 3,
+          "wall": {
+            "mean": 55,
+            "median": 52.9
+          },
+          "peakContext": {
+            "mean": 41633.3,
+            "median": 41599
+          },
+          "cacheCreation": {
+            "mean": 35161.3,
+            "median": 35128
+          },
+          "cacheRead": {
+            "mean": 306948,
+            "median": 297527
+          },
+          "messages": {
+            "mean": 11.7,
+            "median": 12
+          },
+          "costUsd": {
+            "mean": 0.016,
+            "median": 0.016
+          },
+          "billedTokens": {
+            "mean": 353509.7,
+            "median": 342202
+          },
+          "outputTokens": {
+            "mean": 11377,
+            "median": 10823
+          },
+          "durationSeconds": {
+            "mean": 55,
+            "median": 52.9
+          },
+          "iterations": {
+            "mean": 2.3,
+            "median": 2
+          },
+          "effectiveIterations": {
+            "mean": 2.3,
+            "median": 2
+          },
+          "editRounds": {
+            "mean": 1.7,
+            "median": 2
+          },
+          "toolCalls": {
+            "mean": 14.7,
+            "median": 15
+          },
+          "failedRuns": {
+            "mean": 0.7,
+            "median": 1
+          },
+          "episodes": {
+            "mean": 0.7,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 136,
+            "median": 135
+          },
+          "locRemoved": {
+            "mean": 5.7,
+            "median": 6
+          },
+          "wroteTest": 3,
+          "keptTest": 3,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 5.4,
+            "learn": 24.5,
+            "implement": 4.4,
+            "test-authoring": 8.3,
+            "verify": 3.9,
+            "debug": 3.9,
+            "tooling-friction": 0,
+            "think": 4.5,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.5,
+            "framework-source": 8.6,
+            "types": 8.7,
+            "testing-utility": 5.5,
+            "abort-reducers": 1.1
+          }
+        }
+      },
+      "23-quote-resource": {
+        "sygnal": {
+          "n": 3,
+          "pass": 2,
+          "scored": 3,
+          "wall": {
+            "mean": 81.4,
+            "median": 84.5
+          },
+          "peakContext": {
+            "mean": 48625.3,
+            "median": 48743
+          },
+          "cacheCreation": {
+            "mean": 42153.3,
+            "median": 42271
+          },
+          "cacheRead": {
+            "mean": 592345.3,
+            "median": 656912
+          },
+          "messages": {
+            "mean": 17,
+            "median": 19
+          },
+          "costUsd": {
+            "mean": 0.022,
+            "median": 0.022
+          },
+          "billedTokens": {
+            "mean": 649103.7,
+            "median": 713563
+          },
+          "outputTokens": {
+            "mean": 14571,
+            "median": 14342
+          },
+          "durationSeconds": {
+            "mean": 81.4,
+            "median": 84.5
+          },
+          "iterations": {
+            "mean": 7.3,
+            "median": 8
+          },
+          "effectiveIterations": {
+            "mean": 7.3,
+            "median": 8
+          },
+          "editRounds": {
+            "mean": 5.3,
+            "median": 6
+          },
+          "toolCalls": {
+            "mean": 18.3,
+            "median": 19
+          },
+          "failedRuns": {
+            "mean": 1.7,
+            "median": 2
+          },
+          "episodes": {
+            "mean": 1.3,
+            "median": 2
+          },
+          "locAdded": {
+            "mean": 145.7,
+            "median": 130
+          },
+          "locRemoved": {
+            "mean": 7,
+            "median": 7
+          },
+          "wroteTest": 3,
+          "keptTest": 3,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 2,
+            "learn": 13.6,
+            "implement": 15.5,
+            "test-authoring": 17.2,
+            "verify": 20.4,
+            "debug": 9.6,
+            "tooling-friction": 0,
+            "think": 3.1,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.5,
+            "framework-source": 8,
+            "types": 4.6,
+            "streams": 0.5
+          }
+        }
+      },
+      "24-list-detail-cache": {
+        "sygnal": {
+          "n": 3,
+          "pass": 3,
+          "scored": 3,
+          "wall": {
+            "mean": 122.8,
+            "median": 97.8
+          },
+          "peakContext": {
+            "mean": 66960.3,
+            "median": 59037
+          },
+          "cacheCreation": {
+            "mean": 60488,
+            "median": 52566
+          },
+          "cacheRead": {
+            "mean": 782697.3,
+            "median": 633296
+          },
+          "messages": {
+            "mean": 19.7,
+            "median": 18
+          },
+          "costUsd": {
+            "mean": 0.032,
+            "median": 0.026
+          },
+          "billedTokens": {
+            "mean": 867774.7,
+            "median": 704047
+          },
+          "outputTokens": {
+            "mean": 24550,
+            "median": 18494
+          },
+          "durationSeconds": {
+            "mean": 122.9,
+            "median": 97.8
+          },
+          "iterations": {
+            "mean": 5,
+            "median": 5
+          },
+          "effectiveIterations": {
+            "mean": 5,
+            "median": 5
+          },
+          "editRounds": {
+            "mean": 4,
+            "median": 4
+          },
+          "toolCalls": {
+            "mean": 22.7,
+            "median": 20
+          },
+          "failedRuns": {
+            "mean": 1.7,
+            "median": 2
+          },
+          "episodes": {
+            "mean": 1,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 210,
+            "median": 207
+          },
+          "locRemoved": {
+            "mean": 11,
+            "median": 11
+          },
+          "wroteTest": 3,
+          "keptTest": 3,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 38.3,
+            "learn": 14.5,
+            "implement": 6.7,
+            "test-authoring": 18.4,
+            "verify": 14.8,
+            "debug": 24.8,
+            "tooling-friction": 0,
+            "think": 5.4,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.5,
+            "framework-source": 14
+          }
+        }
+      },
+      "25-router-spa": {
+        "sygnal": {
+          "n": 3,
+          "pass": 3,
+          "scored": 3,
+          "wall": {
+            "mean": 134.3,
+            "median": 131.3
+          },
+          "peakContext": {
+            "mean": 74903,
+            "median": 74059
+          },
+          "cacheCreation": {
+            "mean": 68427.7,
+            "median": 67585
+          },
+          "cacheRead": {
+            "mean": 940531.7,
+            "median": 1008762
+          },
+          "messages": {
+            "mean": 19.7,
+            "median": 22
+          },
+          "costUsd": {
+            "mean": 0.037,
+            "median": 0.037
+          },
+          "billedTokens": {
+            "mean": 1037259,
+            "median": 1102853
+          },
+          "outputTokens": {
+            "mean": 28260.3,
+            "median": 26462
+          },
+          "durationSeconds": {
+            "mean": 134.4,
+            "median": 131.3
+          },
+          "iterations": {
+            "mean": 4.7,
+            "median": 5
+          },
+          "effectiveIterations": {
+            "mean": 4.7,
+            "median": 5
+          },
+          "editRounds": {
+            "mean": 3.7,
+            "median": 4
+          },
+          "toolCalls": {
+            "mean": 24.7,
+            "median": 24
+          },
+          "failedRuns": {
+            "mean": 1.7,
+            "median": 2
+          },
+          "episodes": {
+            "mean": 1,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 202.7,
+            "median": 204
+          },
+          "locRemoved": {
+            "mean": 42.3,
+            "median": 43
+          },
+          "wroteTest": 3,
+          "keptTest": 3,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 54.9,
+            "learn": 22.9,
+            "implement": 21,
+            "test-authoring": 9.9,
+            "verify": 9.9,
+            "debug": 8.8,
+            "tooling-friction": 0,
+            "think": 6.9,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.5,
+            "framework-source": 12.1,
+            "types": 10.4
+          }
+        }
+      },
+      "30-checkout-form": {
+        "sygnal": {
+          "n": 3,
+          "pass": 2,
+          "scored": 3,
+          "wall": {
+            "mean": 140,
+            "median": 119.5
+          },
+          "peakContext": {
+            "mean": 75276.7,
+            "median": 78913
+          },
+          "cacheCreation": {
+            "mean": 68802,
+            "median": 72437
+          },
+          "cacheRead": {
+            "mean": 712643.3,
+            "median": 781743
+          },
+          "messages": {
+            "mean": 14.3,
+            "median": 15
+          },
+          "costUsd": {
+            "mean": 0.036,
+            "median": 0.035
+          },
+          "billedTokens": {
+            "mean": 812293.7,
+            "median": 879332
+          },
+          "outputTokens": {
+            "mean": 30819.7,
+            "median": 25122
+          },
+          "durationSeconds": {
+            "mean": 140.1,
+            "median": 119.6
+          },
+          "iterations": {
+            "mean": 5,
+            "median": 5
+          },
+          "effectiveIterations": {
+            "mean": 5,
+            "median": 5
+          },
+          "editRounds": {
+            "mean": 4,
+            "median": 4
+          },
+          "toolCalls": {
+            "mean": 16,
+            "median": 16
+          },
+          "failedRuns": {
+            "mean": 1,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0.3,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 271.3,
+            "median": 253
+          },
+          "locRemoved": {
+            "mean": 35.3,
+            "median": 37
+          },
+          "wroteTest": 3,
+          "keptTest": 3,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 78.5,
+            "learn": 4.5,
+            "implement": 15.1,
+            "test-authoring": 15.5,
+            "verify": 19,
+            "debug": 3,
+            "tooling-friction": 0,
+            "think": 4.5,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.8,
+            "framework-source": 3.7
+          }
+        }
+      }
+    },
+    "overall": {
+      "sygnal": {
+        "n": 15,
+        "pass": 13,
+        "scored": 15,
+        "wall": {
+          "mean": 106.7,
+          "median": 106.1
+        },
+        "peakContext": {
+          "mean": 61479.7,
+          "median": 59037
+        },
+        "cacheCreation": {
+          "mean": 55006.5,
+          "median": 52566
+        },
+        "cacheRead": {
+          "mean": 667033.1,
+          "median": 633296
+        },
+        "messages": {
+          "mean": 16.5,
+          "median": 16
+        },
+        "costUsd": {
+          "mean": 0.029,
+          "median": 0.027
+        },
+        "billedTokens": {
+          "mean": 743988.1,
+          "median": 704047
+        },
+        "outputTokens": {
+          "mean": 21915.6,
+          "median": 19734
+        },
+        "durationSeconds": {
+          "mean": 106.7,
+          "median": 106.1
+        },
+        "iterations": {
+          "mean": 4.9,
+          "median": 5
+        },
+        "effectiveIterations": {
+          "mean": 4.9,
+          "median": 5
+        },
+        "editRounds": {
+          "mean": 3.7,
+          "median": 4
+        },
+        "toolCalls": {
+          "mean": 19.3,
+          "median": 18
+        },
+        "failedRuns": {
+          "mean": 1.3,
+          "median": 1
+        },
+        "episodes": {
+          "mean": 0.9,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 193.1,
+          "median": 193
+        },
+        "locRemoved": {
+          "mean": 20.3,
+          "median": 11
+        },
+        "wroteTest": 15,
+        "keptTest": 15,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 35.8,
+          "learn": 16,
+          "implement": 12.5,
+          "test-authoring": 13.8,
+          "verify": 13.6,
+          "debug": 10.1,
+          "tooling-friction": 0,
+          "think": 4.9,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 0.6,
+          "framework-source": 9.3,
+          "types": 4.7,
+          "testing-utility": 1.1,
+          "abort-reducers": 0.2,
+          "streams": 0.1
+        }
+      }
+    },
+    "overallShared": {},
+    "delta": {
+      "tasks": [],
+      "wallDelta": null,
+      "items": []
+    },
+    "catalog": [
+      {
+        "id": "G-125",
+        "title": "Guessed `t.state` on a `renderComponent()` handle (it has `t.states`, `t.next()`, `t.waitForState()`; no `state`)",
+        "kind": "docs",
+        "status": "fixed",
+        "trialsAffected": 5,
+        "sygnal": "5/15",
+        "react": "—",
+        "inResults": 0,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 5,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-11-t1",
+          "sygnal-23-t1",
+          "sygnal-23-t2",
+          "sygnal-25-t1",
+          "sygnal-30-t1"
+        ]
+      },
+      {
+        "id": "G-016",
+        "title": "First event/action right after `renderComponent()` is silently lost",
+        "kind": "suspect",
+        "status": "fixed",
+        "trialsAffected": 1,
+        "sygnal": "1/15",
+        "react": "—",
+        "inResults": 1,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 0,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-23-t1"
+        ]
+      },
+      {
+        "id": "G-015",
+        "title": "`simulateAction` does not drive EVENTS / custom driver sinks",
+        "kind": "suspect",
+        "status": "fixed",
+        "trialsAffected": 1,
+        "sygnal": "1/15",
+        "react": "—",
+        "inResults": 1,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 0,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-23-t1"
+        ]
+      }
+    ],
+    "skill": {
+      "sygnalTrials": 15,
+      "skillInvoked": 15,
+      "skillBytes": {
+        "mean": 0,
+        "median": 0
+      },
+      "files": {},
+      "sections": [],
+      "library": {
+        "sygnal": {
+          "sygnal": {
+            "trials": 15,
+            "files": {
+              "(dir)": 12,
+              "dist/index.esm.js": 1,
+              "llms.txt": 15,
+              "dist/index.d.ts": 4,
+              "llms": 8,
+              "llms/http.md": 4,
+              "llms/testing.md": 7,
+              "dist": 2,
+              "dist/guide": 1,
+              "dist/guide/resources.md": 1,
+              "llms/resources.md": 3,
+              "src": 4,
+              "src/index.ts": 1,
+              "llms/router.md": 2,
+              "package.json": 3
+            }
+          }
+        },
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": 39751.2,
+          "median": 38517
+        },
+        "react": {
+          "mean": null,
+          "median": null
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 15,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 15,
+      "forms": {
+        "shorthandKeys": {
+          "total": 0,
+          "trials": 0
+        },
+        "emitCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "eventCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "rawEventsObjects": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectString": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectFn": {
+          "total": 0,
+          "trials": 0
+        },
+        "positionalView": {
+          "total": 0,
+          "trials": 0
+        },
+        "abortReturns": {
+          "total": 21,
+          "trials": 8
+        },
+        "effectSinks": {
+          "total": 0,
+          "trials": 0
+        }
+      },
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "sygnal",
+          "signature": "Exit code 1",
+          "cause": "other",
+          "catalog": [],
+          "count": 3,
+          "trials": 2
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: [Sygnal] t.query('h1') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+          "cause": "other",
+          "catalog": [],
+          "count": 2,
+          "trials": 2
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: waitForState timed out after Nms.",
+          "cause": "agent-mistake",
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "count": 3,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: [Sygnal] t.respond('HTTP', …, 'PUT'): no pending HTTP request matching 'PUT' after Nms. Pending: {\"url\":\"1\",\"method\":\"PUT\",\"json\":{\"title\":\"Gamma\"},\"ok\":",
+          "cause": "other",
+          "catalog": [],
+          "count": 2,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected 1 to be +0 // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected [ { url: 'search', …(6) }, …(1) ] to have a length of 1 but got 2",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected [Function] to throw an error",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Tests 2 failed | 4 passed (6)",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: Cannot read properties of null (reading 'value')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected 'Could not save the item.' to be '' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected 'Gamma' to be 'Beta' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: [Sygnal] renderComponent: the router option takes the object makeRouter() returns (import { router } from './routes.js'), not a boolean",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "ReferenceError: router is not defined",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: [Sygnal] t.query('[name=\"email\"]') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {
+          "agent-mistake": {
+            "episodes": 8,
+            "seconds": 101.9,
+            "iterations": 10,
+            "unresolved": 0
+          },
+          "unknown (output truncated)": {
+            "episodes": 1,
+            "seconds": 3.9,
+            "iterations": 1,
+            "unresolved": 0
+          },
+          "other": {
+            "episodes": 4,
+            "seconds": 45.5,
+            "iterations": 9,
+            "unresolved": 0
+          }
+        },
+        "react": {}
+      }
+    },
+    "failureCategories": {
+      "sygnal": {
+        "other": {
+          "manual": 0,
+          "auto": 2,
+          "trials": [
+            "sygnal-23-t3",
+            "sygnal-30-t2"
+          ]
+        }
+      },
+      "react": {}
+    },
+    "otherSkills": {
+      "sygnal": {},
+      "react": {}
+    }
+  },
+  "trials": [
+    {
+      "trial": "sygnal-11-t1",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "11-search-debounce",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 54,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 24,
+        "output": 98,
+        "cacheRead": 297527,
+        "cacheCreation": 33828,
+        "messages": 12,
+        "peakContext": 40299,
+        "total": 331477
+      },
+      "usage": {
+        "tokens": 342202,
+        "outputTokens": 10823,
+        "costUsd": 0.01515477,
+        "durationMs": 52869,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 17,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 9,
+          "Read": 3,
+          "Write": 3,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 52.9,
+      "phases": {
+        "orient": 3.8,
+        "learn": 24.8,
+        "implement": 4.1,
+        "test-authoring": 8.2,
+        "verify": 2.4,
+        "debug": 5.4,
+        "think": 4.2
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 4,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 14
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 16
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected 1 to be +0 // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 43
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 5.9,
+          "iterations": 1,
+          "signature": "AssertionError: expected 1 to be +0 // Object.is equality",
+          "signatures": [
+            "AssertionError: expected 1 to be +0 // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 43
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 11.4,
+        "types": 12.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/index.esm.js",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 38266
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 13,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-11-t1",
+      "diff": {
+        "added": 130,
+        "removed": 6,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 26,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 100,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1391
+    },
+    {
+      "trial": "sygnal-11-t2",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "11-search-debounce",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 61,
+        "iterations": 3,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 22,
+        "output": 65,
+        "cacheRead": 277145,
+        "cacheCreation": 35128,
+        "messages": 11,
+        "peakContext": 41599,
+        "total": 312360
+      },
+      "usage": {
+        "tokens": 324962,
+        "outputTokens": 12667,
+        "costUsd": 0.016132749999999998,
+        "durationMs": 60325,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 15,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 7,
+          "Read": 3,
+          "Write": 3,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 60.3,
+      "phases": {
+        "orient": 11.2,
+        "learn": 23.4,
+        "implement": 3.4,
+        "test-authoring": 7.6,
+        "verify": 4,
+        "debug": 6.4,
+        "think": 4.3
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 4,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected [ { url: 'search', …(6) }, …(1) ] to have a length of 1 but got 2",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 47
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 6.4,
+          "iterations": 1,
+          "signature": "AssertionError: expected [ { url: 'search', …(6) }, …(1) ] to have a length of 1 but got 2",
+          "signatures": [
+            "AssertionError: expected [ { url: 'search', …(6) }, …(1) ] to have a length of 1 but got 2"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 47
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 9.6,
+        "types": 13.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "dist/index.d.ts",
+            "llms",
+            "llms.txt",
+            "llms/http.md",
+            "llms/testing.md"
+          ]
+        },
+        "libraryBytes": 36936
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 14.7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-11-t2",
+      "diff": {
+        "added": 135,
+        "removed": 5,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 25,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 106,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1534
+    },
+    {
+      "trial": "sygnal-11-t3",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "11-search-debounce",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 53,
+        "iterations": 2,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 24,
+        "output": 113,
+        "cacheRead": 346172,
+        "cacheCreation": 36528,
+        "messages": 12,
+        "peakContext": 43002,
+        "total": 382837
+      },
+      "usage": {
+        "tokens": 393365,
+        "outputTokens": 10641,
+        "costUsd": 0.01609022,
+        "durationMs": 51796,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 12,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 8,
+          "Write": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 51.8,
+      "phases": {
+        "orient": 1.2,
+        "learn": 25.3,
+        "implement": 5.8,
+        "test-authoring": 9,
+        "verify": 5.4,
+        "think": 5.1
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 3,
+      "editRounds": 1,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 4.8,
+        "testing-utility": 16.6,
+        "abort-reducers": 3.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "dist/index.d.ts",
+            "llms.txt",
+            "llms/http.md",
+            "llms/testing.md"
+          ]
+        },
+        "libraryBytes": 49037
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 10.5,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-11-t3",
+      "diff": {
+        "added": 143,
+        "removed": 6,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 26,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 113,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1836
+    },
+    {
+      "trial": "sygnal-23-t1",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "23-quote-resource",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 112,
+        "iterations": 10,
+        "editRounds": 8,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 42,
+        "output": 170,
+        "cacheRead": 853032,
+        "cacheCreation": 52295,
+        "messages": 21,
+        "peakContext": 58765,
+        "total": 905539
+      },
+      "usage": {
+        "tokens": 925103,
+        "outputTokens": 19734,
+        "costUsd": 0.02886052,
+        "durationMs": 111483,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 24,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 18,
+          "Edit": 4,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 111.5,
+      "phases": {
+        "orient": 3.7,
+        "learn": 20.8,
+        "verify": 31.8,
+        "implement": 5.8,
+        "test-authoring": 28.2,
+        "debug": 17.9,
+        "think": 3.3
+      },
+      "attributedShare": 1,
+      "iterations": 10,
+      "effectiveIterations": 10,
+      "edits": 10,
+      "editRounds": 8,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: waitForState timed out after Nms.",
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 61
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: waitForState timed out after Nms.",
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 68
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: waitForState timed out after Nms.",
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 86
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 12.2,
+          "iterations": 2,
+          "signature": "Error: waitForState timed out after Nms.",
+          "signatures": [
+            "Error: waitForState timed out after Nms."
+          ],
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 61
+        },
+        {
+          "seconds": 5.7,
+          "iterations": 1,
+          "signature": "Error: waitForState timed out after Nms.",
+          "signatures": [
+            "Error: waitForState timed out after Nms."
+          ],
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 86
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 8.2,
+        "types": 12.1
+      },
+      "catalog": {
+        "result": [
+          "G-016",
+          "G-015"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": true,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "dist",
+            "dist/guide",
+            "dist/guide/resources.md",
+            "dist/index.d.ts",
+            "llms",
+            "llms.txt",
+            "llms/resources.md",
+            "llms/testing.md"
+          ]
+        },
+        "libraryBytes": 51191
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 60.3,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-23-t1",
+      "diff": {
+        "added": 186,
+        "removed": 7,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 22,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 160,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1568
+    },
+    {
+      "trial": "sygnal-23-t2",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "23-quote-resource",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 85,
+        "iterations": 8,
+        "editRounds": 6,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 38,
+        "output": 157,
+        "cacheRead": 656912,
+        "cacheCreation": 42271,
+        "messages": 19,
+        "peakContext": 48743,
+        "total": 699378
+      },
+      "usage": {
+        "tokens": 713563,
+        "outputTokens": 14342,
+        "costUsd": 0.02219812,
+        "durationMs": 84542,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 19,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 13,
+          "Edit": 3,
+          "Write": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 84.5,
+      "phases": {
+        "orient": 1.3,
+        "learn": 9.2,
+        "verify": 22.6,
+        "implement": 22.6,
+        "test-authoring": 15.3,
+        "debug": 11,
+        "think": 2.7
+      },
+      "attributedShare": 1,
+      "iterations": 8,
+      "effectiveIterations": 8,
+      "edits": 9,
+      "editRounds": 6,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected [Function] to throw an error",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 48
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Tests 2 failed | 4 passed (6)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 78
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 7.1,
+          "iterations": 1,
+          "signature": "AssertionError: expected [Function] to throw an error",
+          "signatures": [
+            "AssertionError: expected [Function] to throw an error"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 48
+        },
+        {
+          "seconds": 3.9,
+          "iterations": 1,
+          "signature": "Tests 2 failed | 4 passed (6)",
+          "signatures": [
+            "Tests 2 failed | 4 passed (6)"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": true,
+          "t": 78
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 5.4,
+        "streams": 1.5,
+        "types": 1.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/index.d.ts",
+            "llms",
+            "llms.txt",
+            "llms/http.md",
+            "llms/testing.md"
+          ]
+        },
+        "libraryBytes": 48631
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 41.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-23-t2",
+      "diff": {
+        "added": 121,
+        "removed": 7,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 26,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 91,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1274
+    },
+    {
+      "trial": "sygnal-23-t3",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "23-quote-resource",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 7,
+        "wallSeconds": 49,
+        "iterations": 4,
+        "editRounds": 2,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 22,
+        "output": 74,
+        "cacheRead": 267092,
+        "cacheCreation": 31894,
+        "messages": 11,
+        "peakContext": 38368,
+        "total": 299082
+      },
+      "usage": {
+        "tokens": 308645,
+        "outputTokens": 9637,
+        "costUsd": 0.01387042,
+        "durationMs": 48310,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 12,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 8,
+          "Edit": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 48.3,
+      "phases": {
+        "orient": 1.1,
+        "learn": 10.8,
+        "verify": 6.8,
+        "implement": 18.1,
+        "test-authoring": 8.1,
+        "think": 3.4
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 5,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.4,
+        "framework-source": 10.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms.txt",
+            "llms/resources.md",
+            "llms/testing.md"
+          ]
+        },
+        "libraryBytes": 38173
+      },
+      "selfReported": [
+        "Sygnal aborts the older request when the id changes, so a stale reply can't land."
+      ],
+      "wroteTest": true,
+      "testWindow": 7.7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-23-t3",
+      "diff": {
+        "added": 130,
+        "removed": 7,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 24,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 102,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
+      "finalReportChars": 1528
+    },
+    {
+      "trial": "sygnal-24-t1",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "24-list-detail-cache",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 93,
+        "iterations": 5,
+        "editRounds": 4,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 34,
+        "output": 155,
+        "cacheRead": 600633,
+        "cacheCreation": 52556,
+        "messages": 17,
+        "peakContext": 59026,
+        "total": 653378
+      },
+      "usage": {
+        "tokens": 671717,
+        "outputTokens": 18494,
+        "costUsd": 0.025767929999999994,
+        "durationMs": 92595,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 17,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 13,
+          "Write": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 92.6,
+      "phases": {
+        "orient": 20.7,
+        "learn": 7.3,
+        "verify": 25.6,
+        "implement": 7.3,
+        "test-authoring": 21.4,
+        "debug": 5.3,
+        "think": 5
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 6,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 6
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of null (reading 'value')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 68
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 5.3,
+          "iterations": 1,
+          "signature": "TypeError: Cannot read properties of null (reading 'value')",
+          "signatures": [
+            "TypeError: Cannot read properties of null (reading 'value')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 68
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 6.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms",
+            "llms.txt",
+            "llms/http.md",
+            "llms/resources.md",
+            "llms/testing.md",
+            "src"
+          ]
+        },
+        "libraryBytes": 38517
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 27,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-24-t1",
+      "diff": {
+        "added": 207,
+        "removed": 11,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 46,
+            "removed": 8,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 157,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1633
+    },
+    {
+      "trial": "sygnal-24-t2",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "24-list-detail-cache",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 99,
+        "iterations": 6,
+        "editRounds": 5,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 36,
+        "output": 145,
+        "cacheRead": 633296,
+        "cacheCreation": 52566,
+        "messages": 18,
+        "peakContext": 59037,
+        "total": 686043
+      },
+      "usage": {
+        "tokens": 704047,
+        "outputTokens": 18149,
+        "costUsd": 0.025924260000000008,
+        "durationMs": 97836,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 20,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 16,
+          "Edit": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 97.8,
+      "phases": {
+        "orient": 21,
+        "learn": 30.1,
+        "implement": 5.3,
+        "verify": 11.7,
+        "test-authoring": 12.2,
+        "debug": 13.3,
+        "think": 4.3
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 7,
+      "editRounds": 5,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 6
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 51
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] t.respond('HTTP', …, 'PUT'): no pending HTTP request matching 'PUT' after Nms. Pending: {\"url\":\"1\",\"method\":\"PUT\",\"json\":{\"title\":\"Gamma\"},\"ok\":",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 67
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] t.respond('HTTP', …, 'PUT'): no pending HTTP request matching 'PUT' after Nms. Pending: {\"url\":\"1\",\"method\":\"PUT\",\"json\":{\"title\":\"Gamma\"},\"ok\":",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 74
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 13.3,
+          "iterations": 2,
+          "signature": "Error: [Sygnal] t.respond('HTTP', …, 'PUT'): no pending HTTP request matching 'PUT' after Nms. Pending: {\"url\":\"1\",\"method\":\"PUT\",\"json\":{\"title\":\"Gamma\"},\"ok\":",
+          "signatures": [
+            "Error: [Sygnal] t.respond('HTTP', …, 'PUT'): no pending HTTP request matching 'PUT' after Nms. Pending: {\"url\":\"1\",\"method\":\"PUT\",\"json\":{\"title\":\"Gamma\"},\"ok\":"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 67
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 29.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms",
+            "llms.txt",
+            "llms/testing.md",
+            "src",
+            "src/index.ts"
+          ]
+        },
+        "libraryBytes": 45455
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 34.3,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-24-t2",
+      "diff": {
+        "added": 158,
+        "removed": 11,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 39,
+            "removed": 8,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 115,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1673
+    },
+    {
+      "trial": "sygnal-24-t3",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "24-list-detail-cache",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 179,
+        "iterations": 4,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 48,
+        "output": 216,
+        "cacheRead": 1114163,
+        "cacheCreation": 76342,
+        "messages": 24,
+        "peakContext": 82818,
+        "total": 1190769
+      },
+      "usage": {
+        "tokens": 1227560,
+        "outputTokens": 37007,
+        "costUsd": 0.04491833,
+        "durationMs": 178162,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 31,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 15,
+          "Read": 4,
+          "Write": 3,
+          "Edit": 8
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 178.1,
+      "phases": {
+        "orient": 73.2,
+        "learn": 6,
+        "implement": 7.5,
+        "test-authoring": 21.6,
+        "verify": 7.1,
+        "debug": 55.9,
+        "think": 6.8
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 11,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 7
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 11
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected 'Could not save the item.' to be '' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 108
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected 'Gamma' to be 'Beta' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 117
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 55.9,
+          "iterations": 2,
+          "signature": "AssertionError: expected 'Could not save the item.' to be '' // Object.is equality",
+          "signatures": [
+            "AssertionError: expected 'Could not save the item.' to be '' // Object.is equality",
+            "AssertionError: expected 'Gamma' to be 'Beta' // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 108
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 5.5
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 30089
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 73.3,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-24-t3",
+      "diff": {
+        "added": 265,
+        "removed": 11,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 57,
+            "removed": 8,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 204,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1689
+    },
+    {
+      "trial": "sygnal-25-t1",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "25-router-spa",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 9,
+        "testsTotal": 9,
+        "wallSeconds": 159,
+        "iterations": 4,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 46,
+        "output": 210,
+        "cacheRead": 1259282,
+        "cacheCreation": 77587,
+        "messages": 23,
+        "peakContext": 84063,
+        "total": 1337125
+      },
+      "usage": {
+        "tokens": 1371048,
+        "outputTokens": 34133,
+        "costUsd": 0.04518132,
+        "durationMs": 158197,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 28,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 16,
+          "Write": 9,
+          "Edit": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 158.2,
+      "phases": {
+        "orient": 77,
+        "learn": 25.9,
+        "implement": 11.7,
+        "test-authoring": 12,
+        "verify": 6,
+        "debug": 14.6,
+        "think": 11
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 12,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] t.query('h1') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 130
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 132
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 14.6,
+          "iterations": 2,
+          "signature": "Error: [Sygnal] t.query('h1') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+          "signatures": [
+            "Error: [Sygnal] t.query('h1') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+            "Exit code 1"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 130
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 25.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms",
+            "llms.txt",
+            "llms/router.md",
+            "package.json"
+          ]
+        },
+        "libraryBytes": 44009
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 31.6,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-25-t1",
+      "diff": {
+        "added": 193,
+        "removed": 44,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 32,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 97,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/EditPage.jsx": {
+            "added": 31,
+            "removed": 9,
+            "status": "modified"
+          },
+          "src/NotFound.jsx": {
+            "added": 10,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskList.jsx": {
+            "added": 3,
+            "removed": 11,
+            "status": "modified"
+          },
+          "src/TaskPage.jsx": {
+            "added": 5,
+            "removed": 11,
+            "status": "modified"
+          },
+          "src/main.js": {
+            "added": 3,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/routes.js": {
+            "added": 10,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 2529
+    },
+    {
+      "trial": "sygnal-25-t2",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "25-router-spa",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 9,
+        "testsTotal": 9,
+        "wallSeconds": 132,
+        "iterations": 5,
+        "editRounds": 4,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 44,
+        "output": 173,
+        "cacheRead": 1008762,
+        "cacheCreation": 67585,
+        "messages": 22,
+        "peakContext": 74059,
+        "total": 1076564
+      },
+      "usage": {
+        "tokens": 1102853,
+        "outputTokens": 26462,
+        "costUsd": 0.03684002000000001,
+        "durationMs": 131304,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 24,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 15,
+          "Write": 8
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 131.3,
+      "phases": {
+        "orient": 74.2,
+        "learn": 6.1,
+        "implement": 16,
+        "verify": 11.9,
+        "test-authoring": 9.4,
+        "debug": 8.5,
+        "think": 5.1
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 10,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 5
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] renderComponent: the router option takes the object makeRouter() returns (import { router } from './routes.js'), not a boolean",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 112
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] t.query('h1') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 115
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 8.5,
+          "iterations": 2,
+          "signature": "Error: [Sygnal] renderComponent: the router option takes the object makeRouter() returns (import { router } from './routes.js'), not a boolean",
+          "signatures": [
+            "Error: [Sygnal] renderComponent: the router option takes the object makeRouter() returns (import { router } from './routes.js'), not a boolean",
+            "Error: [Sygnal] t.query('h1') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 112
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 5.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist",
+            "llms.txt",
+            "package.json",
+            "src"
+          ]
+        },
+        "libraryBytes": 17193
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 22.7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-25-t2",
+      "diff": {
+        "added": 211,
+        "removed": 43,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 35,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 115,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/EditPage.jsx": {
+            "added": 30,
+            "removed": 9,
+            "status": "modified"
+          },
+          "src/NotFound.jsx": {
+            "added": 10,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskList.jsx": {
+            "added": 4,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/TaskPage.jsx": {
+            "added": 4,
+            "removed": 11,
+            "status": "modified"
+          },
+          "src/main.js": {
+            "added": 3,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/router.js": {
+            "added": 8,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 1,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 1,
+        "hitsByCode": {
+          "SYG104": 1,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 2377
+    },
+    {
+      "trial": "sygnal-25-t3",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "25-router-spa",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 9,
+        "testsTotal": 9,
+        "wallSeconds": 114,
+        "iterations": 5,
+        "editRounds": 4,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 28,
+        "output": 78,
+        "cacheRead": 553551,
+        "cacheCreation": 60111,
+        "messages": 14,
+        "peakContext": 66587,
+        "total": 613768
+      },
+      "usage": {
+        "tokens": 637876,
+        "outputTokens": 24186,
+        "costUsd": 0.02965351,
+        "durationMs": 113578,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 22,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 12,
+          "Write": 8,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 113.5,
+      "phases": {
+        "orient": 13.6,
+        "learn": 36.8,
+        "implement": 35.3,
+        "verify": 11.7,
+        "test-authoring": 8.2,
+        "debug": 3.4,
+        "think": 4.6
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 10,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "ReferenceError: router is not defined",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 96
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 3.4,
+          "iterations": 1,
+          "signature": "ReferenceError: router is not defined",
+          "signatures": [
+            "ReferenceError: router is not defined"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 96
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 5.2,
+        "types": 31.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms",
+            "llms.txt",
+            "llms/router.md",
+            "package.json",
+            "src"
+          ]
+        },
+        "libraryBytes": 47716
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 19.4,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-25-t3",
+      "diff": {
+        "added": 204,
+        "removed": 40,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 40,
+            "removed": 9,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 102,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/EditPage.jsx": {
+            "added": 33,
+            "removed": 9,
+            "status": "modified"
+          },
+          "src/NotFound.jsx": {
+            "added": 10,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskList.jsx": {
+            "added": 4,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/TaskPage.jsx": {
+            "added": 3,
+            "removed": 9,
+            "status": "modified"
+          },
+          "src/main.js": {
+            "added": 3,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/routes.js": {
+            "added": 7,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1918
+    },
+    {
+      "trial": "sygnal-30-t1",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 107,
+        "iterations": 5,
+        "editRounds": 4,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 24,
+        "output": 78,
+        "cacheRead": 461887,
+        "cacheCreation": 55689,
+        "messages": 12,
+        "peakContext": 62163,
+        "total": 517678
+      },
+      "usage": {
+        "tokens": 540060,
+        "outputTokens": 22460,
+        "costUsd": 0.02698907,
+        "durationMs": 106135,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 14,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 10,
+          "Write": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 106.1,
+      "phases": {
+        "orient": 45.7,
+        "learn": 4.6,
+        "implement": 23.6,
+        "verify": 12.6,
+        "test-authoring": 16.2,
+        "think": 3.5
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 5,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 31026
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 21.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-30-t1",
+      "diff": {
+        "added": 231,
+        "removed": 37,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 78,
+            "removed": 34,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 149,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1608
+    },
+    {
+      "trial": "sygnal-30-t2",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 5,
+        "testsTotal": 7,
+        "wallSeconds": 195,
+        "iterations": 5,
+        "editRounds": 5,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 32,
+        "output": 135,
+        "cacheRead": 894300,
+        "cacheCreation": 78280,
+        "messages": 16,
+        "peakContext": 84754,
+        "total": 972747
+      },
+      "usage": {
+        "tokens": 1017489,
+        "outputTokens": 44877,
+        "costUsd": 0.0470407,
+        "durationMs": 194539,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 16,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 12,
+          "Write": 2,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 194.5,
+      "phases": {
+        "orient": 147.2,
+        "learn": 4.6,
+        "implement": 14.2,
+        "verify": 4.3,
+        "test-authoring": 10.2,
+        "debug": 9.1,
+        "think": 5
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 6,
+      "editRounds": 5,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] t.query('[name=\"email\"]') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 177
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 180
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 181
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 9.1,
+          "iterations": 3,
+          "signature": "Error: [Sygnal] t.query('[name=\"email\"]') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+          "signatures": [
+            "Error: [Sygnal] t.query('[name=\"email\"]') ran before the component's first render. Wait for it first: await t.ready() (or await t.next(...))",
+            "Exit code 1"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 177
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "framework-source": 4.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 31055
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 20.2,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-30-t2",
+      "diff": {
+        "added": 330,
+        "removed": 32,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 191,
+            "removed": 29,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 135,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 8,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
+      "finalReportChars": 1945
+    },
+    {
+      "trial": "sygnal-30-t3",
+      "run": "agent-docs-compact-haiku",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 121,
+        "iterations": 5,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 30,
+        "output": 121,
+        "cacheRead": 781743,
+        "cacheCreation": 72437,
+        "messages": 15,
+        "peakContext": 78913,
+        "total": 854331
+      },
+      "usage": {
+        "tokens": 879332,
+        "outputTokens": 25122,
+        "costUsd": 0.03486883,
+        "durationMs": 119562,
+        "model": "claude-haiku-5-5"
+      },
+      "toolCalls": {
+        "total": 18,
+        "byTool": {
+          "Bash": 11,
+          "Skill": 1,
+          "Write": 3,
+          "Edit": 2,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 119.5,
+      "phases": {
+        "orient": 42.5,
+        "learn": 4.4,
+        "verify": 40.1,
+        "implement": 7.5,
+        "test-authoring": 20.1,
+        "think": 4.9
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 6,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 2
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 3,
+        "skill-load": 1.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 48974
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 24.4,
+      "trialDir": "/private/tmp/sygnal-evals/trials/agent-docs-compact-haiku/sygnal-30-t3",
+      "diff": {
+        "added": 253,
+        "removed": 37,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 78,
+            "removed": 34,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 171,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1622
+    }
+  ]
+}

@@ -9,7 +9,8 @@ npx sygnal-check "src/**/*.tsx" --json
 npx sygnal-check --graph --json  # the app graph: components, actions, events, selectors, findings
 npx sygnal-check --graph=html    # the app graph as an interactive page (--watch: live)
 npx sygnal-check explain SYG104  # what a diagnostic code means and how to fix it
-npx sygnal-check mcp             # MCP server (stdio) with check, graph and explain tools
+npx sygnal-check --report --base main   # what a change does, per component (experimental)
+npx sygnal-check mcp             # MCP server (stdio) with check, graph, explain and report tools
 npx sygnal-check lsp             # language server (stdio) for editors
 ```
 
@@ -129,6 +130,7 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 | SYG640 | warn | An element command (`ELEMENT: { focus: Email }`, a literal command object) whose target control, or static class/id selector, the sending component's view never renders, or renders only inside a child component: a command reaches only its sender's own elements. |
 | SYG641 | error | The method (first key) of a literal element command: a slip of a documented command (`focus`, `blur`, `select`, `click`, `scrollIntoView`, `showModal`, `show`, `close`, `showPopover`, `hidePopover`, `togglePopover`) or of the control's spec `commands` (`{ fokus: Email }`: did you mean 'focus'), or a method that changes the DOM Sygnal renders (`remove`, `append`, `setAttribute`...). Other element methods (`play`, `requestSubmit`, a custom element's own) are fine. |
 | SYG643 | warn | A component declares `timers`, `connections` or `resources`, and the app's `run(App, drivers)` call renders it but registers no `makeTimerDriver()`, `makeSocketDriver()` or `makeFetchDriver()`. Only when the `run()` call is in the scanned files and its drivers are an object literal the checker can list (a driver from a package, a spread or a local driver that may wrap one makes it say nothing). |
+| SYG646 | error | `drivers` on a component that isn't the root: `run()` reads it on the root only. Reported when a `run()` call in the scanned files renders the component and none has it as its root. |
 | SYG637 | warn | An action sends `{ refresh: name }` for a resource another component also declares (the same literal URL by GET; with a `query`, the same helper called without arguments). `refresh` reaches only the sender's own resources, so the other component keeps its old answer. Fix: `{ invalidate: value }`, with a tag both reads carry or their URL. Quiet for computed URLs, for different targets of one Switchable or Outlet, and when the checker can't place both components under a common ancestor. |
 | SYG609 | warn | A model entry sends to a sink (`HTTP`, `WS`, any name the core doesn't handle) of a component that the app's `run(App, drivers)` call renders, and that call registers no driver under that name, so every value sent there is dropped (`renderComponent()` fakes the sink, so tests pass). Only when the `run()` call is in the scanned files and its drivers are an object literal (or absent); `STATE`, `EFFECT`, `EVENTS`, `PARENT`, `READY`, `DOM`, `CHILD`, `ELEMENT`, `PERSIST` and `LOG` need no driver. |
 | SYG129 | warn | `CHILD.select(TaskRow)` in a component whose view doesn't render `TaskRow`, while a component it renders does (a grandchild, e.g. a Collection item inside a child): `PARENT` reaches only the direct parent, so it never fires. The message names the chain and the fix relays the value through the component in between. Quiet when the view renders it itself, mentions it some other way, or has a Collection/Switchable target the checker can't resolve. |
@@ -251,6 +253,7 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 | `uses[]` | the `uses` entries: `{ key, behavior, status }` (`resolved`, `opaque` or `invalid`; omitted when none). Behavior-owned actions are in `actions` with `behavior: key`, and what a behavior listens to through a control option is in `selectors` with `behavior: key` | not produced |
 | `commands[]` | the `ELEMENT` commands the model sends: `{ action, method, target, control?, triggers? }` (literal command objects; `triggers`: the intent actions listening on the target for a native event the command causes, `close` → `DOM.close(HelpDialog)`; omitted when none) | not produced |
 | `agent` | the `agent` declaration (sygnal/ai): `{ name, tools, description, read, actions: [{ name, consequential, input }], partial? }` (`tools`: the tool-name prefix; omitted when none). Actions only an agent dispatches have trigger `agent` | not produced |
+| `drivers[]` | a root's drivers: `{ name, driver, from: 'static' \| 'run' }` (omitted when none), from its `drivers` static and `run()`'s argument, which overrides it by name |
 | `timers[]` | the `timers` static's literal specs: `{ name, every?, after?, frame?, action?, background? }` (omitted when none). Timer actions are in `actions` with trigger `reply` | not produced |
 | `recentActions` | — | with `inspect({ actions })`: the latest actions, `{ type, data, component, instance, sinks, cause, at }` |
 | `diagnostics` | the rule findings (strict ones with `--strict`), with `file`/`line`/`column` | collected diagnostics, by component name |
@@ -342,6 +345,7 @@ SYG104: Intent selector crosses an isolation boundary
 | `check` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | `{ diagnostics, summary: { error, warn, info } }` |
 | `graph` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | the `InspectGraph` |
 | `explain` | `{ code: string }` | `{ code, title, severity, staticSeverity?, strict, reportedBy, explanation, fix, docsUrl }` |
+| `report` (experimental) | `{ base: string, head?: string, paths?: string[] }` | what a change does per component: `{ summary, attention, notes, components, coverage, ... }` |
 
 Results come back as `structuredContent` and as JSON text. A bad path or an unknown code is a tool result with `isError: true`.
 

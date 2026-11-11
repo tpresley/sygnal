@@ -15,16 +15,15 @@ Start with a model on your own machine: no account, no key, no server code. Inst
 ollama pull llama3.2
 ```
 
-Ollama serves the Open Responses API at `http://localhost:11434/v1`. Register the chat driver once in `main.js`, with the `openResponses()` transport pointed at it:
+Ollama serves the Open Responses API at `http://localhost:11434/v1`. Register the chat driver once on the root component, with the `openResponses()` transport pointed at it:
 
 ```js
-import { run } from 'sygnal'
+// Chat.jsx
 import { makeChatDriver, openResponses } from 'sygnal/ai'
-import Chat from './Chat.jsx'
 
-run(Chat, {
+Chat.drivers = {
   LLM: makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) }),
-})
+}
 ```
 
 Ollama accepts requests from pages on `localhost` by default. A dev server on another host name needs `OLLAMA_ORIGINS` set.
@@ -509,7 +508,7 @@ The transports refuse the other mistake for you. In a browser, a request with an
 
 ### The same component, two transports
 
-The component never changes. Only the transport in `main.js` does: Ollama while you develop, your AI SDK route in production.
+The component never changes. Only the transport does: Ollama while you develop, your AI SDK route in production. What differs per environment is what `run()`'s argument is for ([Drivers](/guide/drivers/#what-differs-per-environment)), so it goes in `main.js`:
 
 ```js title="main.js (development)"
 // a local model, through Ollama
@@ -647,11 +646,10 @@ A request's `maxTokens` is sent as the wire format's limit: `max_output_tokens` 
 - `chromePrompt()` sends no tools (the Prompt API has none yet). The Prompt API takes one system prompt, so `instructions` and every `system` message, wherever it is in the conversation, are joined into it. Its `status()` resolves with `'available'`, `'downloadable'`, `'downloading'` or `'unavailable'`; a component reads it through [`driverFromAsync`](/guide/custom-drivers/), with no awaiting in `main.js`:
 
   ```js
-  // main.js
-  const onDevice = chromePrompt()
-  run(App, { LLM: makeChatDriver({ transport: onDevice }), MODEL: driverFromAsync(onDevice.status) })
-
   // App.jsx
+  const onDevice = chromePrompt()
+  App.drivers = { LLM: makeChatDriver({ transport: onDevice }), MODEL: driverFromAsync(onDevice.status) }
+
   App.model = {
     BOOTSTRAP: { MODEL: () => ({ ok: 'MODEL_STATUS' }) },
     MODEL_STATUS: (state, status) => ({ ...state, model: status }),   // 'available', 'downloadable', …

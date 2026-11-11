@@ -22,6 +22,7 @@
 import { walk, unwrap, propName, memberName } from '../ast.js'
 import { findApps } from '../model/apps.js'
 import { sourceAliases } from '../model/intent.js'
+import { rootDriverFix } from '../model/rootDriverFix.js'
 
 // src/extra/diagnostics/checks/wiring.ts NO_DRIVER_NEEDED, plus run()'s default drivers
 const NO_DRIVER_NEEDED = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD', 'ELEMENT', 'PERSIST', 'LOG'])
@@ -30,6 +31,10 @@ const DRIVER_NAME = /^[A-Z][A-Z0-9_]*$/
 const CORE_SOURCES = new Set(['DOM', 'STATE', 'CHILD', 'EVENTS', 'LOG'])
 // G-620: an LLM sink gets the chat driver (sygnal/ai)
 const EXAMPLE = { HTTP: 'makeFetchDriver()', WS: 'makeSocketDriver()', SW: "makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD })", LLM: "makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) })" }
+
+// the sinks whose driver takes no options, for --fix
+const ZERO_OPTION = { HTTP: 'makeFetchDriver', WS: 'makeSocketDriver' }
+const fixFor = (app, name, rendering) => (ZERO_OPTION[name] && rootDriverFix(app, name, ZERO_OPTION[name], rendering)) || undefined
 
 /** The driver-like source names an intent reads: Map<name, node> (the first read). */
 function sourceReads(fn) {
@@ -73,7 +78,7 @@ export default {
           if (!lacking || rendering.some(a => !a.drivers || a.drivers.has(name))) continue
           const at = `${project.relPath(lacking.file.path)}:${lacking.call.loc.start.line}`
           const root = lacking.root?.name || 'App'
-          const example = EXAMPLE[name] ? `run(${root}, { ${name}: ${EXAMPLE[name]} })` : `run(${root}, { ${name}: myDriver })`
+          const example = `${root}.drivers = { ${name}: ${EXAMPLE[name] || 'myDriver'} }`
           report({
             code: 'SYG609',
             component: comp.name,
@@ -82,10 +87,11 @@ export default {
             related: [{ node: lacking.call.callee, file: lacking.file, message: `this run() call registers no ${name} driver` }],
             message: `${comp.name}.intent reads the ${name} source, but the run() call that renders ${comp.name} (${at}) ` +
               `registers no driver named ${name}, so it is undefined`,
-            fix: `Pass a driver named ${name} to run(): ${example}` +
+            fix: `Register a driver named ${name} on the root: ${example}` +
               (EXAMPLE[name] ? '' : ', e.g. driverFromAsync(fn) or your own driver') +
-              `. Check the spelling against the drivers you pass`,
+              `. Check the spelling against the drivers you register`,
             data: { name, kind: 'source', drivers: [...lacking.drivers] },
+            fixes: fixFor(lacking, name, rendering),
           })
         }
       }
@@ -101,7 +107,7 @@ export default {
         if (!lacking || rendering.some(a => !a.drivers || a.drivers.has(sink))) continue
         const at = `${project.relPath(lacking.file.path)}:${lacking.call.loc.start.line}`
         const root = lacking.root?.name || 'App'
-        const example = EXAMPLE[sink] ? `run(${root}, { ${sink}: ${EXAMPLE[sink]} })` : `run(${root}, { ${sink}: myDriver })`
+        const example = `${root}.drivers = { ${sink}: ${EXAMPLE[sink] || 'myDriver'} }`
         report({
           code: 'SYG609',
           component: comp.name,
@@ -110,10 +116,11 @@ export default {
           related: [{ node: lacking.call.callee, file: lacking.file, message: `this run() call registers no ${sink} driver` }],
           message: `Model entry '${v.action}' sends to the ${sink} sink, but the run() call that renders ${comp.name} (${at}) ` +
             `registers no driver named ${sink}, so every value sent there is dropped`,
-          fix: `Pass a driver named ${sink} to run(): ${example}` +
+          fix: `Register a driver named ${sink} on the root: ${example}` +
             (EXAMPLE[sink] ? '' : ', e.g. driverFromAsync(fn) or your own driver') +
-            `. Check the spelling against the drivers you pass. Tests don't need it: renderComponent fakes the sink`,
+            `. Check the spelling against the drivers you register. Tests don't need it: renderComponent fakes the sink`,
           data: { name: sink, kind: 'sink', action: v.action, drivers: [...lacking.drivers] },
+          fixes: fixFor(lacking, sink, rendering),
         })
       }
     }

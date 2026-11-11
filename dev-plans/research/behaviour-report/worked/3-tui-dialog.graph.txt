@@ -1,0 +1,4 @@
+app graph: 73b084d8~1 (6be8223b97) → 73b084d8
+~ Tracker: +action confirm.APPLY, +action confirm.CANCEL, +action confirm.CLOSE, +action confirm.CLOSED, +action confirm.OPEN, +action confirm.SYNC, +action confirm.TOGGLED, -action CANCEL_DELETE, +sink CREATED:EVENTS, +sink DELETED:EVENTS, +sink SAVED:EVENTS, -sink ASK_DELETE:ELEMENT, -sink DELETE:ELEMENT, -sink DELETED:STATE, -sink SAVED:STATE, +state confirm, +reads confirm, +emits TOAST, +child sygnal/ui:Toaster  examples/tui-tracker/src/app.jsx
+EVENTS: +TOAST, +TOAST_DISMISS
+0 added, 0 removed, 1 changed

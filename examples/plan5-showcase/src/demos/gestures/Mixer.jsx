@@ -32,4 +32,6 @@ Mixer.uses = {
 // no pick: every key is saved, except slices of behaviors marked persist: false
 Mixer.persist = persist({ key: 'p5-showcase-mixer' })
 
-export const start = (mountPoint, uid) => run(Mixer, { TIMER: makeTimerDriver() }, { mountPoint, uid })
+Mixer.drivers = { TIMER: makeTimerDriver() }
+
+export const start = (mountPoint, uid) => run(Mixer, {}, { mountPoint, uid })

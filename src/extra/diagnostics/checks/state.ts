@@ -46,7 +46,8 @@ export function watchMutation(component: any, action: string, fn: any): any {
       .filter(([o]) => isPlainObject(o)).map(([o, p]) => [o, p, Object.keys(o), Object.values(o)])
     const out = fn(state, ...rest)
     if (out === state) {
-      const changed = snaps.flatMap(([o, p, keys, values]: any) => keys.filter((k: string, i: number) => !(k in o) || o[k] !== values[i])
+      // Object.is: a NaN field is the same value, not a change
+      const changed = snaps.flatMap(([o, p, keys, values]: any) => keys.filter((k: string, i: number) => !(k in o) || !Object.is(o[k], values[i]))
         .concat(Object.keys(o).filter(k => !keys.includes(k))).map((k: string) => p + k))
       const name = nameOf(component)
       if (changed.length && once(`SYG222:${name}:${action}`)) {

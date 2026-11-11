@@ -89,6 +89,7 @@ export function formatGraph(g, { verbose = false } = {}) {
     row('controls', list((c.controls || []).map(x => `${x.name}${x.element ? ` <${x.element}>` : x.kind ? ` (${x.kind})` : ''} ${x.listened ? '✓' : x.listened === false ? '(not listened to)' : '?'}`)))
     row('selectors', list(c.selectors.map(selectorText)))
     row('commands', list((c.commands || []).map(x => `${x.action} → ${x.method} ${x.target ?? '?'}${x.triggers ? ` (→ ${x.triggers.join(', ')})` : ''}`)))
+    row('drivers', list((c.drivers || []).map(d => `${d.name} ${d.driver ?? '?'} (${d.from === 'static' ? `${c.name}.drivers` : 'run()'})`)))
     row('timers', list((c.timers || []).map(timerText)))
     if (c.agent) {
       const acts = list(c.agent.actions.map(a => `${a.name}${a.input || a.consequential ? ` (${[a.input && 'input', a.consequential && 'consequential'].filter(Boolean).join(', ')})` : ''}`))

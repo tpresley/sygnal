@@ -1,5 +1,6 @@
 // The view of the `get_forecast` tool: an MCP App. The host (Claude, ChatGPT, VS Code, ...) shows
-// it in a sandboxed iframe and talks to it through the MCP driver (run(App, { MCP: makeMcpAppDriver() })).
+// it in a sandboxed iframe and talks to it through the MCP driver (App.drivers, below).
+import { makeMcpAppDriver } from 'sygnal/ai'
 import type { RootComponent } from 'sygnal'
 import type { McpAppSource, McpAppRequest, McpAppError, McpToolResult, McpHostContext } from 'sygnal/ai'
 
@@ -75,6 +76,11 @@ const App: App = function ({ state }) {
     </main>
   )
 }
+
+// MCP: the bridge to the host. It does the ui/initialize handshake, then delivers the tool's
+// input and result to MCP.select(...) and sends { callTool }, { updateModelContext }, { message },
+// { openLink } and { displayMode } requests.
+App.drivers = { MCP: makeMcpAppDriver({ appInfo: { name: 'sygnal-forecast', version: '0.1.0' }, availableDisplayModes: ['inline', 'fullscreen'] }) }
 
 App.initialState = {
   city: '',

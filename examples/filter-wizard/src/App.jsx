@@ -26,6 +26,8 @@ function App({ state }) {
 }
 
 App.route = 'ROUTE'
+App.drivers = { ROUTER: router.driver }
+
 App.initialState = { route: router.current(), flow: {} }
 // the flow survives a reload of the tab: the step, the draft and each step's own slice
 App.persist = persist({ key: 'filter-wizard', pick: ['flow'], storage: 'session' })

@@ -3,9 +3,9 @@
 // validated it, and `value` is a typed Event; on FAILED, `issues` lists what didn't match.
 //
 // No parsing or validation code here: the driver does both with the schema it sent.
-import { ABORT, classes } from 'sygnal'
+import { ABORT, classes, makeFetchDriver } from 'sygnal'
 import { outputJsonSchema } from 'sygnal/ai'
-import { modelOf } from '../../shared/providers.js'
+import { modelOf, makeLLM } from '../../shared/providers.js'
 import { providersResource, pickerState, pickerIntent, pickerModel, pickedModel, modelPicker } from '../../shared/picker.jsx'
 import { Event } from './event.js'
 import { EMAILS } from './emails.js'
@@ -185,6 +185,11 @@ export default function EventExtractor({ state }) {
 const localToday = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+EventExtractor.drivers = {
+  LLM: makeLLM(),             // the chat driver: it sends the schema, then parses and validates the reply
+  HTTP: makeFetchDriver(),    // the model list (GET /api/providers)
 }
 
 EventExtractor.initialState = {
