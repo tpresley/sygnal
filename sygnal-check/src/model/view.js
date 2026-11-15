@@ -252,6 +252,14 @@ export function bindViewParams(project, fn, fnFile, call, file, outer) {
 
 /** The module-level (or imported) helper function `ident` names, when it renders JSX: { file, node } or null. */
 function helperOf(project, file, ident) {
+  // a helper of a namespace import: `FX.block(b)` with `import * as FX from './fx'`
+  if (ident.type === 'MemberExpression') {
+    const o = unwrap(ident.object)
+    const nb = !ident.computed && o.type === 'Identifier' ? findBinding(file, o.name, o) : null
+    if (nb?.kind !== 'import' || nb.imported !== '*') return null
+    const r = resolveExpr(project, file, ident)
+    return r && isFunction(r.node) && !project.isComponentFunction(r.file, r.node) && containsJSX(r.node) ? r : null
+  }
   const b = findBinding(file, ident.name, ident)
   if (!b || !['function', 'var', 'import'].includes(b.kind)) return null
   // Only module-level (or imported) helpers; locals inside the view are walked already.
@@ -303,7 +311,7 @@ function visitInto(project, file, root, sink, visited, bind = null) {
     if (node.type === 'CallExpression') {
       const callee = unwrap(node.callee)
       // a helper called from the view: walked with its parameters bound to this call's arguments
-      const h = callee.type === 'Identifier' && node.arguments.length && (bind?.depth || 0) < MAX_BIND_DEPTH ? helperOf(project, file, callee) : null
+      const h = (callee.type === 'Identifier' || callee.type === 'MemberExpression') && node.arguments.length && (bind?.depth || 0) < MAX_BIND_DEPTH ? helperOf(project, file, callee) : null
       if (h && !onStack(bind, h.node)) {
         walkHelper(project, h, sink, visited, bindViewParams(project, h.node, h.file, node, file, bind))
         for (const a of node.arguments) visitInto(project, file, a, sink, visited, bind)
@@ -319,8 +327,8 @@ function visitInto(project, file, root, sink, visited, bind = null) {
         if (sel) addHyperscript(file, unwrap(node.arguments[0]), sel, sink)
       }
     }
-    if (node.type === 'Identifier') {
-      // a helper referenced, not called (`items.map(renderItem)`): its parameters are dynamic
+    if (node.type === 'Identifier' || node.type === 'MemberExpression') {
+      // a helper referenced, not called (`items.map(renderItem)`, `items.map(FX.row)`): its parameters are dynamic
       const h = helperOf(project, file, node)
       if (h && !onStack(bind, h.node)) walkHelper(project, h, sink, visited, null)
     }

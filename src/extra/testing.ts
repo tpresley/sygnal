@@ -1901,7 +1901,7 @@ export function renderComponent(
     // PLAN-5 V-1: scrollToIndex / scrollToId are methods of a VirtualCollection's container
     const vc = m.startsWith('scrollTo') && findVc(target, c)?.commands[m];
     // G-369: a control wrapping a widget has its widget's host tag
-    if (!vc && (w ? !w.commands[m] && !elementHas(0, m, w.def.tag || 'div') : !target?.spec?.commands?.[m] && !elementHas(target, m, target?.spec?.def?.tag))) {
+    if (!vc && (w ? !w.commands[m] && !elementHas(0, m, w.def.tag || 'div') : !target?.spec?.commands?.[m] && target?.within == null && !elementHas(target, m, target?.spec?.def?.tag))) {
       return reportElementCommand(c, cmd, w ? {tagName: w.def.tag || 'div', __sw: {w}} : {});
     }
     // D194: focusWithin(selector) looks under the sender's root, children included

@@ -529,15 +529,29 @@ type ElementSinkValue =
 
 - The first key of a command is the method; the other keys are its options, passed as one object (`close` gets `returnValue`). Any other method the element has also runs; add it to the `ElementCommandRegistry` interface for TypeScript.
 - A control made from a spec object with `commands` is asked first: `{ open: DueDate }` calls `spec.commands.open(element, options)`.
-- The target is looked up in the sending instance's own view (children and Collection items are isolated); [`focusWithin(selector)`](#focuswithin) reaches inside them. The command runs after the next patch at which the target exists; it gives up after about 1 s ([SYG640](/reference/errors/#syg640)). An unknown or DOM-mutating method is [SYG641](/reference/errors/#syg641).
+- The target is looked up in the sending instance's own view (children and Collection items are isolated); a [`within(selector)`](#within) target reaches inside them, for any method. The command runs after the next patch at which the target exists; it gives up after about 1 s ([SYG640](/reference/errors/#syg640)). An unknown or DOM-mutating method is [SYG641](/reference/errors/#syg641).
 - An array runs its commands in order; `ABORT` sends nothing. Nothing runs during server rendering.
 - In tests: `t.commands('ELEMENT')` lists the commands sent; with `dom: 'real'` they also run.
 
 ---
 
+## within()
+
+An `ELEMENT` target that reaches inside the sender's children, for any method. [Guide](/guide/element-commands/#reaching-inside-children-within).
+
+```typescript
+function within(selector: string): WithinTarget
+// ELEMENT: { scrollIntoView: within('.impact-box'), block?: ScrollLogicalPosition }
+// ELEMENT: { focus: within('.title'), preventScroll?: boolean }
+```
+
+Runs the command on the first element under the sender's root element(s) that matches `selector` (a child component's or a Collection item's included), with the command's options: a widget host's command of that name, else the element's own method. It runs after the next patch at which the element exists, so an item the same action adds is there; no match after about 1 s is [SYG640](/reference/errors/#syg640) in development.
+
+---
+
 ## focusWithin()
 
-An `ELEMENT` focus target that reaches inside the sender's children (PLAN-5). [Guide](/guide/element-commands/#focusing-inside-children-focuswithin).
+The earlier, focus-only form of [`within()`](#within): the same reach, and no match does nothing. [Guide](/guide/element-commands/#reaching-inside-children-within).
 
 ```typescript
 function focusWithin(selector: string): WithinTarget
@@ -987,7 +1001,7 @@ function sortable(options: {
 | State | `dragging`, `over`, `after`, `list`, `mode` (`'pointer'` / `'keyboard'` / `null`), `message` (for a live region), `helpId` (a `uid()` id for the instructions, set at the first focus, press or key inside the host); internal `press`, `origin`. Never saved by `persist()` |
 | Actions | `DROPPED` (`{ id, list, index, fromList, fromIndex }`, once per completed move: add a host entry to save the order); internal `INIT`, `HELP`, `END`, `PRESS`, `MOVE`, `UP`, `CANCEL`, `KEY`. With `undo()` a drag is one undo step |
 
-Keys on a handle: Space / Enter lift and drop, the arrows and Home / End move (the cross axis changes lists), Escape restores, Tab drops. Focus follows the moved item ([`focusWithin`](#focuswithin)). A pointer drag shows `over` / `after` while moving and reorders on release. Dev diagnostics [SYG145](/reference/errors/#syg145)–[SYG147](/reference/errors/#syg147), [SYG435](/reference/errors/#syg435); `sygnal-check` [SYG724](/reference/errors/#syg724).
+Keys on a handle: Space / Enter lift and drop, the arrows and Home / End move (the cross axis changes lists), Escape restores, Tab drops. Focus follows the moved item (a [`within`](#within) target). A pointer drag shows `over` / `after` while moving and reorders on release. Dev diagnostics [SYG145](/reference/errors/#syg145)–[SYG147](/reference/errors/#syg147), [SYG435](/reference/errors/#syg435); `sygnal-check` [SYG724](/reference/errors/#syg724).
 
 ---
 

@@ -223,3 +223,31 @@ Page.head = (s, b) => { const { route } = b; return { title: route.params.id } }
     expect(out.split('\n')[2]).toBe(`Page.resources = { item: (s: any, { id, context: { route } }: { id: string, context: { route: any } }) => '/api/' + route + id }`)
   })
 })
+
+// Tune 2026-11: two forms the rule didn't see (the runtime warned)
+describe('SYG458: entries the static is built from', () => {
+  it('an entry assigned onto the static, with --fix', () => {
+    const src = app(`Page.resources = {}\nPage.resources.item = (s, ctx) => '/api/' + ctx.route.params.id`)
+    const d = found(src)
+    expect(d).toHaveLength(1)
+    expect(d[0].message).toContain('Page.resources.item reads the context field')
+    expect(fix(src)).toContain(`Page.resources.item = (s, { context: ctx }) => '/api/' + ctx.route.params.id`)
+  })
+
+  it('Object.fromEntries of mapped pairs and of literal pairs, with --fix', () => {
+    for (const [st, fixed] of [
+      [`Page.resources = Object.fromEntries(['a', 'b'].map(k => [k, (s, { route }) => '/api/' + k + route.params.id]))`, `[k, (s, { context: { route } }) =>`],
+      [`Page.resources = Object.fromEntries(['a'].map(k => { return [k, (s, ctx) => '/api/' + k + ctx.route.params.id] }))`, `[k, (s, { context: ctx }) =>`],
+      [`const pairs = [['a', (s, { user }) => '/u/' + user]]\nPage.resources = Object.fromEntries(pairs)`, `['a', (s, { context: { user } }) =>`],
+    ]) {
+      const src = app(st)
+      expect(found(src), st).toHaveLength(1)
+      expect(fix(src), st).toContain(fixed)
+    }
+  })
+
+  it('an entry assigned onto something that is not a component, or a prop, stays silent', () => {
+    expect(found(app(`const cfg = { resources: {} }\ncfg.resources.item = (s, ctx) => ctx.route`))).toHaveLength(0)
+    expect(found(app(`Page.resources = {}\nPage.resources.item = (s, ctx) => '/api/' + ctx.id`))).toHaveLength(0)
+  })
+})

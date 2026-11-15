@@ -46,7 +46,9 @@
  * 'GOTO', step }`, `{ wizard: 'RESET', draft? }`, `{ wizard: 'FINISH' }`. With `url`, a move is a
  * ROUTER command and the step follows the route (ROUTE); a route to a step that isn't reachable is
  * replaced with the first incomplete step before it (backTo); RESET goes to `resetTo` (a command, or a function of
- * the slice and the bag), else the first step's route. `url.from(hostState, bag)` (default
+ * the slice and the bag), else the first step's route. A move keeps the step route's other path
+ * params; `url.keyParam` names the path param that carries the flow key (`url.key`: the query
+ * parameter), e.g. /projects/:pid/setup/:step with keyParam: 'pid'. `url.from(hostState, bag)` (default
  * state.route) maps the host's route to the step route; an attempted navigation is mapped with it
  * too, given the host state with `route` set to the attempted route.
  *
@@ -67,6 +69,10 @@ import {dropRepeats} from './xstreamExtras'
 import {objIsEqual} from '../cycle/state/objIsEqual'
 
 const plainObj = (d: any) => !!d && typeof d == 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(d))
+// an action's data that is a message ({ step, key, draft }, a RESET's draft), not a DOM event: a
+// click on `goto` / `reset` is an Event in a browser, and a plain object with a `target` under
+// renderComponent's mock DOM and sygnal/host
+const msgObj = (d: any) => plainObj(d) && !('target' in d)
 // a click's step name: the data-step of the clicked `goto` element (or one inside it); else the data as is
 const nameOf = (d: any, sel: any): any => {
   if (!d || typeof d != 'object') return d
@@ -180,12 +186,18 @@ export const wizard = (o: any = {}): any => {
     const r = routeOf(B)
     return r?.name == url.route && names.includes(r.params?.[url.param]) ? r.params[url.param] : null
   }
-  const go = (w: any, n: string, replace?: boolean) =>
-    ({to: url.route, params: {[url.param]: n}, ...url.key && w.key != null && {query: {[url.key]: w.key}}, ...replace && {replace: true}})
+  // url: the route's params for step n and flow key k: the current step route's other params kept (a
+  // route such as /projects/:pid/setup/:step), the key in `url.keyParam` when it is a path param
+  const paramsOf = (B: any, n: string, k: any) => {
+    const r = routeOf(B)
+    return {...r?.name == url.route && r.params, [url.param]: n, ...url.keyParam && k != null && {[url.keyParam]: k}}
+  }
+  const go = (w: any, n: string, B: any, replace?: boolean) =>
+    ({to: url.route, params: paramsOf(B, n, w.key), ...url.key && w.key != null && {query: {[url.key]: w.key}}, ...replace && {replace: true}})
   // a step to move to from w (null: none)
   // (an outcome step is reached by GOTO from any step; from it, only another outcome step)
   const target = (w: any, a: string, d: any, B: any) => {
-    const l = live(w, B), i = l.indexOf(w.step), n = a == 'GOTO' && nameOf(plainObj(d) ? d.step : d, gotoSel)
+    const l = live(w, B), i = l.indexOf(w.step), n = a == 'GOTO' && nameOf(msgObj(d) ? d.step : d, gotoSel)
     if (out(w.step)) return n && out(n) && n != w.step ? n : null
     if (a == 'NEXT') return ok(w, w.step, B) ? l[i + 1] ?? null : null
     if (a == 'BACK') return i > 0 ? l[i - 1] : null
@@ -216,8 +228,8 @@ export const wizard = (o: any = {}): any => {
     ...shut,
     STATE: (w: any, d: any, _n: any, p: any) => { const B = bag(p, p?.state), n = !url && target(w, a, d, B); return n ? fin(enter(w, n, B), B) : ABORT },
     ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
-      const s = was(w, p, k), n = target(s, a, d, bag(p))
-      return n ? go(s, n) : ABORT
+      const s = was(w, p, k), B = bag(p), n = target(s, a, d, B)
+      return n ? go(s, n, B) : ABORT
     }},
   })
   // the finish action, with the draft (from the last step's NEXT, or a step's FINISH)
@@ -285,7 +297,7 @@ export const wizard = (o: any = {}): any => {
       ...shut,
       HOST: (h: any, d: any, _n: any, p: any, _o: any, k: string) => {
         const w = h[k], B = bag(p, h)
-        if (plainObj(d) && 'key' in d) {
+        if (msgObj(d) && 'key' in d) {
           // (as for a key the route names: adopted when the flow has none yet, or the same key; else
           // the flow anew, at that step straight; `draft` merged over draft(state), (url) the one of
           // the route it navigates to once landed, RESEED)
@@ -299,12 +311,12 @@ export const wizard = (o: any = {}): any => {
         return n && (!url || out(n)) ? put(B, k, enter(w, n, B)) : h
       },
       ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
-        const s = was(w, p, k)
+        const s = was(w, p, k), B = bag(p)
         // a fresh query: the message's `query` and the key, as a step's own navigation (N5)
-        if (plainObj(d) && 'key' in d)
-          return {to: url.route, params: {[url.param]: names.includes(d.step) ? d.step : first}, query: {...d.query, ...url.key && d.key != null && {[url.key]: d.key}}, force: true}
-        const n = target(s, 'GOTO', d, bag(p))
-        return n ? go(s, n) : ABORT
+        if (msgObj(d) && 'key' in d)
+          return {to: url.route, params: paramsOf(B, names.includes(d.step) ? d.step : first, d.key), query: {...d.query, ...url.key && d.key != null && {[url.key]: d.key}}, force: true}
+        const n = target(s, 'GOTO', d, B)
+        return n ? go(s, n, B) : ABORT
       }},
     },
     FINISH: {EFFECT: (w: any, _d: any, next: any, p: any, _o: any, k: string) => done(was(w, p, k), next)},
@@ -312,16 +324,18 @@ export const wizard = (o: any = {}): any => {
       ...shut,
       // (url: when it navigates (resetTo, or to the first step's route), the flow anew with no key
       // (the route it lands on names one, or none) and the draft taken from that route once landed;
-      // a draft in the message merged over draft(state))
+      // a draft in the message merged over draft(state). The key is kept when the first step's route
+      // still carries it: a path param (`keyParam`, or one of the route's other params: no `url.key`))
       HOST: (h: any, d: any, _n: any, p: any, _o: any, k: string) => {
-        const B = bag(p, h), nav = url && (!!resetTo || routeStep(B) != first), f = fresh(h[k], B, nav ? null : h[k].key, plainObj(d) ? d : undefined, true)
-        return put(B, k, nav ? {...f, reseed: {at: sig(routeOf(B)), over: plainObj(d) ? d : null}} : f)
+        const B = bag(p, h), nav = url && (!!resetTo || routeStep(B) != first)
+        const f = fresh(h[k], B, nav && (resetTo || url.key && !url.keyParam) ? null : h[k].key, msgObj(d) ? d : undefined, true)
+        return put(B, k, nav ? {...f, reseed: {at: sig(routeOf(B)), over: msgObj(d) ? d : null}} : f)
       },
       // url: to `resetTo`, else back to the first step's route (the state is already at the first step)
       ...(url || resetTo) && {[R]: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => resetTo
         // (from the slice being reset: the flow's data decides where its start over goes)
         ? (typeof resetTo == 'function' ? resetTo(was(w, p, k), bag(p)) : resetTo)
-        : routeStep(bag(p, p?.state)) != first ? go(w, first) : ABORT},
+        : routeStep(bag(p, p?.state)) != first ? go(w, first, bag(p, p?.state)) : ABORT},
     },
   }
   if (url) model.ROUTE = {
@@ -336,8 +350,8 @@ export const wizard = (o: any = {}): any => {
     [R]: (w: any, n: any, _x: any, p: any, _o: any, k: string) => {
       const s = was(w, p, k), B = bag(p), l = live(s, B)
       if (!n || !s.visit || n == s.step) return ABORT
-      if (out(s.step)) return go(s, s.step, true)
-      return out(n) || !reachable(s, n, B) ? go(s, backTo(s, out(n) ? l[l.length - 1] ?? first : n, B), true) : ABORT
+      if (out(s.step)) return go(s, s.step, B, true)
+      return out(n) || !reachable(s, n, B) ? go(s, backTo(s, out(n) ? l[l.length - 1] ?? first : n, B), B, true) : ABORT
     },
   }
   // the current step's dirty / discard, else the wizard's
@@ -382,9 +396,10 @@ export const wizard = (o: any = {}): any => {
   // the flow has none yet (a key born mid-flow: a step that created the record moves on)
   const inFlow = (w: any, r: any, B: any) => {
     if (!url || !r) return false
-    const h = {...B.state, route: r}, m = url.from ? url.from(h, readBag(B, h, 'wizard')) : r, q = m?.query?.[url.key]
+    const h = {...B.state, route: r}, m = url.from ? url.from(h, readBag(B, h, 'wizard')) : r
+    const q = url.keyParam ? m?.params?.[url.keyParam] : m?.query?.[url.key]
     return m?.name == url.route && names.includes(m.params?.[url.param])
-      && (!url.key || w.key == null || q == null || q == w.key)
+      && (!(url.key || url.keyParam) || w.key == null || q == null || q == w.key)
   }
 
   // the start slice, with derived fields for a render before any action (SSR); predicates that need

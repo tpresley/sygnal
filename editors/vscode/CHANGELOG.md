@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.0
+
+Bundles sygnal-check 0.18.0 (Sygnal 7.6.0). The extension's own code doesn't change.
+
+- SYG458 now also reports an entry assigned onto a static (`Home.resources.user = (s, ctx) => …`) and the entry functions of `Object.fromEntries(…)`, with the same quick fix.
+- Fewer false positives: SYG110 follows view helpers called through a namespace import (`FX.block(b)`), and SYG266 no longer reports a property assigned on a local object that holds `Infinity`, `NaN` or `undefined`.
+- SYG640 for a selector that only a child component renders suggests a `within()` target.
+
 ## 0.14.0
 
 Bundles sygnal-check 0.17.0 (Sygnal 7.5.0). The extension's own code doesn't change.

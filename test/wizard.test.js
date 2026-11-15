@@ -1154,3 +1154,77 @@ describe('ROUTER.navigation(): how the current route was reached', () => {
   })
 })
 
+
+// Tune 2026-11 (7.5 feedback)
+describe('Tune: a step route with another path param; a stepper click under the mock DOM', () => {
+  const router = makeRouter({ routes: { home: '/', step: '/projects/:pid/setup/:step', notFound: '*' } })
+  function First() { return h('h2', null, 'First') }
+  function Second() { return h('div', null, h('h2', null, 'Second'), h('button', { className: 'other' }, 'Other project')) }
+  Second.intent = ({ DOM }) => ({ OTHER: DOM.click('.other') })
+  Second.model = { OTHER: { PARENT: () => ({ wizard: 'GOTO', step: 'review', key: 'p2' }) } }
+  const app = (url) => {
+    function App({ state }) {
+      return state.route.name === 'step' ? h(Setup, { state: 'flow' }) : h('p', { className: 'home' }, 'home')
+    }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current('/'), flow: {} }
+    App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+    function Setup({ state }) {
+      return h('section', null,
+        h('ol', null, ...state.wizard.steps.map(s => h('li', null, h('button', { className: 'goto', 'data-step': s.name }, s.label)))),
+        h(Outlet, { of: { source: First, review: Second }, from: 'wizard', focus: false }),
+        h('button', { className: 'next' }, 'Next'),
+        h('button', { className: 'reset' }, 'Start over'))
+    }
+    Setup.uses = {
+      wizard: wizard({
+        steps: { source: {}, review: {} }, draft: { title: '' },
+        key: (s) => s.route?.params?.pid,
+        url,
+        next: '.next', goto: '.goto', reset: '.reset',
+      }),
+    }
+    return App
+  }
+
+  it('a move keeps the route\'s other params (no keyParam): Next, a stepper click, Start over', async () => {
+    t = renderComponent(app({ route: 'step', param: 'step' }), { dom: 'real', router, url: '/projects/p1/setup/source' })
+    await t.ready(); await tick(40)
+    expect(t.state.flow.wizard).toMatchObject({ step: 'source', key: 'p1' })
+    await click('.next'); await tick(40)
+    expect(t.location.path).toBe('/projects/p1/setup/review')
+    expect(t.location.query).toEqual({})
+    expect(t.state.flow.wizard.step).toBe('review')
+    await click('[data-step="source"]'); await tick(40)
+    expect(t.location.path).toBe('/projects/p1/setup/source')
+    await click('.next'); await tick(40)
+    await click('.reset'); await tick(40)
+    expect(t.location.path).toBe('/projects/p1/setup/source')
+    expect(t.state.flow.wizard).toMatchObject({ step: 'source', key: 'p1' })
+  })
+
+  it('keyParam: the flow key is a path param; a GOTO with a new key navigates to that key\'s route', async () => {
+    t = renderComponent(app({ route: 'step', param: 'step', keyParam: 'pid' }), { dom: 'real', router, url: '/projects/p1/setup/source' })
+    await t.ready(); await tick(40)
+    await click('.next'); await tick(40)
+    expect(t.location.path).toBe('/projects/p1/setup/review')
+    await click('.reset'); await tick(40)
+    expect(t.location.path).toBe('/projects/p1/setup/source')
+    expect(t.state.flow.wizard).toMatchObject({ step: 'source', key: 'p1' })
+    await click('.next'); await tick(40)
+    await click('.other'); await tick(40)
+    expect(t.location.path).toBe('/projects/p2/setup/review')
+    expect(t.location.query).toEqual({})
+    expect(t.state.flow.wizard).toMatchObject({ step: 'review', key: 'p2' })
+  })
+
+  it('mock DOM: a click on a stepper button is a click, not a { step } message; a reset click doesn\'t become the draft', async () => {
+    t = renderComponent(host(wizard({ steps: { source: {}, review: {} }, draft: { title: '' }, next: '.next', goto: '.goto', reset: '.reset' })))
+    await t.ready()
+    await t.simulateEvent('.goto[data-step="review"]', 'click')
+    expect(t.state.wizard.step).toBe('review')
+    await t.simulateEvent('.reset', 'click')
+    expect(t.state.wizard.step).toBe('source')
+    expect(t.state.wizard.draft).toEqual({ title: '' })
+  })
+})

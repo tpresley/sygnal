@@ -389,7 +389,8 @@ NewFilter.uses = {
 **With `url`, the step follows the route:**
 - the route `newFilter` with `step` naming a step enters it;
 - Back, Next and the stepper navigate, and the browser's back and forward buttons move between steps;
-- the flow key goes in the query string (`/filters/new/review?session=…`);
+- the flow key goes in the query string (`/filters/new/review?session=…`), or in the path with `keyParam`: `url: { route: 'setupStep', param: 'step', keyParam: 'pid' }` for `/projects/:pid/setup/:step`;
+- a move keeps the step route's other path params, so a step route nested under a record's path needs nothing more;
 - a link to a step the user can't reach yet is replaced (`replace`) with the first incomplete step before it, as GOV.UK and React Hook Form wizards send the user back:
   - when an earlier step isn't valid, that step;
   - when the step itself is skipped by `when`, the last step before it that isn't.

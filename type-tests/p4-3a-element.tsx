@@ -4,7 +4,7 @@
  * are in ./registry/element-commands-registry.tsx (an augmentation is global to a program).
  */
 import { describe, it, expectTypeOf } from 'vitest'
-import { controls, renderComponent, ABORT } from 'sygnal'
+import { controls, renderComponent, within, ABORT } from 'sygnal'
 import type { Component, ElementCommand, ElementCommands, ElementTarget } from 'sygnal'
 
 const { Email, HelpDialog, Row, Tip, Submit } = controls({ Email: 'input', HelpDialog: 'dialog', Row: 'li', Tip: 'div', Submit: 'button' })
@@ -26,6 +26,9 @@ describe('ELEMENT sink values', () => {
       TIP: { ELEMENT: [{ showPopover: Tip }, { togglePopover: Tip, force: false }, { hidePopover: Tip }] },
       MANY: { ELEMENT: (s) => [{ focus: Email }, { select: Email }] },
       CLICK: { ELEMENT: { click: `${Row} button` } },
+      // a within() target (an element inside a child) on any method
+      REVEAL: { ELEMENT: { scrollIntoView: within('.impact-box'), block: 'nearest' } },
+      INNER: { ELEMENT: [{ focus: within('.title'), preventScroll: true }, { click: within('.save') }, { showModal: within('dialog') }] },
     }
     void C
   })

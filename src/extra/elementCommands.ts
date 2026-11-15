@@ -35,7 +35,8 @@
  * <Portal>s it renders (a dialog rendered into a portal target).
  *
  * 7.3: a target whose spec has `el(c)` (focusWithin) finds its element itself, from the sender's DOM
- * source: the elements of a fragment-rooted sender include its children's roots.
+ * source: the elements of a fragment-rooted sender include its children's roots. 7.6: `within()`,
+ * the same for any method, with no spec command (`el(c, els)`: the sender's own root as a fallback).
  *
  * Failures (no match: SYG640; neither a spec command nor an element method: SYG641) go to the
  * 'sygnal/diagnostics' dev entry through the core bridge (`elementCommand`), which words them;
@@ -56,7 +57,7 @@ export function runElementCommands(c: any, cmds: any): void {
     const m = Object.keys(cmd)[0], {[m]: t, ...o} = cmd, q = '' + t, s = dom.select(q).elements(), r = dom.elements?.();
     let els: any, roots: any, n = 0, k = 0, l: any, rl: any;
     const run = (last?: any) => {
-      const e = !c._disposed && (t?.spec?.el?.(c) || els?.[0] || portaled(roots, q)), f = t?.spec?.commands?.[m] || e?.__sw?.w.commands[m];
+      const e = !c._disposed && (t?.spec?.el?.(c, els) || els?.[0] || portaled(roots, q)), f = t?.spec?.commands?.[m] || e?.__sw?.w.commands[m];
       if (!l || !e && !last) return;
       s.removeListener(l);
       r?.removeListener(rl);

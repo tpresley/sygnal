@@ -103,7 +103,8 @@ function checkTarget(project, cmd, comp, report) {
         file: cmd.file,
         node: cmd.targetNode,
         message: `ELEMENT ${show(cmd)} in ${comp.name}'s '${cmd.action}' targets ${target}, which is only rendered inside child component <${inChild.child}>${where}; a command reaches only its sender's own elements, so it is dropped`,
-        fix: `send the command from <${inChild.child}> (the component that renders ${what}), or render ${what} in ${comp.name}'s own view`,
+        fix: (cmd.control ? '' : `reach into the child with a within() target: { ${cmd.method}: within('${cmd.selector}') } (import { within } from 'sygnal'), or `) +
+          `send the command from <${inChild.child}> (the component that renders ${what}), or render ${what} in ${comp.name}'s own view`,
         data: { ...data, child: inChild.child, path: inChild.via },
       })
     } else {
