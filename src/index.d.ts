@@ -836,7 +836,7 @@ export type ElementTarget = AnyControl | string
 export interface ElementCommandRegistry {}
 
 type RegisteredElementCommand = {
-  [METHOD in keyof ElementCommandRegistry & string]: { [K in METHOD]: ElementTarget } & ElementCommandRegistry[METHOD]
+  [METHOD in keyof ElementCommandRegistry & string]: { [K in METHOD]: ElementTarget | WithinTarget } & ElementCommandRegistry[METHOD]
 }[keyof ElementCommandRegistry & string]
 
 /**
@@ -848,23 +848,23 @@ type RegisteredElementCommand = {
  */
 export type ElementCommand =
   | { focus: ElementTarget | WithinTarget; preventScroll?: boolean; focusVisible?: boolean }
-  | { blur: ElementTarget }
-  | { select: ElementTarget }
-  | { click: ElementTarget }
-  | { scrollIntoView: ElementTarget; block?: ScrollLogicalPosition; inline?: ScrollLogicalPosition; behavior?: ScrollBehavior }
-  | { showModal: ElementTarget }
-  | { show: ElementTarget }
-  | { close: ElementTarget; returnValue?: string }
-  | { showPopover: ElementTarget }
-  | { hidePopover: ElementTarget }
-  | { togglePopover: ElementTarget; force?: boolean }
+  | { blur: ElementTarget | WithinTarget }
+  | { select: ElementTarget | WithinTarget }
+  | { click: ElementTarget | WithinTarget }
+  | { scrollIntoView: ElementTarget | WithinTarget; block?: ScrollLogicalPosition; inline?: ScrollLogicalPosition; behavior?: ScrollBehavior }
+  | { showModal: ElementTarget | WithinTarget }
+  | { show: ElementTarget | WithinTarget }
+  | { close: ElementTarget | WithinTarget; returnValue?: string }
+  | { showPopover: ElementTarget | WithinTarget }
+  | { hidePopover: ElementTarget | WithinTarget }
+  | { togglePopover: ElementTarget | WithinTarget; force?: boolean }
   /** A `<VirtualCollection>`'s container: scroll to the row at `index` (of the filtered, sorted rows) */
-  | { scrollToIndex: ElementTarget; index: number; align?: ScrollToAlign; behavior?: 'auto' | 'smooth' }
+  | { scrollToIndex: ElementTarget | WithinTarget; index: number; align?: ScrollToAlign; behavior?: 'auto' | 'smooth' }
   /** A `<VirtualCollection>`'s container: scroll to the row whose item has this `id` */
-  | { scrollToId: ElementTarget; id: string | number; align?: ScrollToAlign; behavior?: 'auto' | 'smooth' }
+  | { scrollToId: ElementTarget | WithinTarget; id: string | number; align?: ScrollToAlign; behavior?: 'auto' | 'smooth' }
   | RegisteredElementCommand
 
-/** A `focusWithin(selector)` target (D194): `{ focus: focusWithin('.title') }`. */
+/** A `within(selector)` target: `{ scrollIntoView: within('.impact-box') }`, `{ focus: within('.title') }`. */
 export interface WithinTarget {
   /** The selector, searched under the sender's root element (children included). */
   readonly within: string
@@ -880,6 +880,18 @@ export interface WithinTarget {
  *   ADD: { STATE: addRow, ELEMENT: (s) => ({ focus: focusWithin(`[data-id="${s.next}"] .title`) }) }
  */
 export function focusWithin(selector: string): WithinTarget
+
+/**
+ * An ELEMENT target that reaches inside the sender's children, for any method: `{ <method>:
+ * within(selector), ...options }` runs the command on the first element under the sender's root
+ * element(s) that matches `selector`, a child component's or a Collection item's included (a plain
+ * selector or a control stays in the sender's own isolated scope). It runs after the next patch at
+ * which the element exists; no match after about 1 s: SYG640 in development.
+ *
+ *   CHECKED: { ELEMENT: { scrollIntoView: within('.impact-box'), block: 'nearest' } }
+ *   ADD:     { STATE: addRow, ELEMENT: (s) => ({ focus: within(`[data-id="${s.next}"] .title`) }) }
+ */
+export function within(selector: string): WithinTarget
 
 /** What the `ELEMENT` sink takes: one command or several (run in order). */
 export type ElementCommands = ElementCommand | readonly ElementCommand[]
@@ -1542,8 +1554,13 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   confirm?: BehaviorTarget;
   /** The confirm's buttons: leave (DISCARD) and stay (STAY) */
   leave?: BehaviorTarget; stay?: BehaviorTarget;
-  /** The step (and the flow key) in the URL: route `route`'s param `param` names the step, query `key` the flow key; `from` maps the host's route (and an attempted one) onto it */
-  url?: { route: string; param: string; key?: string; from?: (state: HOST, bag: BehaviorBag<HOST>) => Route | undefined };
+  /**
+   * The step (and the flow key) in the URL: route `route`'s param `param` names the step; the flow
+   * key is the query parameter `key`, or the path param `keyParam` (`/projects/:pid/setup/:step`
+   * with `keyParam: 'pid'`). A move keeps the step route's other path params. `from` maps the
+   * host's route (and an attempted one) onto it
+   */
+  url?: { route: string; param: string; key?: string; keyParam?: string; from?: (state: HOST, bag: BehaviorBag<HOST>) => Route | undefined };
   /** The router sink (default 'ROUTER') */
   router?: string;
 }

@@ -114,7 +114,38 @@ export function reducerContextReads(project, file, modelNode) {
 export const DECLARATION_STATICS = ['resources', 'timers', 'connections', 'head', 'browser', 'route']
 export const BAG_KEYS = new Set(['state', 'context', 'uid'])
 
-export function staticFunctions(project, file, sp) {
+/** The entry values of `Object.fromEntries(…)`: of an array of `[key, value]` pairs, or of `xs.map(k => [k, value])`. */
+function entryValues(project, file, call) {
+  const c = unwrap(call.callee)
+  if (c?.type !== 'MemberExpression' || unwrap(c.object).type !== 'Identifier' || unwrap(c.object).name !== 'Object' || memberName(c) !== 'fromEntries') return null
+  const out = []
+  const pair = (f, n) => { n = unwrap(n); if (n?.type === 'ArrayExpression' && n.elements[1]) out.push({ file: f, node: n.elements[1] }) }
+  const from = (f, n, depth = 0) => {
+    n = unwrap(n)
+    if (!n || depth > 4) return
+    if (n.type === 'Identifier') { const r = resolveExpr(project, f, n); if (r && r.node !== n) from(r.file, r.node, depth + 1); return }
+    if (n.type === 'ArrayExpression') { for (const e of n.elements) if (e) pair(f, e); return }
+    // xs.map(k => [k, fn]), also after .filter(…) etc.: the last callback's returned pairs
+    if (n.type === 'CallExpression' && unwrap(n.callee).type === 'MemberExpression' && ['map', 'flatMap'].includes(memberName(unwrap(n.callee)))) {
+      const cb = unwrap(n.arguments[0])
+      if (!isFunction(cb)) return
+      if (cb.body.type !== 'BlockStatement') { pair(f, cb.body); return }
+      walk(cb.body, (x) => {
+        if (isFunction(x)) return false
+        if (x.type === 'ReturnStatement') pair(f, x.argument)
+        return true
+      })
+    }
+  }
+  from(file, call.arguments[0])
+  return out
+}
+
+/**
+ * `members`: the entries assigned onto a static (`X.resources.user = fn`, the component's
+ * staticMembers). An object built with Object.fromEntries gives its entry functions too.
+ */
+export function staticFunctions(project, file, sp, members = []) {
   const out = []
   const seen = new Set()
   const fnOf = (name, path, f, n) => {
@@ -135,14 +166,19 @@ export function staticFunctions(project, file, sp) {
         const key = propName(q)
         fnOf(k, key ? `${k}.${key}` : k, v.file, q.type === 'ObjectMethod' ? q : q.value)
       }
+    } else if (v?.node?.type === 'CallExpression') {
+      for (const e of entryValues(project, v.file, v.node) || []) fnOf(k, `${k}[…]`, e.file, e.node)
     }
+  }
+  for (const m of members) {
+    if (DECLARATION_STATICS.includes(m.prop)) fnOf(m.prop, m.key ? `${m.prop}.${m.key}` : `${m.prop}[…]`, file, m.value)
   }
   return out
 }
 
-export function staticContextReads(project, file, sp) {
+export function staticContextReads(project, file, sp, members) {
   const out = []
-  for (const { file: f, node } of staticFunctions(project, file, sp)) {
+  for (const { file: f, node } of staticFunctions(project, file, sp, members)) {
     // 7.2: the bag; `context` on it is the context
     for (const x of contextReads(node, 1) || []) out.push({ ...x, file: f })
     // until 8.0: the context's own fields on the bag (or a prop of that name)

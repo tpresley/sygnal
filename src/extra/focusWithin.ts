@@ -33,6 +33,25 @@ const tops = (d: any): any[] => {
   return out.filter(e => !out.some(o => o != e && o.contains(e)))
 }
 
+// the first element matching `selector` at or under one of `els`
+const under = (els: any, selector: string): any => {
+  for (const e of els || []) { const el = e.matches?.(selector) ? e : e.querySelector?.(selector); if (el) return el }
+}
+
+/**
+ * An ELEMENT target for any method: `{ scrollIntoView: within('.impact-box') }` runs the command on
+ * the first element matching `selector` under the sender's top-level elements, its children's
+ * included (as focusWithin finds it; another DOM source, sygnal/host: under the sender's own root,
+ * `els`, which the command runner passes). It declares no command of its own, so the element's
+ * widget command or own method runs with the usual arguments (elementCommands.ts), and a target
+ * that never appears is SYG640 in dev (focusWithin: nothing happens).
+ */
+export const within = (selector: string): any => ({
+  within: selector,
+  toString: () => '',
+  spec: {el: (c: any, els?: any) => under(tops(c.sources[c.DOMSourceName]), selector) || under(els, selector)},
+})
+
 /** An ELEMENT target: `{ focus: focusWithin('.title') }` focuses `.title` anywhere under the sender's root, children included. */
 export const focusWithin = (selector: string): any => ({
   within: selector,

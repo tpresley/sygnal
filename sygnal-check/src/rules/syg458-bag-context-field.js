@@ -7,6 +7,10 @@
  * bag's own keys win), so `(s, { route }) => …` still works; the dev entry warns (SYG458) and
  * 8.0 removes them. The canonical form is `(s, { context: { route } }) => …`.
  *
+ * The functions: the static's own, an object value's entries, an entry assigned onto the static
+ * (`Home.resources.user = (s, ctx) => …`), and the entry functions of an object built with
+ * `Object.fromEntries` (pairs, or `keys.map(k => [k, (s, ctx) => …])`).
+ *
  * Reported for a top-level key of the parameter's object pattern (`(s, { route })`), a member
  * read off a plain parameter (`(s, b) => b.route`, `const { route } = b`), or a plain parameter
  * passed to a same-module helper that reads one off its own parameter (`(s, b) => idOf(b)`,
@@ -214,7 +218,7 @@ export default {
     const ctxKeys = declaredContextKeys(project)
     if (!ctxKeys.size) return
     for (const comp of project.components) {
-      const fns = staticFunctions(project, comp.file, comp.staticProps)
+      const fns = staticFunctions(project, comp.file, comp.staticProps, comp.staticMembers)
       if (!fns.length) continue
       let props = null
       const propNote = (keys) => {

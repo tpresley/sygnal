@@ -215,7 +215,10 @@ function classifyWrite(project, file, target, n) {
     return mb ? { kind: 'module', name: left.name, write: true } : null
   }
   if (!isMember(left)) return null
-  const g = globalPath(project, file, left)
+  // the object written to must itself be rooted in a global: `r.hi = a` on a local `r = { hi:
+  // Infinity }` replaces r's own property (globalPath(r.hi) is the VALUE read there, the global
+  // `Infinity`; for a call or a read that is what runs, for a write it is not the target)
+  const g = globalPath(project, file, left.object) ? globalPath(project, file, left) : null
   if (g?.dynamic) return { kind: 'dynamic', name: 'a computed property of a global object' }
   if (g) {
     const [head] = g.path

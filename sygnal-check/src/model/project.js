@@ -70,7 +70,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { parseSource, indexParents, walk, unwrap, isFunction, memberName, propName, loc } from '../ast.js'
+import { parseSource, indexParents, walk, unwrap, isFunction, memberName, propName, stringValue, loc } from '../ast.js'
 import { findBinding } from '../scope.js'
 import { resolveImport, toSourceMap, diskIsFile } from '../files.js'
 import { resolveExpr } from './resolve.js'
@@ -250,6 +250,8 @@ export class Project {
       e.props[prop] = value
       e.propNodes[prop] = at
     }
+    // `X.resources.user = fn`: an entry assigned onto a static (attached below, to a component only)
+    const members = []
     walk(file.ast.program, (stmt) => {
       if (stmt.type !== 'ExpressionStatement') return true
       const ex = unwrap(stmt.expression)
@@ -259,6 +261,10 @@ export class Project {
           const obj = unwrap(e.left.object)
           const prop = memberName(e.left)
           if (obj.type === 'Identifier' && STATIC_PROPS.includes(prop)) note(obj, prop, e.right, e.left)
+          else if (obj.type === 'MemberExpression' && unwrap(obj.object).type === 'Identifier' && STATIC_PROPS.includes(memberName(obj))) {
+            const key = prop ?? (e.left.computed ? stringValue(e.left.property) : null)
+            members.push({ ident: unwrap(obj.object), prop: memberName(obj), key, value: e.right, at: e.left })
+          }
         } else if (e.type === 'CallExpression') {
           const c = unwrap(e.callee)
           const target = unwrap(e.arguments[0])
@@ -274,6 +280,11 @@ export class Project {
       }
       return true
     })
+    for (const m of members) {
+      const b = findBinding(file, m.ident.name, m.ident)
+      const e = b && assigned.get(b.node)
+      if (e) (e.members ||= []).push({ prop: m.prop, key: m.key, value: m.value, at: m.at })
+    }
     for (const info of assigned.values()) {
       const b = info.binding
       let view = null
@@ -281,7 +292,7 @@ export class Project {
       else if (b.kind === 'var' && isFunction(unwrap(b.init))) view = unwrap(b.init)
       const comp = {
         name: info.name, file, node: b.node, view,
-        staticProps: info.props, staticPropNodes: info.propNodes,
+        staticProps: info.props, staticPropNodes: info.propNodes, staticMembers: info.members || [],
         intent: null, model: null, initialState: null, connections: null,
         calculatedKeys: new Set(), contextKeys: new Set(), viewInfo: null,
       }
@@ -383,7 +394,7 @@ export class Project {
     // PLAN-7 N-1: the context entries the view and the reducers read (--graph contextConsumes: the view's)
     comp.contextConsumed = comp.view ? contextReads(comp.view) : null
     // (PLAN-13 F-1: and the declaration statics' second parameter, the bag since 7.2; legacy reads: its top-level keys)
-    comp.contextReadsModel = [...(sp.model ? reducerContextReads(this, file, sp.model) : []), ...staticContextReads(this, file, sp)]
+    comp.contextReadsModel = [...(sp.model ? reducerContextReads(this, file, sp.model) : []), ...staticContextReads(this, file, sp, comp.staticMembers)]
     // PLAN-4 GS-2: the ELEMENT commands its model sends (literal command objects)
     comp.commands = analyzeCommands(this, comp)
     // PLAN-4 GS-1: `uses` resolved to behavior definitions; what their intents listen to

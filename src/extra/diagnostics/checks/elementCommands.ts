@@ -45,6 +45,7 @@ export const describeCommand = (cmd: any): string => {
     const v = cmd[k]
     let text: string
     if (isControl(v)) text = keyOf(v)
+    else if (v && typeof v == 'object' && typeof v.within == 'string' && v.spec) text = `within(${JSON.stringify(v.within)})`
     else try { text = JSON.stringify(v) ?? String(v) } catch (_) { text = String(v) }
     return `${k}: ${text}`
   })
@@ -99,7 +100,8 @@ export function reportElementCommand(component: any, cmd: any, el?: any, elsewhe
   const name = (component && component.name) || 'component'
   const method = cmd && typeof cmd == 'object' ? Object.keys(cmd)[0] : undefined
   if (method === undefined) return notACommand(component, name, cmd)
-  const target = cmd[method]
+  // a within() / focusWithin() target: its selector (its string form is '', the sender's root)
+  const inner = cmd[method]?.within, target = inner ?? cmd[method]
   const what = `ELEMENT ${describeCommand(cmd)}`
   const control = isControl(target) ? keyOf(target) : undefined
   const data: any = {method, command: cmd, ...(control ? {control} : {selector: target == null ? target : String(target)})}
@@ -111,13 +113,14 @@ export function reportElementCommand(component: any, cmd: any, el?: any, elsewhe
       component,
       message: missing
         ? `${what} in ${name} has no target (${String(target)}), so the command was dropped`
-        : `${what} in ${name} matched no element: nothing in ${name}'s own view matches ${control ? `the control ${control}` : `'${String(target)}'`} (waited 1 s), so the command was dropped` +
-          (outside ? `. A matching element is rendered outside ${name}'s view (by an ancestor, a child component or another part of the page), and a command reaches only its sender's own elements` +
+        : `${what} in ${name} matched no element: nothing ${inner != null ? `under ${name}'s root, its children included,` : `in ${name}'s own view`} matches ${control ? `the control ${control}` : `'${String(target)}'`} (waited 1 s), so the command was dropped` +
+          (outside && inner == null ? `. A matching element is rendered outside ${name}'s view (by an ancestor, a child component or another part of the page), and a command reaches only its sender's own elements` +
             // Sift: a host focusing a child control's button
-            (method == 'focus' && !control ? `. For an element inside a child component, send { focus: focusWithin('${String(target)}') }` : '') : ''),
+            (!control ? `. For an element inside a child component, send { ${method}: within('${String(target)}') }` : '') : ''),
       fix: missing
         ? `Give the method a control or a selector: { ${method}: Email }`
-        : `Render the element in ${name}'s view, or send the command from the component that renders it: a child component's elements are isolated from its parent, and a command reaches only its sender's own elements (in a Collection, each item sends its own). For an element an ancestor renders, hand it off: emit EVENTS: event('FOCUS_NAME') from ${name} (or send PARENT) and send ELEMENT: { ${method}: … } from the ancestor's entry for it; for one inside a child, the parent can use { ${method}: focusWithin('…') }`,
+        : inner != null ? `Render an element matching '${String(target)}' in ${name}'s view or in a component it renders, or fix the selector: within() looks under ${name}'s root element(s) only, not in an ancestor's view or elsewhere on the page`
+        : `Render the element in ${name}'s view, or send the command from the component that renders it: a child component's elements are isolated from its parent, and a command reaches only its sender's own elements (in a Collection, each item sends its own). For an element an ancestor renders, hand it off: emit EVENTS: event('FOCUS_NAME') from ${name} (or send PARENT) and send ELEMENT: { ${method}: … } from the ancestor's entry for it; for one inside a child, the parent can use { ${method}: within('…') }`,
       data: outside ? {...data, outside: true} : data,
     })
   }

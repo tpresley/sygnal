@@ -112,12 +112,12 @@ Start.model = {
 
 `PARENT` with `CHILD.select(Footer)` works the same way. Sending the command from the child is reported as [SYG640](/reference/errors/#syg640), whose message says that a matching element is rendered outside the child's view.
 
-### Focusing inside children: `focusWithin`
+### Reaching inside children: `within`
 
-To focus an element a child renders (a field of a child form, the input of a Collection item the same action adds), use `focusWithin(selector)` as the target. It looks for `selector` anywhere under the sender's root element, children included, and focuses the first match with the command's options:
+To reach an element a child renders (a field of a child form, the input of a Collection item the same action adds, a box a child shows that the parent scrolls to), use `within(selector)` as the target of any command. It looks for `selector` anywhere under the sender's root element, children included, and runs the command on the first match with the command's options:
 
 ```jsx live
-import { Collection, focusWithin } from 'sygnal'
+import { Collection, within } from 'sygnal'
 
 function Row({ state }) {
   return (
@@ -143,12 +143,14 @@ Checklist.model = {
   ADD: {
     STATE: (state) => ({ ...state, rows: [...state.rows, { id: state.next, title: '' }], next: state.next + 1 }),
     // the new row renders in the same patch, before the command runs
-    ELEMENT: (state, data, next, { previousState }) => ({ focus: focusWithin(`[data-id="${previousState.next}"] .title`) }),
+    ELEMENT: (state, data, next, { previousState }) => ({ focus: within(`[data-id="${previousState.next}"] .title`) }),
   },
 }
 ```
 
-STATE has already incremented `next` when `ELEMENT` runs, so the new row's id is `previousState.next`. Prefer the child's own model when the child decides; `focusWithin` is for a parent that does (adding a row, submitting a form whose fields are child components). If nothing matches, nothing happens; `renderComponent()` reports [SYG640](/reference/errors/#syg640) when nothing in the view, children included, matches.
+STATE has already incremented `next` when `ELEMENT` runs, so the new row's id is `previousState.next`. Prefer the child's own model when the child decides; `within` is for a parent that does (adding a row, submitting a form whose fields are child components, scrolling to what a child reveals: `{ scrollIntoView: within('.impact-box'), block: 'nearest' }`). The command waits for the element like any other; if nothing under the sender matches after about 1 s, it is dropped and reported as [SYG640](/reference/errors/#syg640) in development.
+
+`focusWithin(selector)` is the earlier, focus-only form of the same target. It still works; the one difference is that no match is silent outside `renderComponent()`.
 
 ## When it runs
 

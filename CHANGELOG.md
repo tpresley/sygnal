@@ -2,6 +2,33 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.6.0 — 2026-11-14
+
+With `sygnal-check` 0.18.0 (SYG458 on two more forms, SYG110 and SYG266 false positives), `create-sygnal-app`
+2.16.0 (templates on `sygnal` ^7.6.0, `sygnal-check` ^0.18.0), the VS Code extension 0.15.0 and the Claude
+Code plugin 0.2.7. From Kindo Tune's 7.5 upgrade feedback (2026-11-14).
+
+- **`within(selector)`: an ELEMENT target for any method inside the sender's children.** `{ scrollIntoView:
+  within('.impact-box') }`, `{ focus: within('.title') }`, `{ click: within('.save') }`. `focusWithin` reached
+  into children for `focus` only; it still works. A `within()` target that never appears is SYG640 in
+  development, and SYG640 for a plain selector that only a child renders now names the `within()` form for
+  every method (the static check's fix too).
+- **`wizard()`: a step route with other path params.** A move keeps the step route's other params
+  (`/projects/:pid/setup/:step` no longer fails with SYG620), and `url.keyParam` names the path param that
+  carries the flow key (`url: { route, param: 'step', keyParam: 'pid' }`): a GOTO with a new key navigates to
+  that key's path, and Start over keeps the key. Start over also keeps the flow key when the URL carries
+  none (no `url.key`); it used to clear it whenever it navigated.
+- **`wizard()` under `renderComponent`'s mock DOM.** A click on a `goto` stepper button was read as a
+  `{ step }` message (the mock event is a plain object) and went nowhere; a click on `reset` was merged into
+  the draft. Events are now told from messages by their `target`.
+- **`sygnal-check`.** SYG110 follows view helpers called through a namespace import (`FX.block(b)`). SYG266
+  no longer reports a property assigned on a local object whose literal holds `Infinity`, `NaN` or `undefined`.
+  SYG458 (and its `--fix`) sees an entry assigned onto a static (`Home.resources.user = (s, ctx) => …`) and
+  the entry functions of `Object.fromEntries(…)`.
+
+**Measured impact.** Size: the kanban gate is 40,474 B with `nativeGlobalThis: false` (7.5.0: 40,473 B; budget
+40,474 B: +1 B, the command runner passes the sender's elements to a `within()` target).
+
 ## 7.5.0 — 2026-11-10
 
 With `sygnal-check` 0.17.0 (`--report`, SYG265 / SYG266 / SYG511 / SYG512, SYG646), `create-sygnal-app` 2.15.0

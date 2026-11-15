@@ -159,3 +159,22 @@ describe('SYG702: a label rendered by a view helper', () => {
     expect(codes(d, 'SYG702')).toEqual([])
   })
 })
+
+// Tune 2026-11: view helpers called through a namespace import (`FX.block(b)`) weren't followed
+describe('SYG110: a view helper of a namespace import', () => {
+  const fx = `export function block(b) { return <div className="impact-box">{b}</div> }\nexport const row = (r) => <li className="row">{r}</li>\nexport const plain = (x) => String(x)`
+  const intent = `LOAD: DOM.click('.load'), BOX: DOM.click('.impact-box'), ROW: DOM.click('.row')`
+  const model = `\n  BOX: (s) => s,\n  ROW: (s) => s,`
+
+  it('called with arguments, and referenced (items.map(FX.row))', () => {
+    const view = `<div><button className="load">x</button>{FX.block(state.status)}<ul>{[1].map(FX.row)}</ul>{FX.plain(1)}</div>`
+    const d = run({ 'App.jsx': app({ head: `import * as FX from './fx'`, view, intent, model }), 'fx.jsx': fx })
+    expect(codes(d, 'SYG110')).toEqual([])
+  })
+
+  it('still reports a class the namespace helper does not render', () => {
+    const view = `<div><button className="load">x</button>{FX.row(state.status)}</div>`
+    const d = run({ 'App.jsx': app({ head: `import * as FX from './fx'`, view, intent, model }), 'fx.jsx': fx })
+    expect(codes(d, 'SYG110')).toEqual(['SYG110 .impact-box'])
+  })
+})

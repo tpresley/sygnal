@@ -294,3 +294,16 @@ describe('trying to fool it', () => {
     expect(run("import { defineComponent } from 'sygnal'\nexport const X = defineComponent({ view: () => { fetch('/x'); return null }, model: {} })\n")).toEqual([])
   })
 })
+
+// Tune 2026-11: `r.hi = a` on a local `r = { hi: Infinity }` was read as a write to the global
+describe('a write to a local object that holds a global value', () => {
+  it.each(['Infinity', 'NaN', 'undefined'])('%s in the literal, a property assigned later', (g) => {
+    const top = `function range(a) {\n  const r = { lo: -${g}, hi: ${g} }\n  r.hi = a\n  r.lo += 1\n  return r\n}`
+    expect(run(model('{ GO: (s) => ({ ...s, a: range(1) }) }', top))).toEqual([])
+  })
+
+  it('a write through an alias of a global object still reports', () => {
+    const top = `function go(a) {\n  const o = { w: window }\n  o.w.title = a\n  return a\n}`
+    expect(codes(run(model('{ GO: (s) => ({ ...s, a: go(1) }) }', top)))).toEqual(['SYG266'])
+  })
+})
