@@ -13,7 +13,7 @@
  * 'hover' | 'focus': the pointer on the trigger or the tip (it stays open while hovered, WCAG
  * 1.4.13), or the keyboard focus on the trigger: ui-sweep, a :focus-visible one, not the focus a
  * mouse click gives), SHOW / HIDE (the timers), ESCAPE (hides it at once),
- * TOGGLED. Timers (joined to the host's `timers`): '<key>.show' / '<key>.hide'; one whose state
+ * TOGGLED, SYNC (the component was disposed: the state goes back to rest). Timers (joined to the host's `timers`): '<key>.show' / '<key>.hide'; one whose state
  * goes away is cancelled, so leaving before the delay never shows the tip. Needs
  * makeTimerDriver() (tests: fake timers).
  * R3 (ui-sweep): a pointerdown on the trigger hides the tip at once (PRESS; `pressed`), and the
@@ -38,7 +38,9 @@ const base = /*#__PURE__*/ defineBehavior({
     show: s?.pending == 'show' && {after: o.showDelay ?? 500, action: 'SHOW'},
     hide: s?.pending == 'hide' && {after: o.hideDelay ?? 100, action: 'HIDE'},
   }),
-  intent: ({DOM, STATE}: any, {trigger, tip}: any) => ({
+  intent: ({DOM, STATE, dispose$}: any, {trigger, tip}: any) => ({
+    // 7.7.1: the component disposed (its slice may live on in a parent's state: a wizard step)
+    SYNC: dispose$,
     // (R4: ev(): the trigger and the tip may be in a <Portal>)
     ENTER: xs.merge(xs.merge(ev(DOM, trigger, 'pointerenter'), ev(DOM, tip, 'pointerenter')).filter(mouse).mapTo('hover'), ev(DOM, trigger, 'focus').filter(visible).mapTo('focus')),
     LEAVE: xs.merge(xs.merge(ev(DOM, trigger, 'pointerleave'), ev(DOM, tip, 'pointerleave')).filter(mouse).mapTo('hover'), ev(DOM, trigger, 'blur').mapTo('focus')),
@@ -50,6 +52,8 @@ const base = /*#__PURE__*/ defineBehavior({
     TOGGLED: ev(DOM, tip, 'toggle', {}, false).map((e: any) => e.newState == 'open'),
   }),
   model: {
+    // disposed while shown, about to be, hovered or focused: at rest (no element, no events any more)
+    SYNC: (s: any) => (s.open || s.pending || s.hover || s.focus || s.pressed ? {...s, open: false, pending: null, hover: false, focus: false, pressed: false} : ABORT),
     ENTER: (s: any, k: any) => {
       // R3: after a press the pointer shows it again only once it has left and come back
       if (s.pressed && k != 'focus') return s.hover ? ABORT : {...s, hover: true}

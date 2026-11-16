@@ -2,6 +2,18 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.7.1 — 2026-11-16
+
+With `sygnal-check` 0.19.1 (it knows the tooltips' `SYNC` action).
+
+- **`sygnal/ui`: a part open when its component is disposed doesn't stay open in a kept slice.** A component
+  using `dialog()` or `popover()` whose state a parent keeps (a `wizard()` step left and entered again) was
+  disposed with `open: true` still in its slice: `SYNC` ran only for an element leaving a living component.
+  Back on the step, the dialog opened at once with nothing clicked. `SYNC` now also runs when the component
+  is disposed, so the slice ends `open: false`. `tooltip()` and `tooltips()` get a `SYNC` action for the same
+  case: a tip shown when its step was left never showed again. HMR is unchanged (it reads the state before
+  the old app is disposed). From Kindo Tune (2026-11-16).
+
 ## 7.7.0 — 2026-11-15
 
 With `sygnal-check` 0.19.0 (the new wizard options, SYG127 for a step's undeclared host fields),

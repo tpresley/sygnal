@@ -124,7 +124,7 @@ export interface TooltipOptions {
   /** ms before it hides (default 100) */
   hideDelay?: number
 }
-export interface TooltipActions { ENTER: 'hover' | 'focus' | undefined; LEAVE: 'hover' | 'focus' | undefined; SHOW: any; HIDE: any; ESCAPE: string; TOGGLED: boolean; /** A pointerdown on the trigger: hides the tip */ PRESS: PointerEvent }
+export interface TooltipActions { ENTER: 'hover' | 'focus' | undefined; LEAVE: 'hover' | 'focus' | undefined; SHOW: any; HIDE: any; ESCAPE: string; TOGGLED: boolean; /** A pointerdown on the trigger: hides the tip */ PRESS: PointerEvent; /** The component was disposed: the state goes back to rest */ SYNC: any }
 /** A tooltip: `uses = { tip: tooltip({ trigger: '.save', tip: '.save-tip' }) }`. Needs makeTimerDriver(). */
 export function tooltip(options: TooltipOptions): Behavior<TooltipState, TooltipActions, {}, TooltipOptions>
 
@@ -157,6 +157,8 @@ export interface TooltipsActions {
   ESCAPE: string
   TOGGLED: { id: string; open: boolean }
   PRESS: { id: string }
+  /** The component was disposed: the state goes back to rest */
+  SYNC: any
 }
 /**
  * PLAN-11 (6.7): every tooltip of a component as one behavior (one state slice, two timers):

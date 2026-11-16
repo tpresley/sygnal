@@ -50,16 +50,20 @@ export const ev = (DOM: any, sel: any, type: string, o: any = {}, bubbles?: bool
  * G-400: SYNC's trigger for a dialog / popover behavior: `false` when its element left the page
  * while the state says open (removed while open: no close / toggle event comes). R4: the element
  * may be in a portal (`els` from find()). R2: a host made again on a state that was open opens it
- * (APPLY), so the first look no longer closes the state.
+ * (APPLY), so the first look no longer closes the state. 7.7.1 (Tune): also when the component
+ * itself is disposed while open (`dispose$`: a wizard step left, a page switched away) and its
+ * slice lives on in a parent's state: made again, it would open at once. An app's own dispose
+ * (HMR reads the state first) is no different: the element goes with it.
  */
-export const gone = (els: any, STATE: any): any => {
+export const gone = (els: any, STATE: any, dispose$?: any): any => {
   // R2: only an element that was there (the first look may come before the first render)
-  let had = false
-  return els.compose(sampleCombine(STATE.stream)).filter(([e, s]: any) => {
+  let had = false, s: any
+  const left = els.compose(sampleCombine(STATE.stream.map((x: any) => (s = x)))).filter(([e, s]: any) => {
     const left = had && !e?.length
     had = !!e?.length
     return left && !!s?.open
-  }).mapTo(false)
+  })
+  return (dispose$ ? xs.merge(left, dispose$.filter(() => had && !!s?.open)) : left).mapTo(false)
 }
 
 /**

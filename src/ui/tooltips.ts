@@ -14,7 +14,7 @@
  * `showDelay` (500 ms), `hideDelay` (100 ms).
  * State: { id (the tip of the trigger or tip last entered), open (the id of the tip shown),
  * pending: null | 'show' | 'hide', hover, focus }. Actions: ENTER / LEAVE ({ via: 'hover' |
- * 'focus', id }), SHOW / HIDE (the timers), ESCAPE, TOGGLED ({ id, open }). Timers
+ * 'focus', id }), SHOW / HIDE (the timers), ESCAPE, TOGGLED ({ id, open }), SYNC (the component was disposed: at rest). Timers
  * '<key>.show' / '<key>.hide' as tooltip()'s. Needs makeTimerDriver() (tests: fake timers).
  * Same rules as tooltip(): pointer and focus tracked apart (keyboard focus only), touch ignored, hovering the tip keeps
  * it open (WCAG 1.4.13), Escape listened for only while a tip is shown or about to be; R3: a press
@@ -38,7 +38,9 @@ const base = /*#__PURE__*/ defineBehavior({
     show: s?.pending == 'show' && {after: o.showDelay ?? 500, action: 'SHOW'},
     hide: s?.pending == 'hide' && {after: o.hideDelay ?? 100, action: 'HIDE'},
   }),
-  intent: ({DOM, STATE}: any, {trigger, tip}: any) => ({
+  intent: ({DOM, STATE, dispose$}: any, {trigger, tip}: any) => ({
+    // 7.7.1: the component disposed (its slice may live on in a parent's state: a wizard step)
+    SYNC: dispose$,
     ENTER: xs.merge(
       ev(DOM, trigger, 'pointerenter').filter(mouse).map((e: any) => ({via: 'hover', id: tipOf(e)})),
       ev(DOM, tip, 'pointerenter').filter(mouse).map((e: any) => ({via: 'hover', id: idOf(e)})),
@@ -57,6 +59,8 @@ const base = /*#__PURE__*/ defineBehavior({
     TOGGLED: ev(DOM, tip, 'toggle', {}, false).map((e: any) => ({id: idOf(e), open: e.newState == 'open'})).filter((x: any) => !!x.id),
   }),
   model: {
+    // disposed while shown, about to be, hovered or focused: at rest (no element, no events any more)
+    SYNC: (s: any) => (s.open || s.pending || s.hover || s.focus || s.pressed ? {...s, open: null, pending: null, hover: false, focus: false, pressed: false} : ABORT),
     ENTER: {
       STATE: (s: any, {via, id}: any) => {
         const k = via == 'focus' ? 'focus' : 'hover'

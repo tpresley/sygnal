@@ -192,19 +192,19 @@ export const FIRST_PARTY = {
   tooltip: {
     stateKeys: ['open', 'pending', 'hover', 'focus', 'pressed'],
     calculated: [],
-    model: ['ENTER', 'LEAVE', 'SHOW', 'HIDE', 'ESCAPE', 'TOGGLED', 'PRESS'],
+    model: ['ENTER', 'LEAVE', 'SHOW', 'HIDE', 'ESCAPE', 'TOGGLED', 'PRESS', 'SYNC'],
     options: ['trigger', 'tip', 'showDelay', 'hideDelay'],
     listens: [['trigger', 'ENTER', 'select'], ['tip', 'TOGGLED', 'select']],
-    intent: ['LEAVE', 'ESCAPE', 'SHOW', 'HIDE', 'PRESS'],
+    intent: ['LEAVE', 'ESCAPE', 'SHOW', 'HIDE', 'PRESS', 'SYNC'],
   },
   // PLAN-11 T-1 (ui-sweep: it was missing, so its uses entries were opaque)
   tooltips: {
     stateKeys: ['id', 'open', 'pending', 'hover', 'focus', 'pressed'],
     calculated: [],
-    model: ['ENTER', 'LEAVE', 'SHOW', 'HIDE', 'ESCAPE', 'TOGGLED', 'PRESS'],
+    model: ['ENTER', 'LEAVE', 'SHOW', 'HIDE', 'ESCAPE', 'TOGGLED', 'PRESS', 'SYNC'],
     options: ['trigger', 'tip', 'showDelay', 'hideDelay'],
     listens: [['trigger', 'ENTER', 'select'], ['tip', 'TOGGLED', 'select']],
-    intent: ['LEAVE', 'ESCAPE', 'SHOW', 'HIDE', 'PRESS'],
+    intent: ['LEAVE', 'ESCAPE', 'SHOW', 'HIDE', 'PRESS', 'SYNC'],
   },
   tabs: {
     stateKeys: ['id', 'selected', 'orientation'],
