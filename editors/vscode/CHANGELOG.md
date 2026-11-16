@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0
+
+Bundles sygnal-check 0.19.0 (Sygnal 7.7.0). The extension's own code doesn't change.
+
+- `wizard()`: the 7.7 options (`guard`, `host`, `rekey`, `proceed`, a step's `back` / `next` / `slice`), `wizard.PROCEED` and `state.wizard.within` are known to the checks.
+- SYG127 now also reports a `guard` that is not `'flow'` or `'step'`, a `host` name that is no field of the host's state, a wizard step that reads or writes a host field it doesn't list in `host`, and a `rekey` that returns a field the host's state doesn't have.
+
 ## 0.15.0
 
 Bundles sygnal-check 0.18.0 (Sygnal 7.6.0). The extension's own code doesn't change.

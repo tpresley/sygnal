@@ -106,4 +106,107 @@ Source.model = { DONE: { PARENT: () => ({ wizard: 'NEXT' }) } }`)
     expect(codes(d)).toEqual(['SYG456 error', 'SYG457 warn'])
     expect(d.find(x => x.code === 'SYG457').message).toContain("did you mean 'review'")
   })
+
+  describe("prototype options: guard, proceed, host, slice, a step's back / next", () => {
+    const PROTO = (steps = "source: { label: 'Source', guard: 'step', host: ['created'], slice: 'shared', valid: (s) => !!s.draft.title, next: (s) => (s.phase ? null : { ...s, phase: 1 }), back: (s) => (s.phase ? { ...s, phase: 0 } : null) }, review: { label: 'Review', slice: 'shared' }", opts = "guard: 'flow', host: ['created'], rekey: () => ({ created: '' }), proceed: '.save-go', ") =>
+      FLOW({ opts: opts + "next: '.next', back: '.back', reset: '.start-over', goto: '.goto', finish: 'CREATE'" })
+        .replace("steps: { source: { label: 'Source', valid: (s) => !!s.draft.title }, review: { label: 'Review' } }", `steps: { ${steps} }`)
+        .replace('<button type="button" className="start-over">', '<button type="button" className="save-go">Save and continue</button>\n      <button type="button" className="start-over">')
+
+    it('the options are known: clean (strict), the proceed selector is listened to', () => {
+      expect(codes(check({ 'NewThing.jsx': PROTO() }, { strict: true }))).toEqual([])
+    })
+
+    it("a step's { wizard: 'PROCEED' } PARENT message is read", () => {
+      const src = PROTO().replace(`function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p></div>
+}`, `function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p><button type="button" className="go">Continue</button></div>
+}
+Source.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
+Source.model = { GO: { PARENT: () => ({ wizard: 'PROCEED' }) } }`)
+      expect(codes(check({ 'NewThing.jsx': src }, { strict: true }))).toEqual([])
+    })
+
+    it('SYG127: a guard value the wizard does not read (on a step and on the wizard)', () => {
+      const d = check({ 'NewThing.jsx': PROTO("source: { label: 'Source', guard: 'stp' }, review: { label: 'Review' }", "guard: 'steps', ") })
+      expect(codes(d)).toEqual(['SYG127 error', 'SYG127 error'])
+      expect(d.map(x => x.data.suggestion)).toEqual(['step', 'step'])
+      expect(d.every(x => x.fixes?.length)).toBe(true)
+    })
+
+    it("SYG127: a host field that is no key of the host's initialState", () => {
+      const d = check({ 'NewThing.jsx': PROTO("source: { label: 'Source', host: ['creatd'] }, review: { label: 'Review' }", "host: ['nope'], ") })
+      expect(codes(d)).toEqual(['SYG127 error', 'SYG127 error'])
+      expect(d.find(x => x.data.field === 'creatd').message).toContain("did you mean 'created'")
+      expect(d.find(x => x.data.field === 'nope').data.reason).toBe('host')
+    })
+
+    it("SYG459: a step's next / back reading a host field off its bag", () => {
+      const d = check({ 'NewThing.jsx': PROTO("source: { label: 'Source', next: (s, h) => (h.created ? null : { ...s, phase: 1 }), back: (s, { created }) => (created ? s : null) }, review: { label: 'Review' }", '') })
+      expect(codes(d)).toEqual(['SYG459 warn', 'SYG459 warn'])
+      expect(d.map(x => x.data.option).sort()).toEqual(['steps.source.back', 'steps.source.next'])
+    })
+
+    it("SYG127: a step reading or writing a host field it doesn't declare in host", () => {
+      const withSource = (body) => PROTO("source: { label: 'Source', valid: (s) => !!s.created }, review: { label: 'Review', host: ['created'], valid: (s) => !!s.created }", '')
+        .replace(`function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p></div>
+}`, body)
+      // a predicate's read
+      let d = check({ 'NewThing.jsx': withSource(`function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p></div>
+}`) })
+      expect(codes(d)).toEqual(['SYG127 error'])
+      expect(d[0].data).toMatchObject({ reason: 'host-undeclared', step: 'source', field: 'created', access: 'reads' })
+      // a reducer's write (reported once per field, as the write)
+      d = check({ 'NewThing.jsx': withSource(`function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p><button type="button" className="mk">Make</button></div>
+}
+Source.intent = ({ DOM }) => ({ MAKE: DOM.click('.mk') })
+Source.model = { MAKE: (s) => ({ ...s, created: 'yes' }) }`) })
+      expect(codes(d)).toEqual(['SYG127 error'])
+      expect(d[0].data).toMatchObject({ field: 'created', access: 'writes' })
+      expect(d[0].message).toContain('never sees it')
+      // the view's read
+      d = check({ 'NewThing.jsx': PROTO("source: { label: 'Source' }, review: { label: 'Review' }", '').replace('<h2>Source</h2><p>{state.draft.title}</p>', '<h2>Source</h2><p>{state.created}</p>') })
+      expect(d.map(x => x.data.access)).toEqual(['reads'])
+    })
+
+    // Tune 2026-11-15 (the 7.7 candidate): three forms the rule missed
+    it("SYG127: a host field read in a step's calculated field or in a sink other than STATE; rekey returning a field the host doesn't have", () => {
+      const base = PROTO("source: { label: 'Source' }, review: { label: 'Review' }", '')
+      const SRC = `function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p></div>
+}`
+      expect(base).toContain(SRC)
+      // calculated
+      let d = check({ 'NewThing.jsx': base.replace(SRC, SRC + "\nSource.calculated = { tag: (s) => s.created || 'none' }") })
+      expect(codes(d)).toEqual(['SYG127 error'])
+      expect(d[0].data).toMatchObject({ reason: 'host-undeclared', step: 'source', field: 'created', access: 'reads' })
+      expect(d[0].message).toContain("calculated tag")
+      // a PARENT sink's read
+      d = check({ 'NewThing.jsx': base.replace(SRC, `function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p><button type="button" className="mk">Make</button></div>
+}
+Source.intent = ({ DOM }) => ({ MAKE: DOM.click('.mk') })
+Source.model = { MAKE: { PARENT: (s) => ({ wizard: 'GOTO', step: s.created ? 'review' : 'source' }) } }`) })
+      expect(codes(d)).toEqual(['SYG127 error'])
+      expect(d[0].data).toMatchObject({ field: 'created', access: 'reads' })
+      expect(d[0].message).toContain('MAKE PARENT')
+      // rekey: a typo of a host field; a real one is quiet
+      d = check({ 'NewThing.jsx': PROTO("source: { label: 'Source' }, review: { label: 'Review' }", "rekey: () => ({ creatd: null }), ") })
+      expect(codes(d)).toEqual(['SYG127 error'])
+      expect(d[0].data).toMatchObject({ reason: 'rekey', field: 'creatd', suggestion: 'created' })
+      expect(codes(check({ 'NewThing.jsx': PROTO("source: { label: 'Source' }, review: { label: 'Review' }", "rekey: (s) => (s.created ? { created: null } : null), ") }))).toEqual([])
+    })
+
+    it("no report for a field the step's own initialState has, one the wizard's host names, or the draft", () => {
+      const own = PROTO("source: { label: 'Source', valid: (s) => !!s.created && !!s.draft.title }, review: { label: 'Review' }", '')
+        .replace('function Review(', "Source.initialState = { created: '' }\nSource.isolatedState = true\nfunction Review(")
+      expect(codes(check({ 'NewThing.jsx': own }))).toEqual([])
+      const wide = PROTO("source: { label: 'Source', valid: (s) => !!s.created }, review: { label: 'Review' }", "host: ['created'], ")
+      expect(codes(check({ 'NewThing.jsx': wide }))).toEqual([])
+    })
+  })
 })

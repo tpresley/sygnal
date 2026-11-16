@@ -71,25 +71,31 @@ const shallow = (a: any, b: any) => {
 
 // a step's state: its own slice over its component's initialState, plus the flow's draft
 // (calc(slice, bag): the owner's bag `ob` for a host state, 7.2)
-const stepLens = (from: string, name: string, C: any, DK: string, calc: (w: any, B: any) => any, ob: (s: any) => any) => {
+// (`name`: the step's slice in `local`, shared by the steps that name it; `hf`: the host state
+// fields the step declared (`host`), read from and written to the host's state)
+const stepLens = (from: string, name: string, C: any, DK: string, calc: (w: any, B: any) => any, ob: (s: any) => any, hf: string[]) => {
   const init = C?.initialState && typeof C.initialState == 'object' ? C.initialState : {}
-  let last: any, lo: any, ld: any
+  let last: any, lo: any, ld: any, lh: any[] = []
   return {
     get: (s: any) => {
       const w = s?.[from]
       if (!w) return undefined
       const own = w.local?.[name], d = w.draft
-      if (last && own === lo && d === ld) return last
-      lo = own, ld = d
-      return last = {...init, ...own, [DK]: d}
+      if (last && own === lo && d === ld && hf.every((f, i) => Object.is(s[f], lh[i]))) return last
+      lo = own, ld = d, lh = hf.map(f => s[f])
+      const hp: any = {}
+      for (const f of hf) if (f in s) hp[f] = s[f]
+      return last = {...init, ...own, ...hp, [DK]: d}
     },
     set: (s: any, v: any) => {
       const w = s?.[from]
       if (!w || !v || typeof v != 'object') return s
-      const {[DK]: draft, ...own} = v, same = shallow(own, {...init, ...w.local?.[name]})
-      if (same && draft === w.draft) return s
-      const n = {...w, draft, local: same ? w.local : {...w.local, [name]: own}}
-      return {...s, [from]: calc(n, ob({...s, [from]: n}))}
+      const {[DK]: draft, ...rest} = v, own: any = {}, hp: any = {}
+      for (const f in rest) (hf.includes(f) ? hp : own)[f] = rest[f]
+      const same = shallow(own, {...init, ...w.local?.[name]}), sh = hf.every(f => !(f in hp) || Object.is(hp[f], s[f]))
+      if (same && sh && draft === w.draft) return s
+      const n = {...w, draft, local: same ? w.local : {...w.local, [name]: own}}, t = {...s, ...hp, [from]: n}
+      return {...t, [from]: calc(n, ob(t))}
     },
   }
 }
@@ -113,7 +119,7 @@ function rewrite(n: any, owner: any): any {
         cur = w.step
         id = `${w.step}:${w.visit}`
         let m = lenses.get(owner)
-        if (!m?.has(id)) lenses.set(owner, m = new Map([[id, stepLens(from, cur, of[cur] || fallback, W.draftKey, W.calc, ob)]]))
+        if (!m?.has(id)) lenses.set(owner, m = new Map([[id, stepLens(from, W.slice(cur), of[cur] || fallback, W.draftKey, W.calc, ob, W.host(cur))]]))
         st = m.get(id)
       }
     }

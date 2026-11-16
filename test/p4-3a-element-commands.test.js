@@ -295,6 +295,104 @@ describe('mock DOM: t.commands records the commands sent', () => {
     expect(d.message).not.toMatch(/outside/)
   })
 
+  // Tune 2026-11: the mock DOM looked for the target once, 1 s after the command, so an element
+  // that was there when the command ran and removed within the second was reported, or not,
+  // depending on whether the test was still running
+  describe('a target that was there and is gone again within the second', () => {
+    function Box({ state }) {
+      return h('div', null,
+        h('button', { className: 'open' }, '+'), h('button', { className: 'commit' }, 'Add'), h('button', { className: 'swap' }, 'Swap'),
+        h('button', { className: 'late' }, 'Late'), h('button', { className: 'never' }, 'Never'),
+        state.open ? h('input', { className: 'new-value', attrs: { 'data-field': state.field } }) : null)
+    }
+    Box.initialState = { open: false, field: 'verdict' }
+    Box.intent = ({ DOM }) => ({ OPEN: DOM.click('.open'), COMMIT: DOM.click('.commit'), SWAP: DOM.click('.swap'), LATE: DOM.click('.late'), NEVER: DOM.click('.never') })
+    Box.model = {
+      OPEN: { STATE: s => ({ ...s, open: true }), ELEMENT: s => ({ focus: `.new-value[data-field="${s.field}"]` }) },
+      COMMIT: s => ({ ...s, open: false }),
+      // the action that sends the command also removes its target: the element in the tree from
+      // before this action is not a match
+      SWAP: { STATE: s => ({ ...s, open: false }), ELEMENT: { blur: '.new-value' } },
+      LATE: (s, _d, next) => { next('FOCUS', null, 20); return { ...s, open: false } },
+      FOCUS: { ELEMENT: { focus: '.new-value' } },
+      SHOW: s => ({ ...s, open: true }),
+      NEVER: { ELEMENT: { focus: '.nowhere' } },
+      RENAME: (s, field) => ({ ...s, field }),
+    }
+
+    it('no SYG640: the command found it, then the element was removed', async () => {
+      t = renderComponent(Box)
+      await t.ready()
+      await t.simulateEvent('.open', 'click')
+      await t.waitForState(s => s.open)
+      await t.simulateEvent('.commit', 'click')
+      await t.waitForState(s => !s.open)
+      await wait(1300)
+      expect(t.commands('ELEMENT')).toEqual([{ focus: '.new-value[data-field="verdict"]' }])
+      expect(t.diagnostics).toEqual([])
+    })
+
+    it('no SYG640: the selector stops matching (a renamed field)', async () => {
+      t = renderComponent(Box)
+      await t.ready()
+      await t.simulateEvent('.open', 'click')
+      await t.waitForState(s => s.open)
+      await t.simulateAction('RENAME', 'email_kind')
+      await t.waitForState(s => s.field == 'email_kind')
+      await wait(1300)
+      expect(t.diagnostics).toEqual([])
+    })
+
+    it('no SYG640: the target appears in a later render within the second, then goes', async () => {
+      t = renderComponent(Box)
+      await t.ready()
+      await t.simulateEvent('.late', 'click')
+      await wait(100)
+      expect(t.commands('ELEMENT')).toEqual([{ focus: '.new-value' }])
+      await t.simulateAction('SHOW')
+      await t.simulateEvent('.commit', 'click')
+      await t.waitForState(s => !s.open)
+      await wait(1300)
+      expect(t.diagnostics).toEqual([])
+    })
+
+    it('SYG640 still: a target that never appears, with renders in between', async () => {
+      t = renderComponent(Box)
+      await t.ready()
+      await t.simulateEvent('.never', 'click')
+      await t.simulateEvent('.open', 'click')
+      await t.simulateEvent('.commit', 'click')
+      await vi.waitFor(() => expect(codes()).toContain('SYG640'), { timeout: 5000, interval: 20 })
+      expect(codes()).toEqual(['SYG640'])
+      expect(t.diagnostics[0].message).toMatch(/\.nowhere/)
+    })
+
+    it('SYG640 still: the action that sends the command removes its target', async () => {
+      t = renderComponent(Box)
+      await t.ready()
+      await t.simulateEvent('.open', 'click')
+      await t.waitForState(s => s.open)
+      await t.simulateEvent('.swap', 'click')
+      await vi.waitFor(() => expect(codes()).toContain('SYG640'), { timeout: 5000, interval: 20 })
+      expect(codes()).toEqual(['SYG640'])
+    })
+
+    it('under fake timers: the same results', async () => {
+      vi.useFakeTimers()
+      try {
+        t = renderComponent(Box)
+        await t.ready()
+        await t.simulateEvent('.open', 'click')
+        await t.simulateEvent('.commit', 'click')
+        await vi.advanceTimersByTimeAsync(1500)
+        expect(t.diagnostics).toEqual([])
+        await t.simulateEvent('.never', 'click')
+        await vi.advanceTimersByTimeAsync(1500)
+        expect(codes()).toEqual(['SYG640'])
+      } finally { vi.useRealTimers() }
+    })
+  })
+
   it("SYG640: a target an ancestor renders is named as outside the sender's view, with the hand-off (Temper 2026-10)", async () => {
     const Footer = () => h('button', { className: 'next' }, 'Continue')
     Footer.intent = ({ DOM }) => ({ NEXT: DOM.click('.next') })

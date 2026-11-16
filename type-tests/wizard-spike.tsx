@@ -173,3 +173,27 @@ wizard({ steps: { a: {} }, draftKey: 'actions' })
 wizard({ steps: { a: {} }, draftKey: 'context' })
 wizard({ steps: { a: {} }, draftKey: 'flow' })
 wizard({ steps: { a: {} } })
+
+// prototype: guard, a step's back / next, slice, host fields, PROCEED
+{
+  type Host = { project: { name: string }; dataset: { rows: number } | null }
+  const flow = wizard<{ title: string }, Host, { start: { phase: number }; health: { note: string } }>({
+    steps: {
+      start: { guard: 'step', slice: 'intro', next: (s) => s.phase === 1 && { ...s, phase: 2 }, back: (s) => s.phase === 2 && { phase: 1 } },
+      health: { host: ['project', 'dataset'] },
+    },
+    guard: 'flow', host: ['project'], proceed: '.save',
+    rekey: (s) => ({ dataset: null, project: s.project }),
+  })
+  void flow
+  wizard<{}, Host, { a: {} }>({
+    // @ts-expect-error not a field of the host's state
+    steps: { a: { host: ['nope'] } },
+  })
+  wizard<{}, Host, { a: {} }>({
+    // @ts-expect-error 'flow' or 'step'
+    steps: { a: {} }, guard: 'always',
+  })
+  const m: import('sygnal').WizardMessage = { wizard: 'PROCEED' }
+  void m
+}

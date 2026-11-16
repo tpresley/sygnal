@@ -92,7 +92,7 @@ const same = (a: any, b: any, d = 0): boolean => Object.is(a, b) || d < 4 && !!a
 export const wizard = (o: any = {}): any => {
   const {steps: defs = {}, draft: dr = {}, key: keyOf, dirty, discard, finish, url, router: R = 'ROUTER', draftKey: DK = 'draft',
     resetTo, groups = {}, dialog, next: nextSel, back: backSel, reset: resetSel, goto: gotoSel, confirm, leave: leaveSel, stay: staySel,
-    restart = 'outcome'} = o
+    restart = 'outcome', guard, host, proceed: proceedSel, rekey} = o
   const names = Object.keys(defs), out = (n: any) => !!defs[n]?.outcome
   // the steps of the stepper (outcome steps aren't: a final screen after the flow, such as Created)
   const regular = names.filter(n => !out(n)), first = regular[0] ?? names[0]
@@ -103,9 +103,29 @@ export const wizard = (o: any = {}): any => {
   // B: the bag (7.2), B.state the host's state; from a handler's props (complete), else bagOf
   const draftOf = (B: any) => typeof dr == 'function' ? dr(B.state, B) : dr
   // what a step and its predicates see: its initialState, its own slice, the draft
-  const viewOf = (w: any, n: string) => ({...inits[n], ...w.local?.[n], [DK]: w.draft})
-  const on = (w: any, n: string, B: any) => !defs[n]?.when || !!defs[n].when(viewOf(w, n), B)
-  const ok = (w: any, n: string, B: any) => !defs[n]?.valid || !!defs[n].valid(viewOf(w, n), B)
+  // (`slice`: the name of the step's own slice in `local`, default its own name: steps naming the same
+  // one share it; `host`: the host state fields the step sees and writes as its own, as the draft)
+  const sl = (n: string): string => defs[n]?.slice ?? n
+  const hostOf = (n: string): string[] => (defs[n]?.host ?? host ?? []).filter((f: string) => f != DK)
+  const pick = (h: any, fs: string[]) => { const r: any = {}; for (const f of fs) if (h && f in h) r[f] = h[f]; return r }
+  const viewOf = (w: any, n: string, B?: any) => ({...inits[n], ...w.local?.[sl(n)], ...pick(B?.state, hostOf(n)), [DK]: w.draft})
+  const on = (w: any, n: string, B: any) => !defs[n]?.when || !!defs[n].when(viewOf(w, n, B), B)
+  const ok = (w: any, n: string, B: any) => !defs[n]?.valid || !!defs[n].valid(viewOf(w, n, B), B)
+  // a step's own `back` / `next`: a reducer of its view that takes the move (a sub-phase inside the
+  // step): its state out, or a falsy value to let the flow move
+  const inner = (w: any, a: string, B: any) => {
+    const f = !out(w.step) && (a == 'BACK' ? defs[w.step]?.back : a == 'NEXT' ? defs[w.step]?.next : null)
+    const r = typeof f == 'function' && f(viewOf(w, w.step, B), B)
+    return r && typeof r == 'object' ? r : null
+  }
+  // host state `h` with step n's state `v` written: its host fields to the host, the draft key to
+  // the draft, the rest its own slice (replaced). Returns [host state, slice]
+  const write = (h: any, k: string, w: any, n: string, v: any) => {
+    const {[DK]: d, ...rest} = v || {}, hp: any = {}, own: any = {}
+    const hf = hostOf(n)
+    for (const f in rest) (hf.includes(f) ? hp : own)[f] = rest[f]
+    return {...h, ...hp, [k]: {...w, local: {...w.local, [sl(n)]: own}, ...d !== undefined && {draft: d}}}
+  }
   // the stepper's step names not skipped, in order
   const live = (w: any, B: any) => regular.filter(n => on(w, n, B))
   const reachable = (w: any, n: string, B: any) => {
@@ -126,7 +146,7 @@ export const wizard = (o: any = {}): any => {
     for (const m of l) if (m == t || !ok(w, m, B)) return m
     return t
   }
-  const labelOf = (lb: any, w: any, n: string, B: any) => typeof lb == 'function' ? lb(viewOf(w, n), B) : lb
+  const labelOf = (lb: any, w: any, n: string, B: any) => typeof lb == 'function' ? lb(viewOf(w, n, B), B) : lb
   const derive = (w: any, B: any) => {
     const l = live(w, B), i = l.indexOf(w.step), o = out(w.step)
     const steps = regular.map(n => {
@@ -141,19 +161,25 @@ export const wizard = (o: any = {}): any => {
     for (const e of steps) {
       const g = defs[e.name].group
       if (g == null) { stepper.push({...e, steps: [e.name], step: e.name}); continue }
-      const x = at[g]
-      if (!x) { stepper.push(at[g] = {...e, name: g, steps: [e.name], step: e.name, label: labelOf(groups[g]?.label, w, e.name, B) ?? e.label}); continue }
-      x.steps.push(e.name)
-      // the member that applies (the current one first) gives the entry its state
-      if (e.current || x.skipped && !e.skipped) Object.assign(x, {...e, name: g, steps: x.steps, step: e.name, label: labelOf(groups[g]?.label, w, e.name, B) ?? e.label})
+      if (!at[g]) stepper.push(at[g] = {name: g, of: []})
+      at[g].of.push(e)
+    }
+    // a group's entry: the current member; else the first member that applies and isn't done (a
+    // group of sub-steps in sequence is done when each is); else the first that applies; else its first
+    for (const x of stepper) if (x.of) {
+      const m: any[] = x.of, a = m.filter(e => !e.skipped)
+      const e = m.find(e => e.current) || a.find(e => e.status != 'done') || a[0] || m[0]
+      delete x.of
+      Object.assign(x, {...e, name: x.name, steps: m.map(e => e.name), step: e.name, label: labelOf(groups[x.name]?.label, w, e.name, B) ?? e.label,
+        valid: a.every(e => e.valid), visited: m.some(e => e.visited), reachable: e.reachable})
     }
     const dg = defs[w.step]?.dialog ?? dialog
     return {
       steps, stepper,
-      index: i, count: l.length, first: l[0] == w.step, last: l[l.length - 1] == w.step, canBack: !o && i > 0,
-      canNext: !o && ok(w, w.step, B) && (i < l.length - 1 || !!finish),
+      index: i, count: l.length, first: l[0] == w.step, last: l[l.length - 1] == w.step, canBack: !o && (i > 0 || !!inner(w, 'BACK', B)),
+      canNext: !o && (!!inner(w, 'NEXT', B) || ok(w, w.step, B) && (i < l.length - 1 || !!finish)),
       outcome: o ? w.step : null,
-      dialog: (typeof dg == 'function' ? dg(viewOf(w, w.step), B) : dg) ?? null,
+      dialog: (typeof dg == 'function' ? dg(viewOf(w, w.step, B), B) : dg) ?? null,
     }
   }
   // the slice with its derived fields for the bag B (the same object when they didn't change)
@@ -164,12 +190,12 @@ export const wizard = (o: any = {}): any => {
   }
   // step n's slices with its visit defaults written into its own (the same object when they are there)
   const scratch = (w: any, n: string, B: any) => {
-    const v = defs[n]?.visit, l = w.local || {}, x = typeof v == 'function' ? v(viewOf(w, n), B) : v
-    return x && Object.keys(x).some(f => !Object.is(l[n]?.[f], x[f])) ? {...l, [n]: {...l[n], ...x}} : l
+    const v = defs[n]?.visit, l = w.local || {}, x = typeof v == 'function' ? v(viewOf(w, n, B), B) : v, sn = sl(n)
+    return x && Object.keys(x).some(f => !Object.is(l[sn]?.[f], x[f])) ? {...l, [sn]: {...l[sn], ...x}} : l
   }
   // an entry: a new visit, the step's visit defaults written into its slice
   const enter = (w: any, n: string, B: any) =>
-    ({...w, step: n, visit: (w.visit || 0) + 1, visited: w.visited.includes(n) ? w.visited : [...w.visited, n], local: scratch(w, n, B), leaving: null})
+    ({...w, step: n, visit: (w.visit || 0) + 1, visited: w.visited.includes(n) ? w.visited : [...w.visited, n], local: scratch(w, n, B), leaving: null, within: false})
   // the flow anew for key k (the draft from the host state; `d`: a RESET's or GOTO's draft, merged over it)
   // (url: at the step the route names when it is reachable, unless `top`: a reset)
   // (`to`: the step to enter, straight: a GOTO with a new key doesn't pass through step one)
@@ -220,15 +246,33 @@ export const wizard = (o: any = {}): any => {
   // the bag of a handler (its props p) for host state h (default: the one before the action)
   const bag = (p: any, h = pre(p)) => readBag(p, h, 'wizard')
   const close = confirm ? {ELEMENT: () => ({close: confirm})} : {}
+  // the current step's dirty (else the wizard's); `guard: 'step'` (a step's, else the wizard's): a
+  // move to another step is held too while it is dirty (explicit save), not only leaving the flow
+  const dirtyIn = (w: any, B: any) => {
+    const f = defs[w.step]?.dirty || dirty
+    return !!f?.(viewOf(w, w.step, B), w.step, B)
+  }
+  const held = (w: any, B: any) => (defs[w.step]?.guard ?? guard) == 'step' && !out(w.step) && dirtyIn(w, B)
+  // NEXT on the last step, valid: the finish action
+  const ends = (w: any, a: string, B: any) => { const l = live(w, B); return a == 'NEXT' && !!finish && l[l.length - 1] == w.step && ok(w, w.step, B) }
   // a move (or a route, a new key, a reset) that dropped a held leave closes its dialog (Sift bug 4:
   // browser back/forward isn't stopped by a modal)
-  const shut = confirm ? {ELEMENT: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => was(w, p, k)?.leaving && !w?.leaving ? {close: confirm} : ABORT} : {}
+  // (and one that was held, a step move under `guard: 'step'`, opens it)
+  const shut = confirm ? {ELEMENT: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => { const l = was(w, p, k)?.leaving; return l && !w?.leaving ? {close: confirm} : !l && w?.leaving?.wizard ? {showModal: confirm} : ABORT }} : {}
   // a move: a new step in state, or (url) a ROUTER command and no state change
   const move = (a: string) => ({
     ...shut,
-    STATE: (w: any, d: any, _n: any, p: any) => { const B = bag(p, p?.state), n = !url && target(w, a, d, B); return n ? fin(enter(w, n, B), B) : ABORT },
+    HOST: (h: any, d: any, _n: any, p: any, _o: any, k: string) => {
+      const w = h[k], B = bag(p, h), r = inner(w, a, B)
+      // the step took the move (its `back` / `next`)
+      if (r) { const x = write(h, k, w, w.step, r); return put(readBag(B, x, 'wizard'), k, x[k]) }
+      const n = target(w, a, d, B), e = ends(w, a, B)
+      // guard: 'step': held for the confirm (url: a move to a step is a navigation, held in LEAVE)
+      if ((e || n && !url) && held(w, B)) return put(B, k, {...w, leaving: {wizard: a, step: e ? null : n, finish: e}})
+      return n && !url ? put(B, k, enter(w, n, B)) : h
+    },
     ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
-      const s = was(w, p, k), B = bag(p), n = target(s, a, d, B)
+      const s = was(w, p, k), B = bag(p), n = !inner(s, a, B) && target(s, a, d, B)
       return n ? go(s, n, B) : ABORT
     }},
   })
@@ -249,8 +293,21 @@ export const wizard = (o: any = {}): any => {
       const w = h[key], B = bag(p, h)
       if (!w.visit) return put(B, key, fresh(w, B, k ?? null))
       if (k == null || Object.is(w.key, k)) return h
-      return put(B, key, w.key == null ? adopt(w, k, B) : fresh(w, B, k))
-    }, ...shut},
+      if (w.key == null) return put(B, key, adopt(w, k, B))
+      // `rekey`: host fields written when the flow starts over for another key (its `host` fields are
+      // the host's: they outlive the draft and the steps' slices unless it says what they become)
+      const r = typeof rekey == 'function' && rekey(h, B), hh = r && typeof r == 'object' ? {...h, ...r} : h, BB = hh === h ? B : bag(p, hh)
+      return put(BB, key, fresh(hh[key], BB, k))
+    },
+    // url: the flow started over for another key, and the step the route names isn't reachable in the
+    // new flow (its draft, or what `rekey` cleared): the route replaced with the first incomplete
+    // step before it, as a deep link's (the ROUTE watch sees no change when the step's name is the same)
+    ...url && {[R]: (w: any, _k: any, _n: any, p: any, _o: any, key: string) => {
+      const s = was(w, p, key), B = bag(p, p?.state), at = routeStep(B)
+      if (!s?.visit || s.key == null || w.key == null || Object.is(s.key, w.key) || !at || at == w.step || out(w.step)) return ABORT
+      return go(w, backTo(w, at, B), B, true)
+    }},
+    ...shut},
     // the host started (Sift bug 2: a host mounted again with the same key and step): the current
     // step's visit defaults again, as its new instance's scratch; and (pass 2 bug B) the derived
     // fields of a slice the host didn't make (seeded by a parent, persisted), before the first render
@@ -285,7 +342,7 @@ export const wizard = (o: any = {}): any => {
       // the last step: the finish action, with the draft
       EFFECT: (w: any, _d: any, next: any, p: any, _o: any, k: string) => {
         const s = was(w, p, k), B = bag(p), l = live(s, B)
-        if (l[l.length - 1] == s.step && ok(s, s.step, B)) done(s, next)
+        if (l[l.length - 1] == s.step && ok(s, s.step, B) && !inner(s, 'NEXT', B) && !held(s, B)) done(s, next)
       },
     },
     BACK: move('BACK'),
@@ -308,6 +365,8 @@ export const wizard = (o: any = {}): any => {
           return put(B, k, keep && n != f.step ? enter(f, n, B) : f)
         }
         const n = target(w, 'GOTO', d, B)
+        // (guard: 'step': a move to a step held; an outcome is entered after the step's work is done)
+        if (n && !url && !out(n) && held(w, B)) return put(B, k, {...w, leaving: {wizard: 'GOTO', step: n}})
         return n && (!url || out(n)) ? put(B, k, enter(w, n, B)) : h
       },
       ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
@@ -354,63 +413,75 @@ export const wizard = (o: any = {}): any => {
       return out(n) || !reachable(s, n, B) ? go(s, backTo(s, out(n) ? l[l.length - 1] ?? first : n, B), B, true) : ABORT
     },
   }
-  // the current step's dirty / discard, else the wizard's
-  const dirtyIn = (w: any, B: any) => {
-    const f = defs[w.step]?.dirty || dirty
-    return !!f?.(viewOf(w, w.step), w.step, B)
+  // a held leave made: a navigation with the block lifted (re-armed for one inside the flow); a step
+  // move (no url) is entered in HOST; its finish action
+  const made = {
+    [R]: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => {
+      const s = was(w, p, k), l = s.leaving
+      if (!l || l.wizard) return ABORT
+      const {step: _s, ...cmd} = l
+      return {...cmd, block: s.within ? k + '.LEAVE' : false}
+    },
+    EFFECT: (w: any, _d: any, next: any, p: any, _o: any, k: string) => { if (was(w, p, k).leaving?.finish) done(w, next) },
+    ...close,
+  }
+  // (host state h, its slice already settled) the held step move entered
+  const land = (h: any, k: string, B: any, l: any) => {
+    const b = readBag(B, h, 'wizard'), w = {...h[k], leaving: null, within: false}
+    return put(b, k, l?.wizard && l.step ? enter(w, l.step, b) : w)
   }
   if (guarded) Object.assign(model, {
     GUARD: {[R]: (_w: any, d: any, _n: any, _p: any, _o: any, k: string) => ({block: d ? k + '.LEAVE' : false})},
-    // the router's attempt { to, route, proceed }: inside the flow, made (the block kept); out of it,
+    // the router's attempt { to, route, proceed }: inside the flow, made (the block kept), unless the
+    // step guards its own leave (`guard: 'step'`) and the route names another step; out of it,
     // made with the block lifted when the step isn't dirty any more (Sift: the action that sent the
     // navigation saved or cleared it in its STATE, before GUARD's watch lifted the block), else held
     LEAVE: {
-      STATE: (w: any, a: any, _n: any, p: any) => { const B = bag(p, p?.state); return inFlow(w, a?.route, B) || !dirtyIn(w, B) ? ABORT : {...w, leaving: a?.proceed ?? null} },
+      STATE: (w: any, a: any, _n: any, p: any) => { const B = bag(p, p?.state), i = inFlow(w, a?.route, B); return i && !holds(w, i, B) || !dirtyIn(w, B) ? ABORT : {...w, leaving: a?.proceed ? i ? {...a.proceed, step: i} : a.proceed : null, within: !!i} },
       [R]: (w: any, a: any, _n: any, p: any, _o: any, k: string) => {
-        const s = was(w, p, k), B = bag(p)
-        return inFlow(s, a?.route, B) ? {...a.proceed, block: k + '.LEAVE'} : dirtyIn(s, B) ? ABORT : {...a.proceed, block: false}
+        const s = was(w, p, k), B = bag(p), i = inFlow(s, a?.route, B)
+        return i && !holds(s, i, B) ? {...a.proceed, block: k + '.LEAVE'} : dirtyIn(s, B) ? ABORT : {...a.proceed, block: false}
       },
-      ...confirm && {ELEMENT: (w: any, a: any, _n: any, p: any, _o: any, k: string) => { const s = was(w, p, k), B = bag(p); return inFlow(s, a?.route, B) || !dirtyIn(s, B) ? ABORT : {showModal: confirm} }},
+      ...confirm && {ELEMENT: (w: any, a: any, _n: any, p: any, _o: any, k: string) => { const s = was(w, p, k), B = bag(p), i = inFlow(s, a?.route, B); return i && !holds(s, i, B) || !dirtyIn(s, B) ? ABORT : {showModal: confirm} }},
     },
     DISCARD: {
       HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => {
-        const w = h[k], B = bag(p, h), sd = defs[w.step]?.discard
-        // a step's discard: (its view, the bag) => its state (the draft key in it: the draft)
-        if (sd) {
-          const {[DK]: d, ...own} = sd(viewOf(w, w.step), B) || {}
-          return put(B, k, {...w, local: {...w.local, [w.step]: own}, ...d !== undefined && {draft: d}, leaving: null})
-        }
-        const r = discard ? discard(w, B) : fresh(w, B, w.key, undefined, true)
-        return put(B, k, {...r, leaving: null})
+        const w = h[k], B = bag(p, h), sd = defs[w.step]?.discard, l = w.leaving, step = l?.wizard || w.within
+        // a step's discard: (its view, the bag) => its state (the draft key in it: the draft; its host fields: the host's)
+        if (sd) return land(write(h, k, w, w.step, sd(viewOf(w, w.step, B), B)), k, B, l)
+        // (a held step move without one: the step's own slice made again; the flow goes on)
+        if (step && !discard) { const {[sl(w.step)]: _x, ...local} = w.local || {} as any; return land({...h, [k]: {...w, local}}, k, B, l) }
+        return land({...h, [k]: discard ? discard(w, B) : fresh(w, B, w.key, undefined, true)}, k, B, step ? l : null)
       },
-      [R]: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => {
-        const l = was(w, p, k).leaving
-        return l ? {...l, block: false} : ABORT
-      },
-      ...close,
+      ...made,
     },
-    STAY: {STATE: (w: any) => w.leaving ? {...w, leaving: null} : ABORT, ...close},
+    // the held leave made with nothing discarded (the app saved: a save's reply)
+    PROCEED: {HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => h[k].leaving ? land(h, k, bag(p, h), h[k].leaving) : h, ...made},
+    STAY: {STATE: (w: any) => w.leaving ? {...w, leaving: null, within: false} : ABORT, ...close},
   })
-  // an attempted route inside the flow: one naming a step (through `url.from`, given the host state
-  // with that route) for the flow's key, for no key (a step route without it), or for any key while
-  // the flow has none yet (a key born mid-flow: a step that created the record moves on)
-  const inFlow = (w: any, r: any, B: any) => {
-    if (!url || !r) return false
+  // an attempted route inside the flow (its step's name, else null): one naming a step (through
+  // `url.from`, given the host state with that route) for the flow's key, for no key (a step route
+  // without it), or for any key while the flow has none yet (a key born mid-flow: a step that created
+  // the record moves on)
+  const inFlow = (w: any, r: any, B: any): string | null => {
+    if (!url || !r) return null
     const h = {...B.state, route: r}, m = url.from ? url.from(h, readBag(B, h, 'wizard')) : r
     const q = url.keyParam ? m?.params?.[url.keyParam] : m?.query?.[url.key]
     return m?.name == url.route && names.includes(m.params?.[url.param])
-      && (!(url.key || url.keyParam) || w.key == null || q == null || q == w.key)
+      && (!(url.key || url.keyParam) || w.key == null || q == null || q == w.key) ? m.params[url.param] : null
   }
+  // guard: 'step': a navigation to another step of the flow is held while the current one is dirty
+  const holds = (w: any, n: string, B: any) => n != w.step && held(w, B)
 
   // the start slice, with derived fields for a render before any action (SSR); predicates that need
   // the host's state get none here (the bag: { state: {} })
-  const init: any = {step: first, key: null, visit: 0, visited: [], draft: typeof dr == 'function' ? {} : dr, initial: typeof dr == 'function' ? {} : dr, local: {}, leaving: null, reseed: null}
+  const init: any = {step: first, key: null, visit: 0, visited: [], draft: typeof dr == 'function' ? {} : dr, initial: typeof dr == 'function' ? {} : dr, local: {}, leaving: null, within: false, reseed: null}
   try { Object.assign(init, derive(init, {state: {}})) }
   catch (_) { Object.assign(init, {steps: [], stepper: [], index: 0, count: regular.length, first: true, last: regular.length < 2, canBack: false, canNext: false, outcome: null, dialog: null}) }
 
   const b = defineBehavior({
     initialState: init,
-    triggers: {NEXT: 'next', BACK: 'back', RESET: 'reset', GOTO: 'goto', DISCARD: 'leave', STAY: 'stay'},
+    triggers: {NEXT: 'next', BACK: 'back', RESET: 'reset', GOTO: 'goto', DISCARD: 'leave', STAY: 'stay', PROCEED: 'proceed'},
     intent: ({DOM, CHILD, props$, ...S}: any, _o: any, k: string, host: any, I: any) => {
       // what the intent watches gets the host's bag (its state, a sub-component's props, its context
       // and uid), again when the state, the props or the context changes
@@ -453,8 +524,11 @@ export const wizard = (o: any = {}): any => {
         GOTO: or(gotoSel, 'GOTO', ({wizard: _w, ...m}: any) => 'key' in m ? m : m.step),
         FINISH: from('FINISH'),
         ...guarded && leaveSel && {DISCARD: DOM.click(leaveSel)},
+        ...guarded && {PROCEED: or(proceedSel, 'PROCEED')},
         // the stay button, or the confirm dialog closed (Escape; after DISCARD / STAY: no change then)
-        ...guarded && (staySel || confirm) && {STAY: xs.merge(...[staySel && DOM.click(staySel), confirm && DOM.select(confirm).events('close')].filter(Boolean))},
+        // (not the `close` of a dialog that is open again: the event of an earlier close() delivered
+        // after the next held navigation opened it, as in a hidden tab, would drop that navigation)
+        ...guarded && (staySel || confirm) && {STAY: xs.merge(...[staySel && DOM.click(staySel), confirm && DOM.select(confirm).events('close').filter((e: any) => !e?.target?.open)].filter(Boolean))},
       }
     },
     model,
@@ -477,7 +551,7 @@ export const wizard = (o: any = {}): any => {
   // through the outlet's lens), and
   // `step(name, Component)`: a step component the outlet renders (its initialState for the
   // predicates; its PARENT messages)
-  b.$wizard = {keyOf, draftKey: DK, calc: fin, step: (n: string, c: any) => {
+  b.$wizard = {keyOf, draftKey: DK, calc: fin, slice: sl, host: hostOf, step: (n: string, c: any) => {
     if (typeof c != 'function') return
     const i = c.initialState && typeof c.initialState == 'object' ? c.initialState : undefined
     if (inits[n] !== i) inits[n] = i, i && queueMicrotask(() => regs.forEach(f => f()))

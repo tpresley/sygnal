@@ -1218,6 +1218,46 @@ describe('Tune: a step route with another path param; a stepper click under the 
     expect(t.state.flow.wizard).toMatchObject({ step: 'review', key: 'p2' })
   })
 
+  // Tune 2026-11-15 (the 7.7 candidate): /projects/p1/setup/launch → /projects/p2/setup/launch showed
+  // the first step under the old step's URL (the ROUTE watch saw the same step name)
+  it('another key on a step the new flow can\'t reach: the URL is replaced with the first incomplete step, as a deep link\'s', async () => {
+    function A() { return h('div', null, h('h2', null, 'A'), h('button', { className: 'fill' }, 'Fill')) }
+    A.intent = ({ DOM }) => ({ FILL: DOM.click('.fill') })
+    A.model = { FILL: (s) => ({ ...s, draft: { ...s.draft, a: 1, b: 1 } }) }
+    const Bs = () => h('h2', null, 'B'), Cs = () => h('h2', null, 'C')
+    function App({ state }) { return state.route.name === 'step' ? h(Setup, { state: 'flow' }) : h('p', null, 'home') }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current('/'), flow: { dataset: null } }
+    App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+    function Setup() { return h('section', null, h(Outlet, { of: { a: A, b: Bs, c: Cs }, from: 'wizard', focus: false }), h('button', { className: 'next' }, 'Next')) }
+    const make = (rekey) => {
+      const S = (p) => Setup(p)
+      S.uses = { wizard: wizard({
+        steps: { a: {}, b: { valid: (s) => !!s.draft.b }, c: {} }, draft: { a: 0, b: 0 },
+        key: (s) => s.route?.params?.pid, url: { route: 'step', param: 'step', keyParam: 'pid' }, next: '.next', ...rekey && { rekey },
+      }) }
+      const R = ({ state }) => state.route.name === 'step' ? h(S, { state: 'flow' }) : h('p', null, 'home')
+      return Object.assign(R, { route: App.route, initialState: App.initialState, model: App.model })
+    }
+    for (const rekey of [null, () => ({ dataset: null })]) {
+      t = renderComponent(make(rekey), { dom: 'real', router, url: '/projects/p1/setup/a' })
+      await t.ready(); await tick(40)
+      await click('.fill'); await tick(20)
+      await click('.next'); await tick(40)
+      await click('.next'); await tick(40)
+      expect(t.location.path).toBe('/projects/p1/setup/c')
+      await t.navigate('/projects/p2/setup/c'); await tick(60)
+      // the new flow's draft is empty: b isn't valid, so c can't be reached
+      expect(t.state.flow.wizard).toMatchObject({ key: 'p2', step: 'b' })
+      expect(t.location.path).toBe('/projects/p2/setup/b')
+      // a reachable step keeps its URL
+      await t.navigate('/projects/p3/setup/b'); await tick(60)
+      expect(t.state.flow.wizard).toMatchObject({ key: 'p3', step: 'b' })
+      expect(t.location.path).toBe('/projects/p3/setup/b')
+      t.dispose(); t = null
+    }
+  })
+
   it('mock DOM: a click on a stepper button is a click, not a { step } message; a reset click doesn\'t become the draft', async () => {
     t = renderComponent(host(wizard({ steps: { source: {}, review: {} }, draft: { title: '' }, next: '.next', goto: '.goto', reset: '.reset' })))
     await t.ready()
@@ -1226,5 +1266,299 @@ describe('Tune: a step route with another path param; a stepper click under the 
     await t.simulateEvent('.reset', 'click')
     expect(t.state.wizard.step).toBe('source')
     expect(t.state.wizard.draft).toEqual({ title: '' })
+  })
+})
+
+describe('prototype: guard: \'step\', step back / next, sub-steps in a group, shared slices, host fields', () => {
+  const P = HTMLDialogElement.prototype, sm = P.showModal, cl = P.close
+  const dialogs = () => { P.showModal = function () { this.setAttribute('open', '') }; P.close = function () { this.removeAttribute('open') } }
+  afterEach(() => { P.showModal = sm; P.close = cl })
+  const open = () => t.query('.leave-dialog').hasAttribute('open')
+
+  // an explicit-save step: its edits are committed by Save (a reply), not by moving
+  function Card({ state }) {
+    return h('div', null, h('h2', null, 'Card'), h('input', { className: 'edits', value: state.edits }),
+      h('button', { className: 'save' }, 'Save'), h('button', { className: 'save-go' }, 'Save and continue'), h('button', { className: 'saved-proceed' }, 'Saved'))
+  }
+  Card.initialState = { edits: '', saved: '' }
+  Card.isolatedState = true
+  Card.intent = ({ DOM }) => ({ EDIT: DOM.input('.edits').map(e => e.target.value), SAVE_GO: DOM.click('.save-go'), SAVED: DOM.click('.saved-proceed') })
+  Card.model = {
+    EDIT: (s, edits) => ({ ...s, edits }),
+    // saves and moves in one action: the guard reads dirty after its STATE
+    SAVE_GO: { STATE: (s) => ({ ...s, saved: s.edits }), PARENT: () => ({ wizard: 'NEXT' }) },
+    // a save's reply while the dialog is open: the held move made, nothing discarded
+    SAVED: { STATE: (s) => ({ ...s, saved: s.edits }), PARENT: () => ({ wizard: 'PROCEED' }) },
+  }
+  function Fit() { return h('h2', { className: 'fit' }, 'Fit') }
+  function Intro() { return h('h2', { className: 'intro' }, 'Intro') }
+  const cardStep = { guard: 'step', dirty: (s) => s.edits !== s.saved, discard: (s) => ({ ...s, edits: s.saved }) }
+  const flowOf = (flow, extra = {}) => {
+    function Flow({ state }) {
+      const w = state.wizard
+      return h('section', null,
+        h('ol', null, ...w.stepper.map(e => h('li', { 'data-status': e.status }, h('button', { className: 'goto', 'data-step': e.step }, e.label)))),
+        h(Outlet, { of: { intro: Intro, card: Card, fit: Fit, ...extra.of }, from: 'wizard', focus: false }),
+        h('dialog', { className: 'leave-dialog' }, h('button', { className: 'leave' }), h('button', { className: 'stay' })),
+        h('button', { className: 'back', disabled: !w.canBack }), h('button', { className: 'next', disabled: !w.canNext }))
+    }
+    Flow.uses = { wizard: flow }
+    Flow.initialState = extra.state || {}
+    Flow.model = { DONE: (s, draft) => ({ ...s, done: draft }) }
+    return Flow
+  }
+  const sel = { next: '.next', back: '.back', goto: '.goto', confirm: '.leave-dialog', leave: '.leave', stay: '.stay' }
+
+  it("guard: 'step' (no url): Back, Next and the stepper are held while the step is dirty; Stay, Discard, PROCEED; a save in the same action isn't held; the finish is held", async () => {
+    dialogs()
+    t = renderComponent(flowOf(wizard({ steps: { intro: {}, card: cardStep, fit: {} }, ...sel, finish: 'DONE' })), { dom: 'real' })
+    await t.ready(); await tick()
+    await click('.next')
+    expect(t.state.wizard.step).toBe('card')
+    await type('.edits', 'a')
+    // Next: held, the dialog opens; Stay
+    await click('.next')
+    expect(t.state.wizard).toMatchObject({ step: 'card', leaving: { wizard: 'NEXT', step: 'fit' } })
+    expect(open()).toBe(true)
+    await click('.stay')
+    expect(t.state.wizard).toMatchObject({ step: 'card', leaving: null })
+    expect(open()).toBe(false)
+    // Back: held; Discard runs the step's discard and makes the move
+    await click('.back')
+    expect(t.state.wizard.leaving).toEqual({ wizard: 'BACK', step: 'intro', finish: false })
+    await click('.leave')
+    expect(t.state.wizard).toMatchObject({ step: 'intro', leaving: null })
+    expect(t.state.wizard.local.card.edits).toBe('')
+    expect(open()).toBe(false)
+    // the stepper: held; PROCEED (the step's save reply) makes it with the edits kept
+    await click('.next')
+    await type('.edits', 'b')
+    await click('.goto[data-step="intro"]')
+    expect(t.state.wizard).toMatchObject({ step: 'card', leaving: { wizard: 'GOTO', step: 'intro' } })
+    await click('.saved-proceed')
+    expect(t.state.wizard).toMatchObject({ step: 'intro', leaving: null })
+    expect(t.state.wizard.local.card).toMatchObject({ edits: 'b', saved: 'b' })
+    // Save and continue: one action, not held
+    await click('.next')
+    await type('.edits', 'c')
+    await click('.save-go')
+    expect(t.state.wizard).toMatchObject({ step: 'fit', leaving: null })
+    expect(open()).toBe(false)
+  })
+
+  it("guard: 'step': the last step's finish is held, and made by Discard; the wizard-level guard option; the default leaves moves alone", async () => {
+    dialogs()
+    const { guard: _g, ...plain } = cardStep
+    t = renderComponent(flowOf(wizard({ steps: { intro: {}, card: plain }, guard: 'step', ...sel, finish: 'DONE' })), { dom: 'real' })
+    await t.ready(); await tick()
+    await click('.next')
+    await type('.edits', 'a')
+    await click('.next')
+    expect(t.state.done).toBeUndefined()
+    expect(t.state.wizard.leaving).toEqual({ wizard: 'NEXT', step: null, finish: true })
+    await click('.leave')
+    expect(t.state.done).toEqual({})
+    t.dispose()
+    // guard: 'flow' (the default): a dirty step's moves are made
+    t = renderComponent(flowOf(wizard({ steps: { intro: {}, card: plain, fit: {} }, ...sel })), { dom: 'real' })
+    await t.ready(); await tick()
+    await click('.next')
+    await type('.edits', 'a')
+    await click('.next')
+    expect(t.state.wizard).toMatchObject({ step: 'fit', leaving: null })
+  })
+
+  it("guard: 'step' with url: Next, the stepper and the browser's Back are held navigations; a query change on the step's own route isn't", async () => {
+    dialogs()
+    const router = makeRouter({ routes: { home: '/', step: '/p/:pid/:step', notFound: '*' } })
+    const Flow = flowOf(wizard({ steps: { intro: {}, card: cardStep, fit: {} }, ...sel, url: { route: 'step', param: 'step', keyParam: 'pid' }, key: (s) => s.route?.params?.pid }))
+    Flow.route = 'ROUTE'
+    Flow.initialState = { route: router.current('/p/1/intro') }
+    Flow.intent = ({ DOM }) => ({ QUERY: DOM.click('.back').filter(() => false) })
+    Flow.model = { ...Flow.model, ROUTE: (s, route) => ({ ...s, route }), Q: { ROUTER: () => ({ to: 'step', params: { pid: '1', step: 'card' }, query: { model: 'x' } }) } }
+    t = renderComponent(Flow, { dom: 'real', router, url: '/p/1/intro' })
+    await t.ready(); await tick(40)
+    await click('.next'); await tick(40)
+    expect(t.location.path).toBe('/p/1/card')
+    await type('.edits', 'a')
+    await click('.next'); await tick(40)
+    expect(t.location.path).toBe('/p/1/card')
+    expect(t.state.wizard).toMatchObject({ step: 'card', within: true })
+    expect(t.state.wizard.leaving).toBeTruthy()
+    expect(t.state.wizard.leaving.step).toBe('fit')                   // the step the held navigation goes to
+    expect(open()).toBe(true)
+    await click('.stay')
+    // the browser's Back between steps: held too
+    await t.back(); await tick(40)
+    expect(t.location.path).toBe('/p/1/card')
+    expect(t.state.wizard.leaving).toMatchObject({ go: -1, step: 'intro' })
+    expect(open()).toBe(true)
+    await click('.stay')
+    // the step's own route with another query: made
+    await t.simulateAction('Q'); await tick(40)
+    expect(t.location.query).toEqual({ model: 'x' })
+    expect(t.state.wizard.leaving).toBeNull()
+    // Discard: the edits dropped, the navigation made, the flow kept
+    await click('.next'); await tick(40)
+    await click('.leave'); await tick(60)
+    expect(t.location.path).toBe('/p/1/fit')
+    expect(t.state.wizard).toMatchObject({ step: 'fit', leaving: null })
+    expect(t.state.wizard.local.card.edits).toBe('')
+    expect(t.state.wizard.visited).toEqual(['intro', 'card', 'fit'])
+  })
+
+  // Tune 2026-11-15: in a hidden tab a Forward right after Keep editing was sometimes neither made
+  // nor asked: the `close` event of Stay's close() arrived after the next held navigation had opened
+  // the dialog again, and was read as another Stay
+  it("a held navigation right after Stay is kept when the dialog's close event arrives late", async () => {
+    // a dialog as the browser's (close() fires `close` later), the event held back as a hidden tab does
+    let late = 150
+    P.showModal = function () { this.setAttribute('open', '') }
+    P.close = function () { if (this.hasAttribute('open')) { this.removeAttribute('open'); setTimeout(() => this.dispatchEvent(new Event('close')), late) } }
+    try {
+      const router = makeRouter({ routes: { home: '/', step: '/p/:pid/:step', notFound: '*' } })
+      const Flow = flowOf(wizard({ steps: { intro: {}, card: cardStep, fit: {} }, ...sel, url: { route: 'step', param: 'step', keyParam: 'pid' }, key: (s) => s.route?.params?.pid }))
+      Flow.route = 'ROUTE'
+      Flow.initialState = { route: router.current('/p/1/intro') }
+      Flow.model = { ...Flow.model, ROUTE: (s, route) => ({ ...s, route }) }
+      t = renderComponent(Flow, { dom: 'real', router, url: '/p/1/intro' })
+      await t.ready(); await tick(40)
+      await click('.next'); await tick(200)
+      await type('.edits', 'a')
+      await t.back(); await tick(400)
+      expect(t.state.wizard.leaving).toMatchObject({ go: -1, step: 'intro' })
+      expect(open()).toBe(true)
+      for (let i = 0; i < 3; i++) {
+        await click('.stay')
+        expect(t.state.wizard.leaving).toBeNull()
+        // the next attempt before Stay's close event
+        await t.back(); await tick(500)
+        expect(t.location.path).toBe('/p/1/card')
+        expect(t.state.wizard.leaving).toMatchObject({ go: -1, step: 'intro' })
+        expect(open()).toBe(true)
+      }
+      // Escape (the dialog closed by the user) is still Stay
+      late = 0
+      t.query('.leave-dialog').close(); await tick(400)
+      expect(t.state.wizard.leaving).toBeNull()
+      expect(open()).toBe(false)
+    } finally { late = 0 }
+  })
+
+  it('a step\'s own back / next take the move while it has a sub-phase; canBack on the first step', async () => {
+    function Start({ state }) { return h('h2', { className: 'phase' }, 'Start ' + state.phase) }
+    Start.initialState = { phase: 1 }
+    Start.isolatedState = true
+    t = renderComponent(flowOf(wizard({
+      steps: {
+        start: { next: (s) => s.phase === 1 && { ...s, phase: 2 }, back: (s) => s.phase === 2 && { ...s, phase: 1 } },
+        fit: {},
+      }, ...sel,
+    }), { of: { start: Start } }), { dom: 'real' })
+    await t.ready(); await tick()
+    expect(t.state.wizard).toMatchObject({ step: 'start', canBack: false, canNext: true })
+    await click('.next')
+    expect(t.state.wizard).toMatchObject({ step: 'start', canBack: true })
+    expect(t.query('.phase').textContent).toBe('Start 2')
+    await click('.back')
+    expect(t.state.wizard).toMatchObject({ step: 'start', canBack: false })
+    expect(t.query('.phase').textContent).toBe('Start 1')
+    await click('.next'); await click('.next')
+    expect(t.state.wizard.step).toBe('fit')
+    await click('.back'); await click('.back')
+    expect(t.state.wizard.step).toBe('start')
+    expect(t.state.wizard.local.start.phase).toBe(1)
+  })
+
+  it('sub-steps: a group of steps in sequence is one stepper entry, done when each is; `slice` gives them one slice', async () => {
+    function Goal({ state }) { return h('input', { className: 'goal', value: state.goal }) }
+    Goal.initialState = { goal: '', output: '' }
+    Goal.isolatedState = true
+    Goal.intent = ({ DOM }) => ({ GOAL: DOM.input('.goal').map(e => e.target.value) })
+    Goal.model = { GOAL: (s, goal) => ({ ...s, goal }) }
+    function Output({ state }) { return h('div', null, h('p', { className: 'goal-shown' }, state.goal), h('input', { className: 'output', value: state.output })) }
+    Output.initialState = { goal: '', output: '' }
+    Output.isolatedState = true
+    Output.intent = ({ DOM }) => ({ OUT: DOM.input('.output').map(e => e.target.value) })
+    Output.model = { OUT: (s, output) => ({ ...s, output }) }
+    t = renderComponent(flowOf(wizard({
+      steps: {
+        goal: { group: 'start', slice: 'start', valid: (s) => s.goal !== '' },
+        output: { group: 'start', slice: 'start', valid: (s) => s.output !== '' },
+        fit: { label: 'Fit' },
+      },
+      groups: { start: { label: 'Start' } }, ...sel,
+    }), { of: { goal: Goal, output: Output } }), { dom: 'real' })
+    await t.ready(); await tick()
+    const entries = () => t.state.wizard.stepper.map(e => `${e.label}:${e.status}:${e.step}`)
+    expect(entries()).toEqual(['Start:current:goal', 'Fit:blocked:fit'])
+    await type('.goal', 'G')
+    await click('.next')
+    expect(t.state.wizard.step).toBe('output')
+    expect(t.query('.goal-shown').textContent).toBe('G')   // one slice
+    expect(entries()).toEqual(['Start:current:output', 'Fit:blocked:fit'])
+    await type('.output', 'O')
+    await click('.next')
+    expect(t.state.wizard.local).toEqual({ start: { goal: 'G', output: 'O' } })
+    expect(entries()).toEqual(['Start:done:goal', 'Fit:current:fit'])
+    // Back walks the sub-steps
+    await click('.back')
+    expect(t.state.wizard.step).toBe('output')
+    await type('.output', '')
+    await click('.back')
+    // the second sub-step isn't valid any more: the entry stays current on the first
+    expect(entries()).toEqual(['Start:current:goal', 'Fit:blocked:fit'])
+  })
+
+  it('host: a step reads and writes the host state fields it declares; its predicates see them; a reset leaves them', async () => {
+    function Health({ state }) { return h('div', null, h('p', { className: 'project' }, state.project.name), h('button', { className: 'load' }, 'Load')) }
+    Health.initialState = { note: '' }
+    Health.isolatedState = true
+    Health.intent = ({ DOM }) => ({ LOADED: DOM.click('.load') })
+    Health.model = { LOADED: (s) => ({ ...s, note: 'loaded', dataset: { rows: 12 } }) }
+    function Launch({ state }) { return h('p', { className: 'rows' }, String(state.dataset?.rows)) }
+    t = renderComponent(flowOf(wizard({
+      steps: {
+        health: { host: ['project', 'dataset'], valid: (s) => !!s.dataset },
+        launch: { host: ['dataset'], label: (s) => `Launch (${s.dataset?.rows ?? '?'})` },
+      }, ...sel, reset: '.back',
+    }), { of: { health: Health, launch: Launch }, state: { project: { name: 'P1' }, dataset: null } }), { dom: 'real' })
+    await t.ready(); await tick()
+    expect(t.query('.project').textContent).toBe('P1')
+    expect(t.state.wizard.canNext).toBe(false)
+    await click('.load')
+    expect(t.state.dataset).toEqual({ rows: 12 })                     // written to the host
+    expect(t.state.wizard.local.health).toEqual({ note: 'loaded' })  // not kept in the step's slice
+    expect(t.state.wizard.canNext).toBe(true)
+    expect(t.state.wizard.steps[1].label).toBe('Launch (12)')
+    await click('.next')
+    expect(t.query('.rows').textContent).toBe('12')
+    await t.simulateAction('wizard.RESET')
+    expect(t.state.wizard.local.health?.note).toBeUndefined()
+    expect(t.state.dataset).toEqual({ rows: 12 })
+  })
+  it('rekey: host fields written when the flow starts over for another key (not when a key is adopted)', async () => {
+    function Health({ state }) { return h('p', { className: 'rows' }, String(state.dataset?.rows)) }
+    const mk = (extra) => flowOf(wizard({ steps: { health: { host: ['dataset'] }, launch: { host: ['dataset'] } }, ...sel, key: (s) => s.pid, ...extra }),
+      { of: { health: Health, launch: Health }, state: { pid: null, dataset: { rows: 12 }, seen: 0 } })
+    const Flow = mk({ rekey: (s) => ({ dataset: null, seen: s.seen + 1 }) })
+    Flow.model = { ...Flow.model, PID: (s, pid) => ({ ...s, pid }) }
+    t = renderComponent(Flow, { dom: 'real' })
+    await t.ready(); await tick()
+    await t.simulateAction('PID', 'p1'); await tick()                 // none to a key: adopted, nothing written
+    expect(t.state).toMatchObject({ dataset: { rows: 12 }, seen: 0 })
+    await click('.next')
+    await t.simulateAction('PID', 'p2'); await tick()                 // another key: the flow anew, the host fields too
+    expect(t.state).toMatchObject({ dataset: null, seen: 1 })
+    expect(t.state.wizard).toMatchObject({ key: 'p2', step: 'health' })
+    expect(t.query('.rows').textContent).toBe('undefined')
+    t.dispose()
+    // without it they stay (the host's own)
+    const Plain = mk({})
+    Plain.model = { ...Plain.model, PID: (s, pid) => ({ ...s, pid }) }
+    t = renderComponent(Plain, { dom: 'real', initialState: { pid: 'p1', dataset: { rows: 12 }, seen: 0 } })
+    await t.ready(); await tick()
+    await t.simulateAction('PID', 'p2'); await tick()
+    expect(t.state).toMatchObject({ dataset: { rows: 12 }, wizard: { key: 'p2' } })
   })
 })
