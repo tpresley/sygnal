@@ -334,6 +334,7 @@ it('moves the focus there (real DOM)', async () => {
 
 - The commands are recorded as the model sent them, so the test compares them with the same objects: `{ focus: '.name' }`.
 - jsdom has no `showModal`, `show`, `close`, popover methods or `scrollIntoView`. With `dom: 'real'`, `renderComponent` adds stand-ins: a dialog's `open` flips and `close` fires its `close` event, a popover's `toggle` event fires, and `scrollIntoView` does nothing. Check real scrolling and focus trapping in a browser.
+- On the mock DOM a dialog or popover never opens, so no `close` or `toggle` event comes after a command. `renderComponent(C, { commandEvents: true })` makes the mock DOM keep the open state of each target and send those events itself: `toggle` (with `oldState` and `newState`) after `showModal`, `show`, `close`, `showPopover`, `hidePopover` and `togglePopover`, and `close` after a dialog's `close`, with `target.open` and `target.returnValue` (for a popover, `target.matches(':popover-open')`). A command that changes nothing, such as `close` on a closed dialog, sends no event. `beforetoggle` and `cancel` are not sent. Without the option, send the event yourself: `t.simulateEvent('.help', 'close', { target: { returnValue: 'saved' } })`.
 - The mock DOM reports SYG640 and SYG641 too, so `t.expectNoDiagnostics()` catches a command that missed its target.
 
 ## Diagnostics

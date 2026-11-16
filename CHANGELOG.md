@@ -2,6 +2,23 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.7.2 — 2026-11-16
+
+- **`renderComponent`: `commandEvents`, the events of dialog and popover commands on the mock DOM.** The mock
+  DOM has no elements, so a delivered `showModal` or `close` changed nothing and no event followed: a
+  component that listens for a dialog's `close` or a popover's `toggle` (the `sygnal/ui` parts, a
+  `DOM.close('.confirm')` intent) needed the test to send it by hand. With
+  `renderComponent(C, { commandEvents: true })` the mock DOM keeps each target's open state and sends
+  `toggle` (`oldState` / `newState`) after `showModal`, `show`, `close`, `showPopover`, `hidePopover` and
+  `togglePopover`, and `close` after a dialog's `close`, with `target.open` / `target.returnValue` (a
+  popover: `target.matches(':popover-open')`). A command that changes nothing sends none; `beforetoggle` and
+  `cancel` are not sent. Opt-in, because tests that send these events themselves would see them twice
+  (8.0 backlog B8-7: the default). From Kindo Tune (2026-11-16).
+- **`sygnal/ui`: the 7.7.1 dispose fix also on the mock DOM.** `dialog()` and `popover()` reset `open` when
+  their component is disposed only after their element had been seen, which the mock DOM never reports, so
+  a `renderComponent` test of a wizard step left with its dialog open still ended `open: true`. The reset no
+  longer depends on the element.
+
 ## 7.7.1 — 2026-11-16
 
 With `sygnal-check` 0.19.1 (it knows the tooltips' `SYNC` action).

@@ -199,4 +199,4 @@ it('opens the dialog and keeps the return value', async () => {
 })
 ```
 
-With `dom: 'real'`, the commands run on the jsdom elements; focus trapping and the backdrop need a real browser. A reducer that writes `open` is applied by `APPLY`, which compares the state with the element: test it with `dom: 'real'` (renderComponent fakes jsdom's missing dialog methods) or in a browser; on the mock DOM, check `t.state`.
+With `dom: 'real'`, the commands run on the jsdom elements; focus trapping and the backdrop need a real browser. A reducer that writes `open` is applied by `APPLY`, which compares the state with the element: test it with `dom: 'real'` (renderComponent fakes jsdom's missing dialog methods) or in a browser; on the mock DOM, check `t.state`. The test above sends the dialog's `close` event by hand; with `renderComponent(Profile, { commandEvents: true })` the mock DOM sends `toggle` and `close` after each command itself, so that line goes (see [element commands](/guide/element-commands/#testing)).

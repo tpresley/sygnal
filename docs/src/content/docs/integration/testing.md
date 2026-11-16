@@ -690,6 +690,7 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | `timeoutMs` | `number` | `2000` | Default timeout of `next()`, `waitForState()` and `settle()` |
 | `settleMs` | `number` | `20` | `settle()`'s quiet window: how long nothing may happen before it resolves (at most `timeoutMs`) |
 | `eventWaitMs` | `number` | `300` | How long `simulateEvent` waits for a matching element (and its listeners) |
+| `commandEvents` | `boolean` | `false` | Mock DOM: a dialog or popover command (`showModal`, `close`, `showPopover`, …) keeps its target's open state and sends the `toggle` / `close` events a browser would. See [element commands](/guide/element-commands/#testing) |
 | `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` mounts into a real container element; see [Real DOM](#real-dom) |
 | `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` (see [Sockets](#sockets-connections-push-drop)) |
 | `socketSink` | `string` | `'WS'` | The driverless sink that receives the components' `connections` static; created even when no model entry names it (a read-only SSE component). Pass a driver under this name in `drivers` to use a real one |
