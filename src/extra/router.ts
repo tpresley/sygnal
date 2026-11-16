@@ -247,7 +247,11 @@ export function makeRouter(options: any = {}) {
       // the undo of a blocked traversal landed: now the navigation sent meanwhile (a `proceed` the
       // blocker sent at once) is made. A second history.go() while one is pending is dropped by
       // Chromium, so it waits for this
-      if (undo) {
+      // (told from another traversal by the entry it lands on, the one the router is at: a
+      // back/forward that arrives while the undo is pending, or after an undo whose popstate never
+      // came, is asked like any other instead of being taken for the undo; an entry the router
+      // didn't stamp can't be told apart)
+      if (undo && (st?.i == null || st.i === idx || !blocks.size)) {
         undo = 0;
         const h = held;
         held = null;

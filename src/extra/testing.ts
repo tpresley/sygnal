@@ -1878,6 +1878,7 @@ export function renderComponent(
   // (SYG641 when sent, SYG640 when the target is still missing from its view after 1 s)
   const commandLog: any[] = [];
   const commandTimers = new Set<any>();
+  const pendingCommands = new Set<any>();
   // PLAN-5 W-1 (F-c): the widget whose host a target matches among the sender's own elements
   // (1-R G-369: scoped as probe() is; its commands run for a selector target too, D196); an
   // undeclared one is SYG142, as on the real DOM
@@ -1906,14 +1907,29 @@ export function renderComponent(
     }
     // D194: focusWithin(selector) looks under the sender's root, children included
     const within = target?.within, sel = within ?? (target == null ? '' : String(target));
-    const id = setTimeout(() => {
-      commandTimers.delete(id);
-      if (disposed || (sel && !tryParse(sel))) return;
-      const p = sel && vtree && probe(sel, scopeOf(c) || undefined);
-      if (!p || !(p.own || (within != null && p.child))) reportElementCommand(c, cmd, undefined, !!(p?.child || find(vtree, tryParse(sel)!)));
+    if (sel && !tryParse(sel)) return;
+    // Delivered once the target is in the sender's view at any point in the window, as on the real
+    // DOM, where the command runs as soon as the element exists (Tune 2026-11: an element removed
+    // again within the second, a box that closes on commit, was reported as never found). Looked
+    // for after the render this action causes (a microtask after it was sent: the flush is queued
+    // first), on every later render, and at the deadline
+    const p: any = {id: 0, hit: () => {
+      const r = sel && vtree && probe(sel, scopeOf(c) || undefined);
+      return !!r && (r.own || (within != null && !!r.child));
+    }};
+    const settle = () => { clearTimeout(p.id); commandTimers.delete(p.id); pendingCommands.delete(p); };
+    p.id = setTimeout(() => {
+      settle();
+      if (disposed || p.hit()) return;
+      const r = sel && vtree && probe(sel, scopeOf(c) || undefined);
+      reportElementCommand(c, cmd, undefined, !!((r && r.child) || (vtree && find(vtree, tryParse(sel)!))));
     }, 1e3);
-    commandTimers.add(id);
+    commandTimers.add(p.id);
+    pendingCommands.add(p);
+    Promise.resolve().then(() => { if (!disposed && pendingCommands.has(p) && p.hit()) settle(); });
   };
+  // on a render: the pending commands whose target is there now are delivered
+  const deliverCommands = () => pendingCommands.forEach(p => { if (p.hit()) { clearTimeout(p.id); commandTimers.delete(p.id); pendingCommands.delete(p); } });
   const raise = (code: string, component: string, message: string, fix: string, data: any) => {
     try { report(code, {component, message, fix, data}); } catch (e) { setTimeout(() => { throw e; }); }
   };
@@ -2742,6 +2758,7 @@ export function renderComponent(
       if (real) tagTree(v);
       bump();
       check104();
+      if (pendingCommands.size) deliverCommands();
       arm();
       // E4: the real DOM is patched a microtask after the sink emits
       real ? retry(0) : pump();

@@ -1453,8 +1453,21 @@ export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends strin
   dirty?: (step: WizardStepState<DRAFT, OWN, DK>, name: string, bag: BehaviorBag<HOST>) => boolean;
   /** This step's state after a confirmed leave from it (instead of the wizard's `discard`): its view in, its state out (the draft key in it updates the draft) */
   discard?: (step: WizardStepState<DRAFT, OWN, DK>, bag: BehaviorBag<HOST>) => Partial<OWN> & { [K in DK]?: DRAFT };
-  /** Alternative steps sharing one stepper entry (Analyze or Describe): the same group name; `groups` labels it */
+  /**
+   * Steps sharing one stepper entry: the same group name; `groups` labels it. Alternatives (Analyze
+   * or Describe: their `when` picks one) or sub-steps in sequence (the entry is done when each is)
+   */
   group?: string;
+  /** What a dirty step holds for the confirm: 'flow' (default), leaving the flow; 'step', also a move to another step (explicit save) */
+  guard?: 'flow' | 'step';
+  /** The step's own Back: its state out takes the move (a sub-phase inside the step); a falsy value lets the flow go back */
+  back?: (step: WizardStepState<DRAFT, OWN, DK>, bag: BehaviorBag<HOST>) => (Partial<OWN> & { [K in DK]?: DRAFT }) | false | null | undefined | 0 | '';
+  /** The step's own Next, as `back` */
+  next?: (step: WizardStepState<DRAFT, OWN, DK>, bag: BehaviorBag<HOST>) => (Partial<OWN> & { [K in DK]?: DRAFT }) | false | null | undefined | 0 | '';
+  /** The name of the step's own slice in `state.wizard.local` (default: the step's name); steps naming the same one share it */
+  slice?: string;
+  /** Host state fields the step sees in its state and writes as its own, as the draft (this list replaces the wizard's `host` for the step) */
+  host?: (keyof HOST & string)[];
   /** A final screen after the flow (Created): not in the stepper; entered by GOTO; Back doesn't return into the steps */
   outcome?: boolean;
   /** The leave dialog's copy while this step is current (any value; `state.wizard.dialog`) */
@@ -1496,8 +1509,10 @@ export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Re
   initial: DRAFT;
   /** Each step's own slice, by step name: what the step wrote (its initialState isn't in it until it writes); a step not entered yet has none */
   local: { [K in keyof LOCAL]?: Partial<LOCAL[K]> };
-  /** A navigation held while the leave confirm is open (a router command), else null */
-  leaving: RouterCommand | null;
+  /** A navigation held while the leave confirm is open (a router command), or (`guard: 'step'` without `url`) a held step move, else null */
+  leaving: (RouterCommand & { step?: string }) | { wizard: 'NEXT' | 'BACK' | 'GOTO'; step: string | null; finish?: boolean } | null;
+  /** The held navigation goes to another step of the flow (`guard: 'step'`) */
+  within?: boolean;
 }
 /** The fields derived from the slice and the host state (written with every change) */
 export interface WizardCalculated<DIALOG = any> {
@@ -1535,7 +1550,19 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   finish?: string;
   /** The leave guard (a step's own `dirty` wins): while true, navigating away from the flow is held for a confirm */
   dirty?: (step: WizardStepState<DRAFT, any, DK>, name: keyof LOCAL & string, bag: BehaviorBag<HOST>) => boolean;
-  /** The slice after a confirmed leave (a step's own `discard` wins; default: the flow started over) */
+  /** What a dirty step holds for the confirm (a step's own `guard` wins): 'flow' (default), leaving the flow; 'step', also a move to another step */
+  guard?: 'flow' | 'step';
+  /** Host state fields every step sees in its state and writes as its own (a step's own `host` wins) */
+  host?: (keyof HOST & string)[];
+  /**
+   * Host state fields to write when the flow starts over for another key (the route or
+   * the state names another record): `host` fields are the host's, so they outlive the draft and the
+   * steps' slices unless this says what they become. `rekey: () => ({ dataset: null })`
+   */
+  rekey?: (state: HOST, bag: BehaviorBag<HOST>) => Partial<HOST> | null | undefined | false;
+  /** A selector whose click makes the held leave without discarding (PROCEED) */
+  proceed?: BehaviorTarget;
+  /** The slice after a confirmed leave (a step's own `discard` wins; default: the flow started over, or for a held step move the step's own slice made again) */
   discard?: (wizard: WizardState<DRAFT, LOCAL>, bag: BehaviorBag<HOST>) => WizardState<DRAFT, LOCAL>;
   /** Group labels: `{ build: { label } }` (default: the label of the step that applies) */
   groups?: Record<string, { label?: string | ((step: WizardStepState<DRAFT, any, DK>, bag: BehaviorBag<HOST>) => string) }>;
@@ -1564,10 +1591,10 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   /** The router sink (default 'ROUTER') */
   router?: string;
 }
-export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RESET: any; FINISH: any; DISCARD: any; STAY: any }
+export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RESET: any; FINISH: any; DISCARD: any; STAY: any; PROCEED: any }
 /** What a step sends as a PARENT message to move the flow: `NEXT: { PARENT: () => ({ wizard: 'NEXT' }) }` */
 export type WizardMessage =
-  | { wizard: 'NEXT' | 'BACK' | 'FINISH' }
+  | { wizard: 'NEXT' | 'BACK' | 'FINISH' | 'PROCEED' }
   /** `draft` (with a new `key`): merged over `draft(state)` on the route entered */
   | { wizard: 'GOTO'; step: string; key?: unknown; query?: Record<string, string | number | boolean | null | undefined>; draft?: Record<string, any> }
   /** `draft`: merged over `draft(state)` (with `url`, on the route the reset lands on); a field set to `undefined` is dropped */

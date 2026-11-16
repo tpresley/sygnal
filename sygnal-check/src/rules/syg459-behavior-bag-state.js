@@ -8,7 +8,7 @@
  * a member read off a plain parameter (`(s, h) => h.route`), that names a key of the host's
  * `initialState` and no prop the host takes. `state`, `context` and `uid` are the bag's own.
  *
- * Covered: wizard `steps.*.{ when, valid, label, visit, dirty, discard, dialog }`, `draft`, `key`,
+ * Covered: wizard `steps.*.{ when, valid, label, visit, dirty, discard, dialog, back, next }`, `draft`, `key`,
  * `dirty`, `discard`, `resetTo`, `dialog`, `groups.*.label`, `url.from`; form `values`, `dynamic`,
  * `request` (options given as an object literal or a const bound to one).
  *
@@ -22,8 +22,8 @@ import { resolveExpr } from '../model/resolve.js'
 import { renderedUsages } from '../model/usages.js'
 
 // the bag's index among each function's parameters
-const WIZARD = { draft: 1, key: 1, dirty: 2, discard: 1, resetTo: 1, dialog: 1 }
-const STEP = { when: 1, valid: 1, label: 1, visit: 1, dirty: 2, discard: 1, dialog: 1 }
+const WIZARD = { draft: 1, key: 1, dirty: 2, discard: 1, resetTo: 1, dialog: 1, rekey: 1 }
+const STEP = { when: 1, valid: 1, label: 1, visit: 1, dirty: 2, discard: 1, dialog: 1, back: 1, next: 1 }
 const FORM = { values: 1, dynamic: 1, request: 2 }
 
 /** The props a host takes, as far as the checker sees: its view's pattern and its usages' attributes. */

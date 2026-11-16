@@ -2,6 +2,56 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.7.0 — 2026-11-15
+
+With `sygnal-check` 0.19.0 (the new wizard options, SYG127 for a step's undeclared host fields),
+`create-sygnal-app` 2.17.0 (templates on `sygnal` ^7.7.0, `sygnal-check` ^0.19.0), the VS Code extension 0.16.0
+and the Claude Code plugin 0.2.8. From Kindo Tune's wizard trial and CI reports (2026-11-15).
+
+- **`renderComponent`: no SYG640 for a target that was there.** On the mock DOM an ELEMENT command's target
+  was looked for once, 1 s after the command. An element that was there when the command ran and removed
+  within that second (a box that closes when its value is committed, a field whose `data-field` changes on
+  rename) was reported as never found, and only when the test was still running, so the result depended on
+  the runner's speed. A command now counts as delivered once its target is in the sender's view at any
+  point in the second: after the render its action causes, on any later render, or at the deadline. A
+  target that never appears is still SYG640, and so is one that the sending action itself removes.
+- **`wizard()`: a step that must be saved, `guard: 'step'`.** The default guard (`'flow'`) holds only a
+  navigation out of the flow. With `guard: 'step'`, on a step or on the wizard, a move to another step is
+  held too while the step is dirty: the same confirm opens, `state.wizard.within` is true and
+  `state.wizard.leaving` names the target `step` (with `url`, the router command plus `step`). Discard runs
+  the step's `discard` and makes the move; `wizard.PROCEED` (`{ wizard: 'PROCEED' }` from a step, or the
+  `proceed` selector) makes it with nothing discarded, for a dialog that offers Save.
+- **`wizard()`: a step's own `back` and `next`.** `(step, bag) => step | falsy`: the state it returns takes
+  the move (a sub-phase inside the step); a falsy value lets the flow move.
+- **`wizard()`: sub-steps.** A `group` whose members all apply is walked in order by Next and Back, shows
+  one stepper entry, and is done when each member is. `slice` names the step's slice in
+  `state.wizard.local`; steps naming the same one share it.
+- **`wizard()`: host fields in a step, `host` and `rekey`.** `host: ['project', 'dataset']` on a step (or on
+  the wizard, for every step) puts those fields of the host's state in the step's state, and the step's
+  writes of them go to the host: for data several steps and the host share that isn't the draft. They
+  outlive a change of the flow key; `rekey: (state, bag) => ({ dataset: null })` is written to the host's
+  state when the flow starts over for another key. A step's own `host` replaces the wizard's list.
+- **`wizard()`: another key on a step the new flow can't reach.** With `url`, going from one key's step
+  route to the same step for another key (`/projects/p1/setup/launch` to `/projects/p2/setup/launch`)
+  started the flow over at its first step and left the URL on the old step, when that step wasn't
+  reachable in the new flow. The route is now replaced with the first incomplete step before it, as for a
+  deep link.
+- **`wizard()`: a held navigation right after Stay.** The confirm dialog's `close` event from Stay could
+  arrive after the next held navigation had opened the dialog again (a hidden tab delays it), and was read
+  as another Stay: that navigation was neither made nor asked. A `close` from a dialog that is open again
+  is now ignored.
+- **Router: every blocked back / forward is asked.** After a blocked traversal was undone, the next
+  `popstate` was taken as the router's own undo whichever entry it landed on, so a second Forward arriving
+  before the undo's event could pass without the block being asked. The undo is now recognised by the
+  entry it lands on.
+- **`sygnal-check`.** Knows the new wizard options, `wizard.PROCEED` and `state.wizard.within`. SYG127 for a
+  `guard` that is not `'flow'` or `'step'`, a `host` name that is no field of the host's state, and a step
+  that reads or writes a host field it doesn't list in `host` (in its wizard functions, its view, its
+  calculated fields or its model entries), and a `rekey` that returns a field the host's state doesn't have. SYG459 covers a step's `back` / `next` and `rekey`.
+
+**Measured impact.** Size: the kanban gate is unchanged (40,474 B; `wizard()` and `renderComponent` are not in
+the core).
+
 ## 7.6.0 — 2026-11-14
 
 With `sygnal-check` 0.18.0 (SYG458 on two more forms, SYG110 and SYG266 false positives), `create-sygnal-app`

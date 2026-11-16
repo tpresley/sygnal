@@ -164,6 +164,8 @@ A step is an ordinary component. Its `state` has two parts:
 - **`state.draft`** is the flow's draft, shared by every step. A step fills in the flow by writing it: `{ ...state, draft: { ...state.draft, name } }`.
 - **Everything else is the step's own slice.** Its resources, a [`form`](/guide/forms/) behavior, open panels and busy flags all live there. Two steps can use the same names (two `session` resources, two forms) without colliding.
 
+- **Host fields a step declares** with `host` are in its state too, and its writes of them go to the host's state: `health: { host: ['project', 'dataset'] }` (or `host` on the wizard, for every step). A step's own `host` replaces the wizard's list for that step; it doesn't add to it, so repeat the wizard's fields the step still needs. Use it for data several steps and the host share that isn't the user's draft, such as a loaded record. The step's predicates see them, and Start over leaves them alone. They are the host's, so they also outlive a change of the [flow key](#the-flow-key): the draft and the steps' slices start over for the new record, and the host fields still hold the old one's data. `rekey` says what they become: `rekey: () => ({ dataset: null })` is written to the host's state when the flow starts over for another key. With `url`, when the step the route names can't be reached in the new flow, the route is replaced with the first incomplete step before it, as for a deep link. A step that uses a host field it didn't declare gets `undefined`, and its write stays in its own slice; `sygnal-check` reports both.
+
 What a step's state keeps, and when:
 
 | | Back and forth between steps | A new flow key, or Start over |
@@ -313,6 +315,32 @@ wizard({ steps: { describe: { dialog: { title: 'Discard your reply?' } }, review
 - **Keep editing** (`stay`), or Escape, closes the dialog and stays.
 - **A move that drops a held navigation closes the dialog.** The browser's back and forward buttons aren't stopped by a modal, so an in-flow traversal can arrive while it's open.
 
+### A step that must be saved: `guard: 'step'`
+
+:::note[New in 7.7]
+`guard`, `wizard.PROCEED`, a step's `back` / `next`, `slice`, `host` and `rekey` arrived in Sygnal 7.7. Like the rest of `wizard()`, they are experimental.
+:::
+
+The default guard fits a flow whose values are kept as the user moves: only leaving the flow is held. A step whose edits must be saved explicitly sets `guard: 'step'` (or the wizard does, for every step). While it is dirty, a move to another step is held as well:
+- Next, Back and the stepper;
+- with `url`, the browser's back and forward between steps, and a step's own navigation to another step;
+- Next on the last step (the `finish` action).
+
+```js
+wizard({
+  steps: {
+    card: { guard: 'step', dirty: (s) => s.edits !== s.saved, discard: (s) => ({ ...s, edits: s.saved }) },
+  },
+  confirm: '.leave-dialog', leave: '.discard', stay: '.stay',
+})
+```
+
+- **Not held:** a move sent by the action that saved (`SAVE: { STATE: …, PARENT: () => ({ wizard: 'NEXT' }) }`), a navigation to the step's own route (another query), and entering an outcome step.
+- **Discard** runs the step's `discard`, else the wizard's, else makes the step's own slice again; then it makes the move. The flow goes on.
+- **`wizard.PROCEED`** makes the held move with nothing discarded: send `{ wizard: 'PROCEED' }` from the save's reply, for a dialog that offers Save.
+- Without `url`, the held move is `state.wizard.leaving`: `{ wizard: 'BACK', step: 'intro' }`.
+- With `url`, it is the held navigation with the step it goes to: `{ url: '/setup/fit', force: true, step: 'fit' }`, or `{ go: -1, force: true, step: 'intro' }` for the browser's Back. The dialog can name the step: "Save before going to Fit check?"
+
 ## Alternative steps and an outcome
 
 **Alternative steps** fill one place in the flow: Analyze a report, or Describe it in a conversation. Give them the same `group`. Their `when` decides which applies, and the stepper shows one entry for both:
@@ -336,6 +364,34 @@ wizard({
   - The label is the group's, else the label of the member that applies.
   - Render the stepper from `stepper`. A stepper button names the member, `data-step={e.step}`: `e.name` is the group's name, which is no step.
 - `state.wizard.steps` still has one entry per step.
+
+**Sub-steps** are a group whose members all apply: Next and Back walk them in order, the stepper shows one entry, and the entry is done when each member is. `slice` gives them one slice to share:
+
+```js
+wizard({
+  steps: {
+    goal:   { group: 'start', slice: 'start', valid: (s) => s.goal !== '' },
+    output: { group: 'start', slice: 'start', valid: (s) => s.output !== '' },
+    fit:    { label: 'Fit' },
+  },
+})
+```
+
+**A phase inside one step** that doesn't deserve a URL takes the move itself with the step's `back` and `next`. Each gets the step's state and returns the new one, or a falsy value to let the flow move. `canBack` and `canNext` follow them:
+
+```js
+wizard({
+  steps: {
+    start: {
+      next: (s) => s.phase === 1 && { ...s, phase: 2 },
+      back: (s) => s.phase === 2 && { ...s, phase: 1 },
+    },
+    fit: { label: 'Fit' },
+  },
+})
+```
+
+The browser's back button doesn't follow a phase; it does follow sub-steps.
 
 **An outcome step** is a final screen after the flow, such as "Created": `created: { outcome: true }`.
 - **How it is entered:** by a GOTO, from any step: a step's `{ wizard: 'GOTO', step: 'created' }` when the create request succeeds.
