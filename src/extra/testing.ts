@@ -310,6 +310,17 @@ export interface RenderOptions {
   settleMs?: number;
   /** How long simulateEvent waits for a matching element / its listeners, in ms (default 300) */
   eventWaitMs?: number;
+  /**
+   * 7.7.2, mock DOM: a delivered `showModal` / `show` / `close` / `showPopover` / `hidePopover` /
+   * `togglePopover` command keeps its target's open state and sends the events the browser
+   * would: `toggle` (`oldState` / `newState`), and after a dialog's `close()` its `close`, with
+   * `target.open` / `target.returnValue` (a popover: `target.matches(':popover-open')`). A
+   * command that changes nothing (close() on a closed dialog) sends none. Default false: the
+   * commands are only recorded, and a test sends the events itself with simulateEvent. Not
+   * sent: `beforetoggle`, `cancel`; an `open` attribute the view renders is not read. With
+   * `dom: 'real'` the elements send their own.
+   */
+  commandEvents?: boolean;
   /** Default timeout of next(), waitForState() and settle(), in ms (default 2000) */
   timeoutMs?: number;
   /**
@@ -1637,6 +1648,8 @@ let savedAudit: any;
  * method of the element; the mock DOM has no elements, so: the documented commands, common
  * methods of form fields and media, and (with a DOM) the prototype of the control's tag.
  */
+// the commands the mock DOM keeps an element's open state for (and sends toggle / close after)
+const OPEN_COMMANDS = ['showModal', 'show', 'close', 'showPopover', 'hidePopover', 'togglePopover'];
 const COMMON_METHODS = ['play', 'pause', 'load', 'fastSeek', 'showPicker', 'requestSubmit', 'reset', 'checkValidity', 'reportValidity', 'setCustomValidity', 'setSelectionRange', 'setRangeText', 'stepUp', 'stepDown', 'requestFullscreen', 'scroll', 'scrollTo', 'scrollBy', 'animate', 'requestPointerLock'];
 const elementHas = (target: any, m: string, tag = typeof target == 'function' && typeof target.spec == 'string' ? target.spec : 'div'): boolean => {
   if (NATIVE_COMMAND_NAMES.includes(m) || COMMON_METHODS.includes(m)) return true;
@@ -1913,9 +1926,15 @@ export function renderComponent(
     // again within the second, a box that closes on commit, was reported as never found). Looked
     // for after the render this action causes (a microtask after it was sent: the flush is queued
     // first), on every later render, and at the deadline
+    // (7.7.2: delivered to a dialog / popover, the mock DOM keeps its open state and sends the
+    // events the browser would: ran())
+    const runs = !!options.commandEvents && within == null && !w && !vc && OPEN_COMMANDS.includes(m) && (!target?.spec || target.__sel !== undefined);
+    let did = false;
     const p: any = {id: 0, hit: () => {
       const r = sel && vtree && probe(sel, scopeOf(c) || undefined);
-      return !!r && (r.own || (within != null && !!r.child));
+      const ok = !!r && (r.own || (within != null && !!r.child));
+      if (ok && runs && !did) { did = true; ran(scopeOf(c) || '', sel, m, cmd); }
+      return ok;
     }};
     const settle = () => { clearTimeout(p.id); commandTimers.delete(p.id); pendingCommands.delete(p); };
     p.id = setTimeout(() => {
@@ -1928,6 +1947,35 @@ export function renderComponent(
     pendingCommands.add(p);
     Promise.resolve().then(() => { if (!disposed && pendingCommands.has(p) && p.hit()) settle(); });
   };
+  /*
+   * 7.7.2 (Tune), `commandEvents: true`: the mock DOM has no elements, so a delivered showModal / show / close /
+   * showPopover / hidePopover / togglePopover changed nothing and no event came: a component
+   * that listens for a dialog's `close` or a popover's `toggle` (sygnal/ui's parts, a
+   * `DOM.close('.confirm')` intent) could not be tested on it without sending the events by hand. With the option the open state is kept per
+   * target (the sender's scope + the selector, while the view renders it), and a command that
+   * changes it sends what the browser does, through the input queue as simulateEvent: `toggle`
+   * ({ oldState, newState }), and for a dialog's close() `close` after it, with `target.open` and
+   * `target.returnValue` (a popover: `target.matches(':popover-open')`). A command the element's
+   * state makes a no-op (close() on a closed dialog) sends nothing. Not sent: `beforetoggle`,
+   * `cancel`. An `open` attribute the view renders is not read.
+   */
+  const openEls = new Map<string, {scope: string, sel: string, open: boolean, rv: string}>();
+  const ran = (scope: string, sel: string, m: string, cmd: any) => {
+    const k = scope + '\u0000' + sel, e = openEls.get(k) || {scope, sel, open: false, rv: ''};
+    const pop = m.endsWith('Popover');
+    const to = m == 'togglePopover' ? (typeof cmd.force == 'boolean' ? cmd.force : !e.open) : m != 'close' && m != 'hidePopover';
+    if (to == e.open) return;
+    e.open = to;
+    if (m == 'close' && cmd.returnValue !== undefined) e.rv = String(cmd.returnValue);
+    else if (to && !pop) e.rv = '';
+    openEls.set(k, e);
+    const target = pop ? {matches: (x: string) => x == ':popover-open' && e.open} : {open: to, returnValue: e.rv};
+    const send = (type: string, init: any = {}) => queueMicrotask(() => { if (!disposed) simulateEvent(sel, type, {...init, target}, scope); });
+    send('toggle', {oldState: to ? 'closed' : 'open', newState: to ? 'open' : 'closed'});
+    if (m == 'close') send('close');
+  };
+  // on a render: an element that is gone has no open state (the next one starts closed)
+  const pruneOpen = () => openEls.forEach((e, k) => { const r = vtree && probe(e.sel, e.scope || undefined); if (!r || !r.own) openEls.delete(k); });
   // on a render: the pending commands whose target is there now are delivered
   const deliverCommands = () => pendingCommands.forEach(p => { if (p.hit()) { clearTimeout(p.id); commandTimers.delete(p.id); pendingCommands.delete(p); } });
   const raise = (code: string, component: string, message: string, fix: string, data: any) => {
@@ -2758,6 +2806,7 @@ export function renderComponent(
       if (real) tagTree(v);
       bump();
       check104();
+      if (openEls.size) pruneOpen();
       if (pendingCommands.size) deliverCommands();
       arm();
       // E4: the real DOM is patched a microtask after the sink emits
@@ -3508,10 +3557,14 @@ export function renderComponent(
     };
   };
 
-  const simulateEvent = (target: any, type: string, init: SimulatedEventInit = {}) => {
-    notDisposed('simulateEvent');
-    simAt = states.length; due();
-    throwFailure();
+  // (`own`: the harness's own event for a delivered ELEMENT command, ran(): the first match in
+  // that isolation scope; dropped without a report when the element is gone; no wait cursor)
+  const simulateEvent = (target: any, type: string, init: SimulatedEventInit = {}, own?: string): any => {
+    if (own === undefined) {
+      notDisposed('simulateEvent');
+      simAt = states.length; due();
+      throwFailure();
+    }
     const {allowMissing, within: inside, ...evInit} = init;
     // CT-1: a control is its selector (also for `within`)
     const raw = String(selOf(target)), text = norm(raw);
@@ -3530,6 +3583,7 @@ export function renderComponent(
     }
     // the root → element chain of the target in the mock vtree (inside the `within` element)
     const findChain = (): any[] | undefined => {
+      if (own !== undefined) return vtree && findAll(vtree, sel, [], []).find(ch => { let x: any; for (const v of ch) x = scopeOfV(v) || x; return (x || '') == own; });
       if (!box) return find(vtree, sel);
       const outer = find(vtree, box);
       return outer && findAll(outer[outer.length - 1], sel, outer.slice(0, -1), [], false)[0];
@@ -3541,11 +3595,11 @@ export function renderComponent(
       : queryIn(text.replace(PAGE, '') || text);
     const has = () => real ? !!realEl() : !!findChain();
     // nothing pending and the tree is quiet (as settle() would see it): fail at the call
-    if (!page && !allowMissing && isReady && !inputs.length && vtree && renderedUpTo >= states.length &&
+    if (own === undefined && !page && !allowMissing && isReady && !inputs.length && vtree && renderedUpTo >= states.length &&
         clockNow() - lastActivity >= settleMs && !has()) {
       throw noMatch(selector, type, false);
     }
-    return delivered(done => later(last => {
+    const go = (last: boolean): boolean => {
       const rel = real ? realEl() : undefined;
       const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(ext.xb ? ext.xb(vtree) : vtree, rel) || []) : findChain();
       // ('document .x' on the mock DOM: delivered to that page listener, with the first rendered
@@ -3553,6 +3607,7 @@ export function renderComponent(
       const pageSel = page && !real && text.replace(PAGE, ''), pageChain = pageSel ? (() => { try { return find(vtree, parse(pageSel)); } catch (_) { return undefined; } })() : undefined;
       const el = real ? rel : chain ? chain[chain.length - 1] : pageChain?.[pageChain.length - 1];
       if (!page && !el) {
+        if (own !== undefined) return true;
         if (!last) return false;
         if (!allowMissing) {
           failWith(noMatch(selector, type, true));
@@ -3664,7 +3719,9 @@ export function renderComponent(
       // PLAN-3 5-4c: and a link click reaches the router fake's document listener
       if (type == 'click' && chain) routerClick(chain, event);
       return true;
-    }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)), done));
+    };
+    if (own !== undefined) { inputs.push({go}); pump(); return; }
+    return delivered(done => later(go, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)), done));
   };
 
   // first state at index >= from matching predicate; resolves after the full tree rendered it

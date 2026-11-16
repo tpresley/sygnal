@@ -4260,6 +4260,17 @@ export interface RenderOptions {
   settleMs?: number;
   /** How long simulateEvent waits for a matching element / its listeners, in ms (default 300) */
   eventWaitMs?: number;
+  /**
+   * Mock DOM: a delivered `showModal` / `show` / `close` / `showPopover` / `hidePopover` /
+   * `togglePopover` ELEMENT command keeps its target's open state and sends the events the
+   * browser would: `toggle` (`oldState` / `newState`), and after a dialog's `close()` its
+   * `close`, with `target.open` / `target.returnValue` (a popover:
+   * `target.matches(':popover-open')`). A command that changes nothing sends none. Default
+   * false: the commands are only recorded, and the test sends the events with simulateEvent.
+   * `beforetoggle` and `cancel` are not sent. Ignored with `dom: 'real'` (the elements send
+   * their own).
+   */
+  commandEvents?: boolean;
   /** Default timeout of next(), waitForState() and settle(), in ms (default 2000) */
   timeoutMs?: number;
   /**

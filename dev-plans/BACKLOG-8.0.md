@@ -126,3 +126,7 @@ The candidates, one decision each, are the 13 entries of `dev-plans/research/age
 - **Decide:** `undefined` from a root reducer as ABORT or a throw (SYG202); raising SYG105 to a warning.
 
 Still to decide: which of these are breaking (a dev-only throw is not, a production throw is), and whether a reply or command with no receiver gets the same treatment as an action. Each one that lands removes its sentence from `llms.txt` and its topic file.
+
+## B8-7: `commandEvents` on by default
+
+7.7.2 added `renderComponent(C, { commandEvents: true })`: on the mock DOM a dialog or popover command keeps its target's open state and sends `toggle` / `close` (Tune, 2026-11-16). It is opt-in because tests written before it send those events by hand, and the automatic ones change what their `t.next()` and "last command" assertions see: six of Sygnal's own tests failed with it on, among them the documented dialog test (`ui/dialog`). In 8.0, make it the default (the option stays, for `false`), drop the hand-sent events from the docs, and note it in the migration guide.

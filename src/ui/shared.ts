@@ -57,13 +57,14 @@ export const ev = (DOM: any, sel: any, type: string, o: any = {}, bubbles?: bool
  */
 export const gone = (els: any, STATE: any, dispose$?: any): any => {
   // R2: only an element that was there (the first look may come before the first render)
-  let had = false, s: any
-  const left = els.compose(sampleCombine(STATE.stream.map((x: any) => (s = x)))).filter(([e, s]: any) => {
+  let had = false
+  const left = els.compose(sampleCombine(STATE.stream)).filter(([e, s]: any) => {
     const left = had && !e?.length
     had = !!e?.length
     return left && !!s?.open
   })
-  return (dispose$ ? xs.merge(left, dispose$.filter(() => had && !!s?.open)) : left).mapTo(false)
+  // (the state read apart from the elements: renderComponent's mock DOM has none)
+  return (dispose$ ? xs.merge(left, dispose$.compose(sampleCombine(STATE.stream)).filter(([, s]: any) => !!s?.open)) : left).mapTo(false)
 }
 
 /**
