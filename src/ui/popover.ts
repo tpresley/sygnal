@@ -28,7 +28,7 @@
  * Options: `popover` (required), `trigger` (round 4), `close` (a button inside; its click
  * dispatches CLOSE), `open`, `id` (the ids' prefix for popoverAttrs; default: the key in `uses`).
  * State: { id, open }. Actions: OPEN, CLOSE, TOGGLE, DISMISS (controlled), TOGGLED (data: open, from the toggle event),
- * SYNC (G-400: the popover left the page while open: `open: false`).
+ * SYNC (G-400: the popover left the page while open, or its component was disposed: `open: false`).
  * G-400 / G-406: OPEN and CLOSE send commands that check the popover itself (`:popover-open`),
  * not the state, which follows the asynchronous toggle event: OPEN then CLOSE in one tick ends
  * closed, and a popover removed while open opens again.
@@ -70,7 +70,7 @@ const base = /*#__PURE__*/ defineBehavior({
   initialState: {id: null as null | string, open: false},
   // SYG118 (dev): the option each action's trigger is built from (a host intent of that name replaces it)
   triggers: {CLOSE: 'close', TOGGLE: 'trigger'},
-  intent: ({DOM, STATE}: any, {popover: p, trigger, close, controlled}: any) => {
+  intent: ({DOM, STATE, dispose$}: any, {popover: p, trigger, close, controlled}: any) => {
     const els = find(DOM, p)
     // round 4: the trigger's clicks (prevented) as TOGGLE to the value away from the one the state
     // had at the press (keyboard clicks: at the click). An auto popover's light dismiss comes at
@@ -104,7 +104,7 @@ const base = /*#__PURE__*/ defineBehavior({
       ...((close || controlled) && {CLOSE: xs.merge(close ? ev(DOM, close, 'click') : xs.never(), ask('hide'))}),
       // (R2: a toggle the popover has moved on from since is dropped)
       TOGGLED: ev(DOM, p, 'toggle', {}, false).filter((e: any) => !(typeof Element != 'undefined' && e.target instanceof Element) || isOpen(e.target) == (e.newState == 'open')).map((e: any) => e.newState == 'open'),
-      ...(STATE && {SYNC: gone(els, STATE), APPLY: watch(els, STATE, isOpen)}),
+      ...(STATE && {SYNC: gone(els, STATE, dispose$), APPLY: watch(els, STATE, isOpen)}),
     }
   },
   // R2: `open` is the source of truth; every entry that can change it sends the commands for the

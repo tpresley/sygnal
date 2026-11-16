@@ -3,6 +3,7 @@
 // mount), the stepper's aria-current follows, Back keeps the step's typed value, and only the
 // current step is in the DOM.
 import { run, wizard, Outlet, makeRouter } from 'sygnal'
+import { dialog, popover } from 'sygnal/ui'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait, waitFor } from '../harness.js'
 
 const CAT = 'Wizard spike'
@@ -64,6 +65,60 @@ export async function wizardSpikeTests() {
       await waitFor(() => el.querySelector('.wz-name'))
       await waitFor(() => document.activeElement?.matches?.('.wz-one h2'))
       assert(el.querySelector('.wz-name').value === 'Ada', 'Back keeps the value')
+    } finally { app.dispose() }
+  })
+
+  // Tune: a step disposed while its dialog() / popover() is open (the wizard keeps the step's slice):
+  // back on the step, the part is closed, and its trigger opens it again
+  function Ask({ state }) {
+    return (
+      <div className="wz-ask">
+        <h2>Ask</h2>
+        <button className="wz-open">Open</button>
+        <dialog className="wz-dlg" aria-label="Sure?"><p>Sure?</p></dialog>
+        <button className="wz-tip-open">Tip</button>
+        <div className="wz-tip" popover="manual">tip</div>
+        <p className="wz-dlg-state">{state.dlg.open ? 'open' : 'closed'} {state.tip.open ? 'open' : 'closed'}</p>
+      </div>
+    )
+  }
+  Ask.uses = {
+    dlg: dialog({ dialog: '.wz-dlg', trigger: '.wz-open', modal: false }),
+    tip: popover({ popover: '.wz-tip', trigger: '.wz-tip-open' }),
+  }
+  function AskFlow({ state }) {
+    const w = state.wizard
+    return (
+      <section>
+        <Outlet of={{ ask: Ask, two: Two }} from="wizard" />
+        <button className="wz-back" disabled={!w.canBack}>Back</button>
+        <button className="wz-next" disabled={!w.canNext}>Next</button>
+      </section>
+    )
+  }
+  AskFlow.uses = { wizard: wizard({ steps: { ask: {}, two: {} }, draft: { name: '' }, next: '.wz-next', back: '.wz-back' }) }
+
+  await runTest('a step left while its dialog and popover are open comes back with them closed', async () => {
+    const { id, el } = mountOnScreen()
+    const app = run(AskFlow, {}, { mountPoint: id })
+    const $ = (s) => el.querySelector(s)
+    const shown = () => $('.wz-tip')?.matches(':popover-open')
+    try {
+      await waitFor(() => $('.wz-open'))
+      for (const how of ['trigger', 'element']) {
+        // (the second time: opened without the model, which learns it from the toggle event)
+        if (how == 'trigger') { await window.__pw('click', `${id} .wz-open`); await window.__pw('click', `${id} .wz-tip-open`) }
+        else { $('.wz-dlg').show(); $('.wz-tip').showPopover() }
+        await waitFor(() => $('.wz-dlg').open && shown() && $('.wz-dlg-state').textContent === 'open open')
+        await window.__pw('click', `${id} .wz-next`)
+        await waitFor(() => $('.wz-two') && !$('.wz-ask'))
+        await window.__pw('click', `${id} .wz-back`)
+        await waitFor(() => $('.wz-ask'))
+        await wait(150)
+        assert(!$('.wz-dlg').open, `${how}: the dialog opened on return`)
+        assert(!shown(), `${how}: the popover opened on return`)
+        assert($('.wz-dlg-state').textContent === 'closed closed', `${how}: ` + $('.wz-dlg-state').textContent)
+      }
     } finally { app.dispose() }
   })
 }

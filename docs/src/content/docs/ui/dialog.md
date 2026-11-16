@@ -65,7 +65,7 @@ The browser returns the focus to the element that had it before the dialog opene
 | `profile.CANCEL` | the event | Escape, a light dismiss (`closedby="any"`; controlled: a press or a focus outside), or `command="request-close"`: sets `open: false` with the return value `''`, unless `cancelable: false` |
 | `profile.CLOSED` | the return value | The dialog's `close` event: sets `open: false` and `returnValue` when it closed some other way |
 | `profile.TOGGLED` | `true` / `false` | The dialog's `toggle` event: a dialog opened without the model (`showModal()` called elsewhere) sets `open: true` |
-| `profile.SYNC` | `false`, or `true` when `showModal()` threw | The dialog left the page while open (a page change, a conditional render), or OPEN's `showModal()` threw (a disconnected dialog, a popover open on it): sets `open: false`, as no close event comes (your `close` listeners don't run for a dialog that never opened) |
+| `profile.SYNC` | `false`, or `true` when `showModal()` threw | The dialog left the page while open (a page change, a conditional render), its component was disposed while it was open (a wizard step left: the step's state is kept), or OPEN's `showModal()` threw (a disconnected dialog, a popover open on it): sets `open: false`, as no close event comes (your `close` listeners don't run for a dialog that never opened) |
 
 | `profile.APPLY` | `true` / `false` | `open` changed outside these actions (your reducer wrote it): the dialog is opened or closed to match |
 

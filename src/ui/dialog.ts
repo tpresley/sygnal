@@ -31,7 +31,7 @@
  * host's own closedby; G-457: not an Escape an element inside handled (defaultPrevented) or an
  * IME one, and not for a non-modal dialog, which Escape doesn't cancel either way), CLOSED (the
  * close event's returnValue), TOGGLED (from the toggle event), SYNC (G-400: the dialog left the
- * page while open: `open: false`; G-524: or OPEN's showModal() threw: no close event then), APPLY
+ * page while open, or its component was disposed: `open: false`; G-524: or OPEN's showModal() threw: no close event then), APPLY
  * (R2: `open` changed outside these: make the dialog match).
  * G-400: the commands check the dialog itself (showModal only on a closed one, close only on an
  * open one), so a state that is out of step can't block them.
@@ -136,7 +136,7 @@ const base = /*#__PURE__*/ defineBehavior({
   initialState: {id: null, open: false, returnValue: ''},
   // SYG118 (dev): the option each action's trigger is built from (a host intent of that name replaces it)
   triggers: {OPEN: 'trigger', CLOSE: 'close'},
-  intent: ({DOM, STATE}: any, {dialog: d, trigger, close, modal, controlled}: any) => {
+  intent: ({DOM, STATE, dispose$}: any, {dialog: d, trigger, close, modal, controlled}: any) => {
     const cmd = ev(DOM, d, 'command', {preventDefault: ownCommand}, false).filter(ownCommand)
     const els = find(DOM, d)
     return {
@@ -164,7 +164,7 @@ const base = /*#__PURE__*/ defineBehavior({
       ),
       // G-524: SYNC also when OPEN's showModal() threw (FAIL, below; true). 3-U G-533: only this
       // behavior's dialog's own FAIL, not one bubbling from a dialog inside it (another behavior's)
-      SYNC: ((f: any) => STATE ? xs.merge(gone(els, STATE), f) : f)(
+      SYNC: ((f: any) => STATE ? xs.merge(gone(els, STATE, dispose$), f) : f)(
         ev(DOM, d, FAIL).filter((e: any) => e.target === e.ownerTarget).mapTo(true)),
       ...(STATE && {APPLY: watch(els, STATE, (e: any) => !!e.open)}),
     }

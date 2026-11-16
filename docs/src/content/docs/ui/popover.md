@@ -78,7 +78,7 @@ Share.uses = { share: popover({ popover: '.share', trigger: '.share-button' }) }
 | `filters.TOGGLE` | none, or `true` / `false` | Flips `open` (with data: sets it) and shows or hides it: the `trigger` |
 | `filters.TOGGLED` | `true` / `false` | The `toggle` event (a `popovertarget` button, a light dismiss, Escape): sets `open` |
 | `filters.DISMISS` | the event | Controlled only: Escape, a press outside, the focus moving outside (the `keydown`, `pointerdown` or `focusin` event): sets `open: false` and hides it |
-| `filters.SYNC` | `false` | The popover left the page while open (a page change, a conditional render): sets `open: false`, as no `toggle` event comes |
+| `filters.SYNC` | `false` | The popover left the page while open (a page change, a conditional render), or its component was disposed while it was open (a wizard step left: the step's state is kept): sets `open: false`, as no `toggle` event comes |
 
 | `filters.APPLY` | `true` / `false` | `open` changed outside these actions (your reducer wrote it): the popover is shown or hidden to match |
 
